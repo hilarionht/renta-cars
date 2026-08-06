@@ -1,0 +1,20 @@
+# Cargado automaticamente junto a docker-compose.yml (comportamiento nativo de Compose).
+# Solo ajustes de conveniencia de desarrollo (docs/engineering/06-DOCKER.md §4): puertos
+# publicados al host - nunca presente en un entorno remoto.
+
+services:
+  postgres:
+    ports:
+      - '5432:5432'
+
+  redis:
+    ports:
+      - '6379:6379'
+
+  minio:
+    ports:
+      # Puerto host remapeado a 9002 (9000 estaba ocupado por otro proceso en esta
+      # maquina) - el puerto interno del contenedor sigue siendo 9000, sin cambios en
+      # docker-compose.yml. Ver STORAGE_ENDPOINT en .env.example.
+      - '9002:9000'
+      - '9001:9001'
