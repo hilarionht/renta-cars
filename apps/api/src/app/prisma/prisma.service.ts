@@ -11,7 +11,7 @@ import { PrismaClient } from '@prisma/client';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor(configService: ConfigService) {
     super({
-      adapter: new PrismaPg({ connectionString: configService.getOrThrow<string>('DATABASE_URL') }),
+      adapter: new PrismaPg({ connectionString: configService.getOrThrow<string>('database.url') }),
     });
   }
 
