@@ -1,0 +1,3 @@
+// @@schema("support") — File, Notification, AuditLogEntry, outbox_event
+// (docs/technical/02-PROYECTOS.md §2.5, docs/technical/04-PERSISTENCE.md §4).
+// Vacio a proposito: Fase 0 de docs/01-ROADMAP.md §2 agrega los primeros modelos.

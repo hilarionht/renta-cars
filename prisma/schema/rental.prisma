@@ -1,0 +1,3 @@
+// @@schema("rental") — Customer, Vehicle, VehicleCategory, Reservation, Invoice/Charge
+// (empaquetado fisico, docs/technical/04-PERSISTENCE.md §1). docs/technical/02-PROYECTOS.md §3.
+// Vacio a proposito: Fase 0 de docs/01-ROADMAP.md §2 agrega los primeros modelos.

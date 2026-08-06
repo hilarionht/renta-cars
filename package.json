@@ -3,7 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "graph": "nx graph",
+    "generate:module": "nx g ./tooling/generators:bounded-context",
+    "generate:feature": "nx g ./tooling/generators:frontend-feature",
+    "db:migrate": "ts-node tooling/scripts/db/migrate.ts",
+    "db:seed": "ts-node tooling/scripts/db/seed.ts",
+    "db:studio": "prisma studio"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.1",
@@ -24,6 +30,7 @@
     "@swc/helpers": "~0.5.18",
     "@types/jest": "~30.0.0",
     "@types/node": "^22.0.0",
+    "dotenv": "^17.4.2",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
@@ -35,11 +42,14 @@
     "lint-staged": "^17.3.0",
     "nx": "23.1.1",
     "prettier": "^3.9.6",
+    "prisma": "^7.9.1",
     "ts-jest": "^29.4.7",
     "ts-node": "10.9.1",
     "tslib": "^2.3.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.66.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@prisma/client": "^7.9.1"
+  }
 }

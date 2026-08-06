@@ -1,0 +1,18 @@
+// datasource + generator, sin modelos - docs/technical/04-PERSISTENCE.md SS1.
+// Los seis schemas de PostgreSQL (uno por Bounded Context, docs/persistence/01-SCHEMAS.md
+// SS1) se declaran aqui para que `prisma migrate` los cree desde la primera migracion,
+// aunque todavia no tengan modelos (paso 6 de docs/engineering/10-BOOTSTRAP-PLAN.md).
+//
+// Prisma 7 ya no acepta `url` en el datasource (ver prisma.config.ts, que lo provee para
+// Migrate) ni conecta el PrismaClient por URL directa - requiere un `adapter` en el
+// constructor. Ese adapter se agrega en el paso 7/8 del bootstrap, junto con el
+// PrismaService real de apps/api; no hay codigo de aplicacion todavia que lo necesite.
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["identity", "organization", "scheduling", "rental", "commerce", "support"]
+}
+
+generator client {
+  provider = "prisma-client-js"
+}

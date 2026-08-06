@@ -18,7 +18,7 @@ export const baseConfig = tseslint.config({
       // compartidos de tooling/) no tienen tsconfig.json propio - se typechequean con el
       // "default project" en vez de fallar el parseo.
       projectService: {
-        allowDefaultProject: ['jest.config.ts', 'tooling/jest/*.ts'],
+        allowDefaultProject: ['jest.config.ts', 'prisma.config.ts', 'tooling/jest/*.ts'],
       },
       tsconfigRootDir: process.cwd(),
     },
