@@ -61,8 +61,10 @@ export const boundariesConfig = [
           // tooling/eslint/ y tooling/jest/ no son proyectos Nx (no tienen alias @platform/
           // @rental/@frontend, docs/technical/01-MONOREPO.md SS8) - todo proyecto los
           // referencia por ruta relativa desde su propio eslint.config.mjs/jest.config.ts,
-          // que es exactamente el patron que este `allow` exceptua.
-          allow: ['tooling/eslint/', 'tooling/jest/'],
+          // que es exactamente el patron que este `allow` exceptua. El eslint.config.mjs
+          // raiz tampoco es un proyecto Nx (es config, no codigo de dominio) - generadores
+          // oficiales de Nx (@nx/nest, @nx/next, ...) lo referencian por ruta relativa.
+          allow: ['tooling/eslint/', 'tooling/jest/', 'eslint\\.config\\.mjs$'],
           depConstraints,
         },
       ],
