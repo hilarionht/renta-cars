@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "BoundedContext",
+  "title": "Bounded Context",
+  "description": "Genera el trio domain/application/infrastructure (o el par application/infrastructure con skipDomain) de un modulo de negocio, segun docs/engineering/01-WORKSPACE.md SS5.1.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre del modulo, kebab-case (p. ej. vehicles).",
+      "$default": { "$source": "argv", "index": 0 },
+      "x-prompt": "Nombre del modulo (kebab-case)?"
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["platform", "product-rental"],
+      "description": "Alcance del modulo: platform (libs/platform) o product-rental (libs/products/rental).",
+      "x-prompt": {
+        "message": "Alcance del modulo?",
+        "type": "list",
+        "items": [
+          { "value": "platform", "label": "platform" },
+          { "value": "product-rental", "label": "product-rental" }
+        ]
+      }
+    },
+    "skipDomain": {
+      "type": "boolean",
+      "description": "Excepcion 'sin domain' de docs/technical/01-MONOREPO.md SS3.1 - genera solo application+infrastructure.",
+      "default": false
+    }
+  },
+  "required": ["name", "scope"]
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "FrontendFeature",
+  "title": "Frontend Feature",
+  "description": "Genera la estructura de una feature de app conforme a docs/06-CONVENCIONES-FRONTEND.md, con imports ya apuntando a frontend-data-access, frontend-domain-types y el ui-kit de la plataforma destino - docs/engineering/01-WORKSPACE.md SS5.2.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre de la feature, kebab-case (p. ej. reservations).",
+      "$default": { "$source": "argv", "index": 0 },
+      "x-prompt": "Nombre de la feature (kebab-case)?"
+    },
+    "app": {
+      "type": "string",
+      "enum": ["web-admin", "mobile"],
+      "description": "App destino.",
+      "x-prompt": {
+        "message": "App destino?",
+        "type": "list",
+        "items": [
+          { "value": "web-admin", "label": "web-admin (Next.js)" },
+          { "value": "mobile", "label": "mobile (Expo)" }
+        ]
+      }
+    }
+  },
+  "required": ["name", "app"]
+}

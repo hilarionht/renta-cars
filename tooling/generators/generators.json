@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "generators": {
+    "bounded-context": {
+      "factory": "./bounded-context/generator",
+      "schema": "./bounded-context/schema.json",
+      "description": "Genera el trio domain/application/infrastructure (o application/infrastructure con skipDomain) de un modulo de negocio - docs/engineering/01-WORKSPACE.md SS5.1."
+    },
+    "frontend-feature": {
+      "factory": "./frontend-feature/generator",
+      "schema": "./frontend-feature/schema.json",
+      "description": "Genera una feature de app (web-admin o mobile) - docs/engineering/01-WORKSPACE.md SS5.2."
+    }
+  }
+}

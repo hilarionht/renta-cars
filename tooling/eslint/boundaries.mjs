@@ -58,6 +58,11 @@ export const boundariesConfig = [
         'error',
         {
           enforceBuildableLibDependency: true,
+          // tooling/eslint/ y tooling/jest/ no son proyectos Nx (no tienen alias @platform/
+          // @rental/@frontend, docs/technical/01-MONOREPO.md SS8) - todo proyecto los
+          // referencia por ruta relativa desde su propio eslint.config.mjs/jest.config.ts,
+          // que es exactamente el patron que este `allow` exceptua.
+          allow: ['tooling/eslint/', 'tooling/jest/'],
           depConstraints,
         },
       ],

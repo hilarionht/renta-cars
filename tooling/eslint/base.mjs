@@ -14,7 +14,12 @@ export const baseConfig = tseslint.config({
   extends: [...tseslint.configs.recommendedTypeChecked, importX.flatConfigs.typescript],
   languageOptions: {
     parserOptions: {
-      projectService: true,
+      // Archivos .ts sueltos fuera de cualquier proyecto Nx (config raiz de Jest, presets
+      // compartidos de tooling/) no tienen tsconfig.json propio - se typechequean con el
+      // "default project" en vez de fallar el parseo.
+      projectService: {
+        allowDefaultProject: ['jest.config.ts', 'tooling/jest/*.ts'],
+      },
       tsconfigRootDir: process.cwd(),
     },
   },
