@@ -25,6 +25,12 @@ class EnvironmentVariables {
   @IsIn(LOG_LEVELS)
   LOG_LEVEL?: (typeof LOG_LEVELS)[number];
 
+  // Lista separada por comas, nunca "*" (docs/technical/07-SECURITY.md SS4). Opcional: sin
+  // valor, CORS no permite ningun origen cross-site (default mas estricto, no mas laxo).
+  @IsOptional()
+  @IsString()
+  CORS_ORIGINS?: string;
+
   // --- database ---
   @IsString()
   DATABASE_URL!: string;

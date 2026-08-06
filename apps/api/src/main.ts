@@ -1,9 +1,10 @@
-// Secuencia de bootstrap - docs/technical/03-BACKEND-ARCHITECTURE.md SS2. En este paso
-// (7 de docs/engineering/10-BOOTSTRAP-PLAN.md) solo los pasos que no dependen de modulos
-// de negocio ni de seguridad transversal (Helmet/CORS/ValidationPipe/Filters llegan en el
-// paso 9): crear la app con el logger estructurado ya configurado, y escuchar.
+// Secuencia de bootstrap - docs/technical/03-BACKEND-ARCHITECTURE.md SS2. Pasos 2-3 (Helmet/
+// CORS, ValidationPipe) agregados en el paso 9 de docs/engineering/10-BOOTSTRAP-PLAN.md.
 
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app/app.module';
@@ -12,11 +13,47 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
+  const configService = app.get(ConfigService);
+  const isProduction = configService.getOrThrow<string>('app.nodeEnv') === 'production';
+
+  // docs/technical/07-SECURITY.md SS4: CSP explicita, HSTS activo salvo en desarrollo
+  // local (esta API no sirve HTML/assets - CSP restrictiva por defecto es segura).
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:'],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+        },
+      },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      // Default de helmet es SAMEORIGIN; docs/technical/07-SECURITY.md SS4 pide DENY.
+      frameguard: { action: 'deny' },
+      hsts: isProduction ? { maxAge: 15552000, includeSubDomains: true } : false,
+    }),
+  );
+
+  // docs/technical/07-SECURITY.md SS4: lista explicita de origenes, nunca "*". Vacia hoy
+  // (sin apps/web-admin todavia, paso 13) - bloquea todo cross-origin por defecto.
+  const corsOrigins = configService.getOrThrow<string[]>('app.corsOrigins');
+  app.enableCors({ origin: corsOrigins.length > 0 ? corsOrigins : false, credentials: true });
+
+  // docs/technical/03-BACKEND-ARCHITECTURE.md SS5: whitelist + forbidNonWhitelisted
+  // (rechaza campos no declarados, docs/contracts/03-REQUEST-RESPONSE-STANDARDS.md SS1.1)
+  // + transform (coercion de tipos declarados).
+  app.useGlobalPipes(
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+  );
+
   // docs/08-API-CONTRACTS.md SS1: recursos de negocio bajo /api/v1 - /health/* queda fuera
   // (docs/technical/03-BACKEND-ARCHITECTURE.md SS10, rutas exactas sin prefijo).
   app.setGlobalPrefix('api/v1', { exclude: ['health/live', 'health/ready'] });
 
-  const port = process.env.PORT ?? 3000;
+  const port = configService.getOrThrow<number>('app.port');
   await app.listen(port);
 
   app.get(Logger).log(`apps/api escuchando en http://localhost:${port}`);
