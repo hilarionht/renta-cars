@@ -1,0 +1,97 @@
+# 02 — Resource Catalog
+
+Catálogo completo de recursos de la Plataforma, derivado mecánicamente de los 17 Aggregate Roots de [model/02-AGGREGATES.md](../model/02-AGGREGATES.md) y de sus entidades internas ([model/03-ENTITIES.md](../model/03-ENTITIES.md)), aplicando las reglas de [01-REST-STANDARDS.md](01-REST-STANDARDS.md). **No define endpoints concretos** — no hay verbos HTTP + path completo aquí, solo qué existe como recurso, qué operaciones de negocio son válidas sobre él, y cómo se relaciona con otros recursos. La superficie exacta (parámetros, DTOs, respuestas) se deriva de esto en la implementación (OpenAPI generado desde código, [08-API-CONTRACTS.md §8](../08-API-CONTRACTS.md)).
+
+**Regla de derivación**: un recurso público existe por cada Aggregate Root que un actor de [domain/01-ACTORES.md](../domain/01-ACTORES.md) necesita leer o mutar directamente. Una entidad interna se expone como sub-recurso (§1.2 de [01-REST-STANDARDS.md](01-REST-STANDARDS.md)) solo si el negocio la consulta o registra independientemente de un `GET` al agregado completo — de lo contrario, viaja embebida en la representación del agregado.
+
+## 1. Identity & Access
+
+| Recurso | Tipo | Agregado | Operaciones de negocio | Relaciones |
+|---|---|---|---|---|
+| `users` | Público | `User` | Alta, edición de datos propios, deshabilitar/reactivar, cambio de contraseña, asignar/revocar rol | Pertenece a `companies` (implícito, vía token); referencia N `roles` |
+| `users/{id}/roles` | Sub-recurso (unión) | `User` (colección `roles: RoleId[]`) | Asignar (`POST`), revocar (`DELETE`) | Referencia `roles` |
+| `roles` | Público | `Role` | Alta (`Custom`), edición de conjunto de permisos, desactivar (`Custom`) — roles `System` son de solo lectura para toda `Company` | Referenciado por `users/{id}/roles` |
+| `permissions` | Público, solo lectura | Catálogo versionado en código (no agregado, [model/04-VALUE_OBJECTS.md §2](../model/04-VALUE_OBJECTS.md)) | Listar el catálogo vigente | Consumido al construir `roles` |
+| `sessions` | Interno (autogestión) | `Session` | Crear (login), rotar (refresh), revocar (logout) | Referencia `users` |
+| `auth` | Acción, sin recurso raíz propio | — | `login`, `refresh`, `logout`, `forgot-password`, `reset-password` — orquestan `sessions`/`users` sin ser recursos CRUD | — |
+
+## 2. Organization
+
+| Recurso | Tipo | Agregado | Operaciones de negocio | Relaciones |
+|---|---|---|---|---|
+| `companies` | Público (propia) / Interno (cross-tenant) | `Company` | Lectura/edición de datos propios (Administrador de Empresa); suspender/reactivar (solo `platform-admin`, §10 de [01-REST-STANDARDS.md](01-REST-STANDARDS.md)) | Raíz de tenant — toda otra colección se filtra implícitamente por ella |
+| `branches` | Público | `Branch` | Alta, edición, abrir/cerrar | Pertenece a `companies` (implícito); referenciada por `vehicles` |
+| `company-settings` | Público, identidad 1:1 con la company del token (sin `{id}` en el path — siempre "la propia") | `CompanySettings` | Lectura, actualización por política individual (`PATCH` por sección: `cancellation-policy`, `late-return-policy`, `deposit-policy`, `maintenance-threshold-policy`, `payment-methods-enabled`, `enabled-product-modules`, etc.) | Leído por `reservations`, `vehicles`, `invoices` en el momento de aplicar cada política — nunca expuesto embebido en esos recursos |
+
+## 3. Scheduling
+
+| Recurso | Tipo | Agregado | Operaciones de negocio | Relaciones |
+|---|---|---|---|---|
+| `availability` | Público, de solo consulta agregada — **no** expone `availability-slots` como colección CRUD directa | `AvailabilitySlot` | `check` (¿está libre el recurso `R` en el rango `D`?) — consulta compuesta, nunca ocupación/liberación directa desde el cliente | Consultado internamente por `reservations` vía `AvailabilityService` ([model/05-DOMAIN_SERVICES.md §1](../model/05-DOMAIN_SERVICES.md)); nunca referencia `vehicles` en su forma pública (ACL, [model/01-BOUNDED_CONTEXTS.md §4.2](../model/01-BOUNDED_CONTEXTS.md)) |
+
+**Por qué `AvailabilitySlot` no es un recurso CRUD público**: es, por diseño de dominio, un mecanismo interno de `Scheduling` mutado exclusivamente a través de `CalendarPort`, nunca directamente por un cliente HTTP ([model/02-AGGREGATES.md §7](../model/02-AGGREGATES.md): "Reglas de modificación: solo a través del puerto..."). Exponer `POST /availability-slots` violaría esa regla de modelado — el único recurso público de este Bounded Context es una consulta de disponibilidad, nunca una mutación directa de slot.
+
+## 4. Rental Operations
+
+| Recurso | Tipo | Agregado | Operaciones de negocio | Relaciones |
+|---|---|---|---|---|
+| `vehicle-categories` | Público | `VehicleCategory` | Alta, edición | Contiene sub-recurso `rates` |
+| `vehicle-categories/{id}/rates` | Sub-recurso | `Rate` (entidad interna) | Alta (nueva tarifa vigente) — nunca edición/eliminación de una `Rate` histórica (append-only, [model/03-ENTITIES.md §4.2](../model/03-ENTITIES.md)) | Pertenece a `vehicle-categories` |
+| `vehicles` | Público | `Vehicle` | Alta, edición de datos propios, `enable`, `schedule-maintenance`, `report-damage`, `mark-out-of-service` | Pertenece a `branches`, a `vehicle-categories`; referenciado por `reservations` |
+| `vehicles/{id}/documents` | Sub-recurso | `VehicleDocument` (entidad interna) | Cargar (nuevo documento — nunca edita uno vigente ni uno vencido) | Pertenece a `vehicles`; referencia `files` |
+| `vehicles/{id}/maintenance-records` | Sub-recurso | `MaintenanceRecord` (entidad interna) | `schedule`, `start`, `complete` (con `fitForService`) | Pertenece a `vehicles` |
+| `customers` | Público | `Customer` | Alta, edición de datos propios, `block`, `unblock` | Referenciado por `reservations` |
+| `customers/{id}/identity-documents` | Sub-recurso | `IdentityDocument` (entidad interna) | Cargar, `verify` (confirmación humana obligatoria si `extractedByOcr=true`, RN-12/INV-011) | Pertenece a `customers`; referencia `files` |
+| `customers/{id}/additional-drivers` | Sub-recurso | `AdditionalDriver` (entidad interna) | Alta, `validate-license`, `revoke` | Pertenece a `customers`; contiene su propio `identity-document` |
+| `reservations` | Público | `Reservation` | Crear (`Draft`), `confirm`, `cancel`, `check-out`, `check-in`, `reschedule`, `request-extension`, `approve-extension`, `swap-vehicle`, `mark-no-show` | Referencia `customers`, `vehicles`; origina por evento una `invoices` |
+| `reservations/{id}/inspections` | Sub-recurso | `Inspection` (entidad interna) | Registrar (solo como parte de `check-out`/`check-in`, nunca como alta independiente) | Pertenece a `reservations` |
+| `reservations/{id}/damage-reports` | Sub-recurso | `DamageReport` (entidad interna) | Registrar (parte de una `inspection`) | Pertenece a `reservations`; referencia la `inspection` que lo detectó |
+
+## 5. Commerce
+
+| Recurso | Tipo | Agregado | Operaciones de negocio | Relaciones |
+|---|---|---|---|---|
+| `invoices` | Público | `Invoice` | Lectura (emisión es automática, reactiva a `ReservationCheckedIn.v1` — nunca un `POST` de cliente); `void` | Referencia `reservations`, `customers`; contiene sub-recurso `charges` |
+| `invoices/{id}/charges` | Sub-recurso, solo lectura | `Charge` (entidad interna) | Ninguna — inmutable tras emisión (INV-022) | Pertenece a `invoices` |
+| `payments` | Público | `Payment` | Crear intento de cobro (`request`), `authorize`, `capture`, `refund` | Referencia opaca a `invoices`/`security-deposits` (`targetType`/`targetId`, nunca expuesto como relación navegable) |
+| `security-deposits` | Público | `SecurityDeposit` | `hold` (disparado por `confirm` de `reservations`, no expuesto como creación directa de cliente), `release`, `retain` | Referencia `reservations` |
+
+## 6. Support
+
+| Recurso | Tipo | Agregado | Operaciones de negocio | Relaciones |
+|---|---|---|---|---|
+| `files` | Público | `File` | Solicitar URL de subida (`upload-url`, devuelve URL firmada de vida corta — el binario nunca pasa por `apps/api`, [11-INTEGRACIONES.md §11](../11-INTEGRACIONES.md)), confirmar subida, `delete` (lógico) | Referenciado desde `vehicles/documents`, `customers/identity-documents`, `reservations/inspections`, `invoices` (PDF) — nunca al revés |
+| `notifications` | Interno (consulta administrativa/soporte, nunca creación directa de cliente) | `Notification` | Lectura de historial de envíos (por actor autorizado); ninguna mutación expuesta a cliente — se crea y transiciona exclusivamente por reacción a eventos internos | Sin relación tipada hacia el agregado origen ([model/02-AGGREGATES.md §16](../model/02-AGGREGATES.md)) |
+| `audit-log` | Interno, solo lectura | `AuditLogEntry` | Consulta (por `subjectType`/`subjectId`, por rango de `occurredAt`) — nunca creación/edición/eliminación expuesta (INV-024) | Referencia genérica a cualquier agregado de cualquier Bounded Context |
+
+## 7. Reports (sin Aggregate Root)
+
+`Reports` no tiene agregados ([model/01-BOUNDED_CONTEXTS.md §3.6](../model/01-BOUNDED_CONTEXTS.md)) — sus recursos son **proyecciones de solo lectura**, nunca la fuente de verdad de un hecho de negocio. Se exponen bajo un prefijo propio, `reports/<proyección>` (p. ej. `reports/revenue-by-branch`, `reports/fleet-utilization`, `reports/reservation-funnel`), cada uno documentado como consulta agregada, no como colección de recursos CRUD — coherente con [ADR-0007](../ADR/0007-cqrs-selectivo.md). El catálogo exacto de proyecciones no se fija en este documento (crece con la necesidad real de negocio, principio rector de [00-VISION.md §5](../00-VISION.md)); la regla de superficie sí: ningún endpoint de `reports` acepta un `POST`/`PATCH`/`DELETE`.
+
+## 8. Matriz de scoping por recurso
+
+Todo recurso hereda el scoping ya fijado en [02-ARQUITECTURA.md §7](../02-ARQUITECTURA.md) y [model/02-AGGREGATES.md](../model/02-AGGREGATES.md) — se resume aquí para que un consumidor de API sepa, sin leer el modelo de dominio completo, a qué nivel filtra cada colección:
+
+| Recurso | Nivel de scoping |
+|---|---|
+| `companies`, `company-settings` | `Company` (siempre "la propia" del token, salvo `platform-admin`) |
+| `branches`, `vehicles`, `vehicle-categories` | `Company`; `vehicles` adicionalmente por `branchId` |
+| `users` | `Company`; opcionalmente por `branchId` (scoping operativo) |
+| `customers`, `reservations`, `invoices`, `payments`, `security-deposits` | `Company` (compartido entre sucursales — un `Customer` alquila en cualquier `Branch` de su `Company`) |
+| `roles` (`System`) | Global de Plataforma — visible a toda `Company`, de solo lectura |
+| `permissions` | Global de Plataforma, de solo lectura |
+| `files`, `notifications`, `audit-log` | `Company` |
+| `availability` (consulta) | `Company`, resuelto internamente contra el recurso (`vehicle`) consultado |
+
+## 9. Qué NO es un recurso de la API pública
+
+- **`AvailabilitySlot`** como colección CRUD — ya justificado en §3.
+- **`PriceAdjustment`**/`price_adjustments`** como recurso independiente — viaja embebido en el `PriceBreakdown` de `reservations`, nunca como colección propia; es homólogo interno de `Charge` en el lenguaje de Rental Operations ([model/04-VALUE_OBJECTS.md §5.2](../model/04-VALUE_OBJECTS.md)), no un recurso que un cliente consulte de forma aislada.
+- **`outbox_event`** — mecanismo transversal de plataforma sin significado de negocio propio ([persistence/01-SCHEMAS.md §5](../persistence/01-SCHEMAS.md)); nunca expuesto por HTTP.
+- **Modelos de persistencia física** (tablas de unión como `user_roles`, `reservation_authorized_drivers`, `inspection_photos`) — se exponen como el sub-recurso de negocio correspondiente (`users/{id}/roles`, la lista de conductores autorizados dentro de `reservations`, las fotos dentro de `inspections`), nunca como su propia colección con nombre de tabla.
+
+## 10. Qué NO se decide en este documento
+
+- Los parámetros de request/response exactos de cada operación → se derivan en la implementación (OpenAPI), siguiendo [03-REQUEST-RESPONSE-STANDARDS.md](03-REQUEST-RESPONSE-STANDARDS.md).
+- Los códigos de error específicos por operación → [07-ERROR-CATALOG.md](07-ERROR-CATALOG.md).
+- El catálogo de proyecciones de `reports` — crece según necesidad real de negocio, no se enumera exhaustivamente aquí.

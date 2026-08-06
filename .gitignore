@@ -1,0 +1,25 @@
+# dependencies
+node_modules
+
+# build output
+dist
+tmp
+out-tsc
+
+# Nx
+.nx/cache
+.nx/workspace-data
+
+# environment
+.env
+.env.local
+
+# editors
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# logs
+npm-debug.log*

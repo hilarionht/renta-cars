@@ -1,0 +1,105 @@
+# 07 — Error Catalog
+
+Catálogo oficial de errores de la Plataforma. Desarrolla [08-API-CONTRACTS.md §4](../08-API-CONTRACTS.md) (RFC 7807 + `code`) y la forma exacta ya fijada en [03-REQUEST-RESPONSE-STANDARDS.md §3](03-REQUEST-RESPONSE-STANDARDS.md). Todo error de cualquier módulo, de Plataforma o de Producto, se declara en este catálogo — un desarrollador que agrega un caso de uso nuevo no inventa un `code` nuevo sin verificar primero si ya existe uno equivalente aquí.
+
+## 1. Regla de nomenclatura
+
+- `code`: `MAYUSCULAS_CON_GUION_BAJO`, en inglés, estable de por vida una vez publicado — nunca se renombra (renombrar un `code` es, a efectos de contrato, eliminar uno y crear otro; sigue la disciplina de compatibilidad de [08-VERSIONING.md](08-VERSIONING.md)).
+- Un `code` identifica **una** causa de negocio o técnica específica — nunca un cajón de sastre (`INVALID_REQUEST` genérico está prohibido salvo como fallback de última instancia documentado explícitamente, §6).
+- `type` (URI de RFC 7807) es mecánico a partir del `code`: `https://docs.platform/errors/<code-en-kebab-case>` — nunca se elige independientemente del `code`.
+- Un `code` pertenece a **una única categoría** de las cuatro de §2 — la categoría determina el rango de `status` HTTP admisible (§3) y quién es responsable de corregirlo (el cliente, el operador, o la Plataforma).
+
+## 2. Las cuatro categorías
+
+| Categoría | Pregunta que responde | Quién puede corregirlo | Ejemplo |
+|---|---|---|---|
+| **Dominio** | ¿Qué regla de negocio impidió la operación? | El cliente/usuario, cambiando su solicitud o su situación de negocio | `RESERVATION_OVERLAP` |
+| **Técnico** | ¿Qué estuvo mal formado o no autorizado en la request en sí? | El cliente (desarrollador del consumidor), corrigiendo la forma de la request | `VALIDATION_FAILED`, `TOKEN_EXPIRED` |
+| **Infraestructura** | ¿Qué falló dentro de la Plataforma sin relación con la request del cliente? | Nadie del lado cliente — es responsabilidad operativa de la Plataforma | `INTERNAL_ERROR` |
+| **Integración** | ¿Qué falló en la comunicación con un proveedor externo? | Depende — a veces el cliente (reintentar más tarde), a veces la Plataforma (proveedor caído) | `PAYMENT_GATEWAY_UNAVAILABLE` |
+
+## 3. Errores de dominio
+
+Todo error de dominio corresponde a una excepción de dominio tipada (`DomainError`, [05-CONVENCIONES-BACKEND.md §6](../05-CONVENCIONES-BACKEND.md)), casi siempre trazable a un invariante de [model/07-INVARIANTS.md](../model/07-INVARIANTS.md). Este catálogo no reproduce las ~140 filas de invariantes — fija el **mapeo** de la clase de invariante violado al `code`/`status` correspondiente, y lista los ejemplos de mayor uso.
+
+| `code` | `status` | Invariante/regla de origen | Cuándo ocurre |
+|---|---|---|---|
+| `RESERVATION_OVERLAP` | `409` | INV-102/RN-02 | Confirmar una `Reservation` sobre un `Vehicle` ya comprometido en el rango |
+| `VEHICLE_NOT_AVAILABLE` | `409` | INV-101/RN-01, INV-103/RN-04 | El `Vehicle` no está disponible (mantenimiento, fuera de servicio) en el rango solicitado |
+| `CUSTOMER_NOT_ELIGIBLE` | `422` | INV-104/RN-08 | El `Customer` tiene documentación vencida o está bloqueado al intentar `confirm()` |
+| `DRIVER_NOT_VALIDATED` | `422` | INV-105/RN-09 | Un `AdditionalDriver` declarado no está `Validated` al intentar `checkOut()` |
+| `INSPECTION_REQUIRED` | `422` | INV-003/RN-13, INV-004/RN-14 | `checkOut()`/`checkIn()` sin la `Inspection` correspondiente completa |
+| `INVOICE_NOT_YET_ISSUED` | `409` | INV-005/INV-108/RN-22 | Intento de `close()` sobre una `Reservation` sin `InvoiceIssued.v1` recibido |
+| `INVALID_STATE_TRANSITION` | `409` | [model/08-STATE_MACHINES.md](../model/08-STATE_MACHINES.md) (cualquier transición no listada como válida) | Cualquier comando de transición de máquina de estados sobre un agregado en un estado que no lo admite |
+| `VEHICLE_DOCUMENTATION_INCOMPLETE` | `422` | INV-007/RN-27 | Intento de `enable()` un `Vehicle` sin documentación vigente completa |
+| `EXTENSION_COLLIDES` | `409` | INV-106/RN-30 | Una extensión solicitada colisiona con otra `Reservation` confirmada, sin `swapVehicle()` |
+| `MAINTENANCE_COLLIDES_WITH_RESERVATION` | `409` | INV-107/RN-30 | Programar mantenimiento sobre un `Vehicle` con `Reservation` confirmada en el rango |
+| `BRANCH_CLOSED` | `409` | INV-112 | `checkOut()`/`checkIn()` sobre una `Branch` cerrada |
+| `RATE_OVERLAP` | `409` | INV-010/RN-20 | Alta de `Rate` cuya vigencia se solapa con otra de la misma `VehicleCategory` |
+| `INVOICE_ALREADY_ISSUED` | `409` | INV-023/RN-22 | Intento de emitir una segunda `Invoice` para la misma `Reservation` sin anulación previa |
+| `CHARGE_IMMUTABLE` | `409` | INV-022 | Intento de modificar un `Charge` tras la emisión de su `Invoice` |
+| `DEPOSIT_ALREADY_RESOLVED` | `409` | INV-020 | Intento de liberar/retener un `SecurityDeposit` ya resuelto |
+| `DEPOSIT_RETENTION_EXCEEDS_HELD` | `422` | INV-019 | Intento de retener más de lo originalmente retenido |
+| `PAYMENT_ALREADY_PROCESSED` | `409` | INV-021 | Reintento de una operación de cobro con `IdempotencyKey` ya procesada con resultado distinto al solicitado |
+| `ROLE_SYSTEM_IMMUTABLE` | `409` | INV-026 | Intento de editar/eliminar un `Role` de alcance `System` |
+| `USER_DISABLED` | `403` | [model/02-AGGREGATES.md §1](../model/02-AGGREGATES.md) | Intento de autenticar un `User` en estado `Disabled` |
+| `COMPANY_SUSPENDED` | `403` | [model/02-AGGREGATES.md §4](../model/02-AGGREGATES.md) | Cualquier operación de negocio sobre una `Company` en `Suspended` |
+| `PRODUCT_MODULE_NOT_ENABLED` | `403` | [02-ARQUITECTURA.md §4.2](../02-ARQUITECTURA.md) | Acceso a un recurso de `scope:product-rental` sin `Rental` en `EnabledProductModules` |
+| `CUSTOMER_BLOCKED` | `403` | [model/02-AGGREGATES.md §10](../model/02-AGGREGATES.md) | Intento de confirmar una `Reservation` de un `Customer` bloqueado |
+| `RESOURCE_DELETION_NOT_SUPPORTED` | `409` | §2.1 de [01-REST-STANDARDS.md](01-REST-STANDARDS.md) | `DELETE` sobre un recurso cuyo ciclo de vida no admite eliminación directa |
+
+**Regla de status para errores de dominio**: `409` cuando el conflicto es contra el **estado actual** del sistema (algo que era válido en otro momento, ya no lo es ahora — solapamiento, transición inválida); `422` cuando el conflicto es contra el **contenido semántico** de la propia solicitud, independiente de cuándo se envíe (documentación incompleta, monto que excede lo retenido) — misma distinción ya fijada en [08-API-CONTRACTS.md §4](../08-API-CONTRACTS.md).
+
+## 4. Errores técnicos
+
+| `code` | `status` | Cuándo ocurre |
+|---|---|---|
+| `VALIDATION_FAILED` | `400` | `ValidationPipe` rechaza el cuerpo — ver `errors[]` en la respuesta ([03-REQUEST-RESPONSE-STANDARDS.md §3.1](03-REQUEST-RESPONSE-STANDARDS.md)) |
+| `UNAUTHENTICATED` | `401` | Ausencia de `Authorization` en un endpoint protegido |
+| `TOKEN_EXPIRED` | `401` | `access_token` expirado — única señal que dispara refresh automático en el cliente ([08-API-CONTRACTS.md §9](../08-API-CONTRACTS.md)) |
+| `TOKEN_INVALID` | `401` | Firma inválida, malformado, o de un `kid` desconocido/revocado |
+| `FORBIDDEN` | `403` | `PermissionGuard` rechaza por RBAC insuficiente (distinto de un `403` de dominio como `COMPANY_SUSPENDED` — este es puramente de autorización técnica) |
+| `RESOURCE_NOT_FOUND` | `404` | El recurso no existe, o no pertenece al tenant del token — mismo código en ambos casos, para no filtrar existencia entre tenants ([08-API-CONTRACTS.md §4](../08-API-CONTRACTS.md)) |
+| `IDEMPOTENCY_KEY_REQUIRED` | `400` | Ausencia de `Idempotency-Key` en un endpoint que lo exige (§4 de [01-REST-STANDARDS.md](01-REST-STANDARDS.md)) |
+| `IDEMPOTENCY_KEY_CONFLICT` | `409` | La misma `Idempotency-Key` reutilizada con un cuerpo de request distinto al original |
+| `CONCURRENT_MODIFICATION` | `412` | `If-Match` no coincide con el `version` vigente (§8.1 de [01-REST-STANDARDS.md](01-REST-STANDARDS.md)) |
+| `UNSUPPORTED_SORT_FIELD` | `400` | `sort` sobre un campo no soportado (§6 de [01-REST-STANDARDS.md](01-REST-STANDARDS.md)) |
+| `UNSUPPORTED_FILTER` | `400` | Filtro no soportado por el endpoint (§7 de [01-REST-STANDARDS.md](01-REST-STANDARDS.md)) |
+| `UNSUPPORTED_EXPAND` | `400` | `expand` no soportado (§2.2 de [03-REQUEST-RESPONSE-STANDARDS.md](03-REQUEST-RESPONSE-STANDARDS.md)) |
+| `FIELD_CANNOT_BE_NULL` | `422` | `PATCH` con `null` sobre un campo obligatorio del dominio (§1.2 de [03-REQUEST-RESPONSE-STANDARDS.md](03-REQUEST-RESPONSE-STANDARDS.md)) |
+| `RATE_LIMITED` | `429` | `ThrottlerGuard` — mismo formato de error que el resto de la API ([09-SEGURIDAD.md §6](../09-SEGURIDAD.md)) |
+| `INTERNAL_ERROR` | `500` | Cualquier excepción no mapeada (`AllExceptionsFilter`, [technical/03-BACKEND-ARCHITECTURE.md §6](../technical/03-BACKEND-ARCHITECTURE.md)) — nunca expone detalle interno, `detail` es siempre un mensaje genérico, el detalle real vive en el log correlacionado por `correlationId` |
+
+## 5. Errores de infraestructura
+
+Subconjunto de errores técnicos donde la causa es explícitamente ajena a la request del cliente — se distinguen porque cambian la semántica de "qué debe hacer el cliente al recibirlos" (reintentar más tarde, no corregir la request):
+
+| `code` | `status` | Cuándo ocurre | Acción esperada del cliente |
+|---|---|---|---|
+| `SERVICE_UNAVAILABLE` | `503` | `/health/ready` indica dependencia no disponible (Postgres/Redis), propagado como respuesta genérica de servicio no disponible | Reintentar con backoff — nunca inmediato |
+| `DATABASE_UNAVAILABLE` | `500` (nunca expuesto como `code` distinto al cliente final — se registra como `INTERNAL_ERROR` hacia afuera) | Fallo de conexión a PostgreSQL dentro de una transacción | El cliente solo ve `INTERNAL_ERROR`; este `code` interno es de uso exclusivo de logging/alertas, nunca serializado en una respuesta HTTP — evita filtrar detalle de infraestructura interna al consumidor |
+
+**Por qué la mayoría de errores de infraestructura no tienen `code` propio expuesto**: exponer el detalle de qué componente interno falló (Postgres vs. Redis vs. un worker de BullMQ) al cliente HTTP no le da ninguna acción distinta a tomar (siempre es "reintentar más tarde") y sí filtra información de arquitectura interna innecesariamente — coherente con [09-SEGURIDAD.md §8](../09-SEGURIDAD.md) (Security Misconfiguration: nunca exponer detalle interno). El detalle vive en logs/trazas, correlacionado por `correlationId`.
+
+## 6. Errores de integración
+
+| `code` | `status` | Cuándo ocurre |
+|---|---|---|
+| `PAYMENT_GATEWAY_UNAVAILABLE` | `503` | `PaymentGatewayPort` agota reintentos/timeout contra el proveedor — la operación de negocio (`Payment`) queda en `Requested`/`Failed` según corresponda, nunca en un estado ambiguo |
+| `PAYMENT_DECLINED` | `402` | El proveedor rechaza explícitamente el cobro (fondos insuficientes, tarjeta inválida) — distinto de `PAYMENT_GATEWAY_UNAVAILABLE`: aquí el proveedor respondió, y respondió "no" |
+| `NOTIFICATION_CHANNEL_UNAVAILABLE` | Nunca expuesto como error HTTP síncrono — se traduce a `warning` (§4 de [03-REQUEST-RESPONSE-STANDARDS.md](03-REQUEST-RESPONSE-STANDARDS.md)) o a `NotificationFailed.v1`, nunca bloquea la operación de negocio que la originó | Fallo de envío por WhatsApp/Email/SMS |
+| `STORAGE_UNAVAILABLE` | `503` | `StorageProviderPort` no responde — bloquea únicamente la operación de subida/lectura de archivo en curso, nunca una operación de negocio no relacionada |
+| `EXTERNAL_WEBHOOK_SIGNATURE_INVALID` | `401` (respuesta al proveedor, nunca visible a un cliente de tenant) | Firma de webhook entrante no verificada (§2 de [06-WEBHOOKS.md](06-WEBHOOKS.md)) |
+| `OCR_EXTRACTION_FAILED` | Nunca error bloqueante — degrada a captura manual (§4 de [05-INTEGRATION-CONTRACTS.md](05-INTEGRATION-CONTRACTS.md)); se expone como `warning`, nunca como error `4xx`/`5xx` de la operación de registro de documento | Fallo del proveedor de OCR |
+
+**Código `402`**: único uso reservado exclusivamente para rechazo explícito de cobro por el proveedor (`PAYMENT_DECLINED`) — no se reutiliza `402` para ningún otro significado en toda la Plataforma, evitando la ambigüedad histórica de ese código HTTP.
+
+## 7. Errores no mapeados — fallback
+
+Un error que no corresponde a ninguna fila de este catálogo, y que un desarrollador considera necesario, **no se improvisa con un `code` ad-hoc no documentado** — se agrega primero a este catálogo (PR que actualiza este documento) antes o junto con el código que lo produce. El único `code` de fallback genérico permitido, y exclusivamente para errores verdaderamente no clasificables de antemano, es `INTERNAL_ERROR` (§4) — nunca un `code` de dominio inventado en el momento sin pasar por este documento.
+
+## 8. Qué NO se decide en este documento
+
+- El texto exacto de `title`/`detail` por idioma (`Accept-Language`, §9 de [01-REST-STANDARDS.md](01-REST-STANDARDS.md)) → catálogo de mensajes de la implementación, fuera de alcance de un documento de contratos.
+- Los umbrales de `RATE_LIMITED` por perfil de ruta → Fase 6 ([technical/07-SECURITY.md §5](../technical/07-SECURITY.md)).
+- El listado exhaustivo de los ~140 invariantes de [model/07-INVARIANTS.md](../model/07-INVARIANTS.md) uno a uno — solo los de mayor uso operativo están en §3; un invariante nuevo que produzca un error de dominio se agrega a este catálogo cuando su caso de uso se implementa, no se preasignan códigos especulativos.

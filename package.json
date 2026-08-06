@@ -1,0 +1,20 @@
+{
+  "name": "renta",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {},
+  "devDependencies": {
+    "nx": "23.1.1",
+    "@nx/js": "23.1.1",
+    "@nx/node": "23.1.1",
+    "@nx/nest": "23.1.1",
+    "@nx/next": "23.1.1",
+    "@nx/expo": "23.1.1",
+    "@nx/react": "23.1.1",
+    "@nx/jest": "23.1.1",
+    "@nx/playwright": "23.1.1",
+    "@nx/eslint": "23.1.1",
+    "@nx/storybook": "23.1.1",
+    "typescript": "~6.0.3"
+  }
+}
