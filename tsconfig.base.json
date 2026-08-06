@@ -3,6 +3,16 @@
   "compilerOptions": {
     "rootDir": ".",
     "baseUrl": ".",
+    // Convención de alias (docs/engineering/01-WORKSPACE.md §4, docs/technical/01-MONOREPO.md
+    // §8): un `path` por proyecto Nx, agregado automáticamente por
+    // tooling/generators/bounded-context y tooling/generators/frontend-feature — nunca a
+    // mano, salvo la entrada inicial de `shared-kernel`.
+    //   "@platform/<module>/<type>": ["libs/platform/<module>/<type>/src/index.ts"]
+    //   "@rental/<module>/<type>":   ["libs/products/rental/<module>/<type>/src/index.ts"]
+    //   "@frontend/<lib>":           ["libs/frontend/<lib>/src/index.ts"]   (sin sufijo <type>)
+    // Sin entradas todavía: no existe ningún proyecto Nx que las necesite (paso 3 de
+    // docs/engineering/10-BOOTSTRAP-PLAN.md). Se generan a partir del paso 4 en adelante.
+    "paths": {},
     "target": "es2022",
     "module": "esnext",
     "moduleResolution": "node",
