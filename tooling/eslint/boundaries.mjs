@@ -38,8 +38,17 @@ export const depConstraints = [
     onlyDependOnLibsWithTags: ['type:domain', 'type:application', 'type:infrastructure', 'scope:shared'],
   },
 
-  // Eje type - frontend (06-CONVENCIONES-FRONTEND.md, "un boton no sabe de reservas").
-  { sourceTag: 'type:feature', onlyDependOnLibsWithTags: ['type:feature', 'type:ui', 'type:util'] },
+  // Eje type - type:feature lo llevan tanto apps/api (scope:platform) como web-admin/
+  // mobile (scope:frontend) - docs/technical/02-PROYECTOS.md SS1. apps/api es la raiz de
+  // composicion (docs/technical/03-BACKEND-ARCHITECTURE.md SS1: "AppModule importa los
+  // modulos NestJS de cada libreria infrastructure"), asi que necesita alcanzar
+  // domain/application/infrastructure - la regla de scope:frontend de arriba ya impide que
+  // web-admin/mobile lleguen a scope:platform/scope:product-rental, asi que ensanchar esto
+  // no les abre nada nuevo a ellos, solo a apps/api.
+  {
+    sourceTag: 'type:feature',
+    onlyDependOnLibsWithTags: ['type:feature', 'type:ui', 'type:util', 'type:domain', 'type:application', 'type:infrastructure'],
+  },
   { sourceTag: 'type:ui', onlyDependOnLibsWithTags: ['type:ui'] },
 
   // type:e2e es siempre hoja terminal del grafo - nadie lo importa (regla 5 de SS5).

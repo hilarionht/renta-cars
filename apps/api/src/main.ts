@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app/app.module';
+import { validationExceptionFactory } from './app/errors/validation-exception-factory';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -46,7 +47,12 @@ async function bootstrap(): Promise<void> {
   // (rechaza campos no declarados, docs/contracts/03-REQUEST-RESPONSE-STANDARDS.md SS1.1)
   // + transform (coercion de tipos declarados).
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      exceptionFactory: validationExceptionFactory,
+    }),
   );
 
   // docs/08-API-CONTRACTS.md SS1: recursos de negocio bajo /api/v1 - /health/* queda fuera

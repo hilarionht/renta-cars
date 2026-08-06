@@ -1,0 +1,19 @@
+{
+  "name": "platform-shared-kernel",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/shared-kernel/src",
+  "projectType": "library",
+  "tags": ["scope:shared", "type:domain", "module:shared-kernel"],
+  "// targets": "to see all targets run: nx show project platform-shared-kernel --web",
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/shared-kernel"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

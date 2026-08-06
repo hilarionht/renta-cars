@@ -2,21 +2,12 @@
   "compileOnSave": false,
   "compilerOptions": {
     "rootDir": ".",
-    // Convención de alias (docs/engineering/01-WORKSPACE.md §4, docs/technical/01-MONOREPO.md
-    // §8): un `path` por proyecto Nx, agregado automáticamente por
-    // tooling/generators/bounded-context y tooling/generators/frontend-feature — nunca a
-    // mano, salvo la entrada inicial de `shared-kernel`.
-    //   "@platform/<module>/<type>": ["libs/platform/<module>/<type>/src/index.ts"]
-    //   "@rental/<module>/<type>":   ["libs/products/rental/<module>/<type>/src/index.ts"]
-    //   "@frontend/<lib>":           ["libs/frontend/<lib>/src/index.ts"]   (sin sufijo <type>)
-    "paths": {},
+    "paths": {
+      "@platform/shared-kernel": ["./libs/platform/shared-kernel/src/index.ts"]
+    },
     "target": "es2022",
     "module": "esnext",
     "moduleResolution": "node",
-    // ts-jest/Jest todavia requieren `module: "commonjs"` por proyecto (ver tsconfig.json
-    // que genera tooling/generators/bounded-context), combinacion para la que TypeScript no
-    // ofrece hoy una `moduleResolution` no derecada (TS5107) - ver
-    // https://aka.ms/ts6 (paso 10 revisita esto si Jest deja de requerir CommonJS).
     "ignoreDeprecations": "6.0",
     "lib": ["es2022", "dom"],
     "strict": true,
