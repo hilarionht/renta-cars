@@ -6,8 +6,10 @@ import { LoggerModule } from 'nestjs-pino';
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
 import { validate } from '../config/env.validation';
+import jwtConfig from '../config/jwt.config';
 import redisConfig from '../config/redis.config';
 import storageConfig from '../config/storage.config';
+import { AuthModule } from './auth/auth.module';
 import { AllExceptionsFilter } from './errors/all-exceptions.filter';
 import { DomainExceptionFilter } from './errors/domain-exception.filter';
 import { emptyDomainErrorRegistryProvider } from './errors/domain-error-registry';
@@ -23,7 +25,7 @@ import { HealthModule } from './health/health.module';
     ConfigModule.forRoot({
       isGlobal: true,
       validate,
-      load: [appConfig, databaseConfig, redisConfig, storageConfig],
+      load: [appConfig, databaseConfig, redisConfig, storageConfig, jwtConfig],
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
@@ -37,6 +39,7 @@ import { HealthModule } from './health/health.module';
         },
       }),
     }),
+    AuthModule,
     HealthModule,
   ],
   providers: [

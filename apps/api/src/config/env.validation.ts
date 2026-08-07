@@ -54,6 +54,22 @@ class EnvironmentVariables {
 
   @IsString()
   STORAGE_REGION!: string;
+
+  // --- jwt (docs/technical/07-SECURITY.md SS1, generadas con
+  // tooling/scripts/security/generate-jwt-keys.ts) ---
+  @IsString()
+  JWT_PRIVATE_KEY!: string;
+
+  @IsString()
+  JWT_PUBLIC_KEY!: string;
+
+  @IsString()
+  JWT_ACTIVE_KID!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  JWT_ACCESS_TTL?: number;
 }
 
 // Usado por ConfigModule.forRoot({ validate }) - corre una unica vez al arrancar; si falta
