@@ -1,0 +1,22 @@
+{
+  "name": "api-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/api-e2e/src",
+  "projectType": "application",
+  "tags": ["type:e2e"],
+  "implicitDependencies": ["api"],
+  "targets": {
+    "test": {
+      "dependsOn": ["api:build"]
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p tsconfig.json",
+        "cwd": "apps/api-e2e"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}
