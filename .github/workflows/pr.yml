@@ -1,0 +1,71 @@
+name: PR
+
+# docs/engineering/05-CI-CD.md §2: pipeline completo de PR contra main.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_reusable-ci.yml
+    secrets: inherit
+    with:
+      base: origin/main
+
+  docker-validate:
+    needs: [ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Build sin publicar - valida que la imagen construye, nunca se despliega desde un PR
+      # (docs/engineering/05-CI-CD.md §2, docs/engineering/06-DOCKER.md §1).
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+
+  e2e:
+    needs: [ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      # E2E en cada PR por defecto (docs/engineering/05-CI-CD.md §2) - el umbral para
+      # moverlo a nightly-e2e.yml se decide en Fase 0 con datos reales, no aquí.
+      - name: nx affected --target=e2e
+        env:
+          NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+        run: npx nx affected --target=e2e --base=origin/main
+      - name: Publicar trazas de Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: dist/.playwright/**/playwright-report
+          retention-days: 14
+          if-no-files-found: ignore
+
+  audit:
+    needs: [ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run ci:audit-gate

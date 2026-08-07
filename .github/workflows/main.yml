@@ -1,0 +1,109 @@
+name: Main
+
+# docs/engineering/05-CI-CD.md §3: repite el pipeline de pr.yml (§2.1) sobre el estado final
+# de main, luego construye y publica la imagen de apps/api.
+#
+# Migración contra staging, despliegue a staging y despliegue a producción (§3 puntos 2-4)
+# NO están implementados todavía: technical/08-DEVOPS.md §5 deja el proveedor de
+# hosting/orquestación como "a elegir en implementación", decisión nunca cerrada por ningún
+# documento posterior. Ver docs/ADR/0011-hosting-provider-staging-produccion.md (Propuesto) -
+# implementarlos ahora significaría inventar una decisión de arquitectura no aprobada.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: main-${{ github.sha }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_reusable-ci.yml
+    secrets: inherit
+    with:
+      base: ${{ github.event.before }}
+      head: ${{ github.sha }}
+
+  docker-validate:
+    needs: [ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+
+  e2e:
+    needs: [ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - name: nx affected --target=e2e
+        env:
+          NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+        run: npx nx affected --target=e2e --base=${{ github.event.before }} --head=${{ github.sha }}
+
+  audit:
+    needs: [ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run ci:audit-gate
+
+  publish-image-api:
+    needs: [docker-validate, e2e, audit]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Tag = SHA del commit, inmutable - docs/engineering/05-CI-CD.md §4, nunca se
+      # sobrescribe. Independiente del versionado semántico de Changesets (§4).
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/api:${{ github.sha }}
+
+  version:
+    needs: [ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      # Abre/actualiza el "Version PR" acumulando changesets pendientes - al mergearlo, genera
+      # tags de versión semántica y changelog por app (docs/engineering/05-CI-CD.md §4).
+      - uses: changesets/action@v1
+        with:
+          publish: false

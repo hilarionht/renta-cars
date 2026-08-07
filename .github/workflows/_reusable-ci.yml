@@ -1,0 +1,84 @@
+name: Reusable CI (lint, test, build)
+
+# docs/engineering/05-CI-CD.md §1: pasos comunes a pr.yml y main.yml — main.yml reinvoca
+# este archivo en vez de duplicar lint/test/build.
+
+on:
+  workflow_call:
+    inputs:
+      base:
+        description: 'Base de comparación para `nx affected` (SHA o ref).'
+        required: true
+        type: string
+      head:
+        description: 'Head de comparación para `nx affected` (vacío = working tree).'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  lint-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # nx affected necesita suficiente historia para calcular el diff contra la rama
+          # base (docs/technical/10-DECISIONES.md #7).
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - name: nx affected --target=lint,typecheck
+        env:
+          NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+        run: npx nx affected --target=lint,typecheck --base=${{ inputs.base }} ${{ inputs.head != '' && format('--head={0}', inputs.head) || '' }}
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      # Un unico target `test` cubre unitarios/aplicacion, integracion (Testcontainers, para
+      # cualquier proyecto `type:infrastructure` futuro) y el smoke e2e de api-e2e (mismo
+      # nombre de target `test`, docs/engineering/04-TESTING-FOUNDATION.md) - Nx ya resuelve
+      # `api:build` como dependencia de `api-e2e:test` dentro de esta misma invocación.
+      - name: nx affected --target=test
+        env:
+          NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+        run: npx nx affected --target=test --base=${{ inputs.base }} ${{ inputs.head != '' && format('--head={0}', inputs.head) || '' }}
+      - name: Publicar reporte de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          # Cobertura por proyecto (jest.config.ts de cada libs/apps genera su propio
+          # `coverage/` sin coverageDirectory raíz compartido) - docs/engineering/
+          # 04-TESTING-FOUNDATION.md §7.
+          path: '*/**/coverage'
+          retention-days: 14
+          if-no-files-found: ignore
+
+  build:
+    needs: [lint-typecheck, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - name: nx affected --target=build
+        env:
+          NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+        run: npx nx affected --target=build --base=${{ inputs.base }} ${{ inputs.head != '' && format('--head={0}', inputs.head) || '' }}

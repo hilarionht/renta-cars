@@ -56,7 +56,10 @@ export default async function globalSetup(): Promise<void> {
   });
   registerApiProcess(apiProcess);
 
-  await waitForHealth(`http://localhost:${API_PORT}/health/live`, 30000);
+  // 45s en vez de 30s: bajo carga de la maquina (build+containers+arranque compitiendo por
+  // CPU/IO en paralelo con otros jobs) el health-check ocasionalmente supera 30s aunque
+  // apps/api arranca correctamente - Nx marco esta tarea como flaky con el umbral anterior.
+  await waitForHealth(`http://localhost:${API_PORT}/health/live`, 45000);
 
   process.env.API_E2E_BASE_URL = `http://localhost:${API_PORT}`;
 }

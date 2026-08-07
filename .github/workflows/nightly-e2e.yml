@@ -1,0 +1,37 @@
+name: Nightly E2E
+
+# docs/engineering/05-CI-CD.md §1-2: mecanismo listo para recibir el subconjunto de E2E
+# diferido de pr.yml cuando el equipo fije ese umbral con datos reales de Fase 0
+# (docs/10-TESTING.md §8, docs/technical/08-DEVOPS.md §2.1 - decisión explícitamente no
+# cerrada por ningún documento, no se cierra aquí tampoco). Mientras tanto, corre el
+# conjunto E2E completo contra main como regresión nocturna, no un subconjunto acotado -
+# pr.yml ya ejecuta E2E en cada PR por defecto.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  e2e-full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - name: nx run-many --target=e2e
+        env:
+          NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+        run: npx nx run-many --target=e2e
+      - name: Publicar trazas de Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-nightly
+          path: dist/.playwright/**/playwright-report
+          retention-days: 14
+          if-no-files-found: ignore

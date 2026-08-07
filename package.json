@@ -8,14 +8,23 @@
   "scripts": {
     "prepare": "husky",
     "graph": "nx graph",
+    "dev": "nx serve api",
+    "build": "nx run-many --target=build",
+    "test": "nx affected --target=test",
+    "test:integration": "nx affected --target=test --configuration=integration",
+    "lint": "nx affected --target=lint",
+    "typecheck": "nx affected --target=typecheck",
+    "e2e": "nx affected --target=e2e",
     "generate:module": "nx g ./tooling/generators:bounded-context",
     "generate:feature": "nx g ./tooling/generators:frontend-feature",
     "db:migrate": "ts-node tooling/scripts/db/migrate.ts",
     "db:seed": "ts-node tooling/scripts/db/seed.ts",
     "db:studio": "prisma studio",
-    "security:generate-jwt-keys": "ts-node tooling/scripts/security/generate-jwt-keys.ts"
+    "security:generate-jwt-keys": "ts-node tooling/scripts/security/generate-jwt-keys.ts",
+    "ci:audit-gate": "ts-node tooling/scripts/ci/audit-gate.ts"
   },
   "devDependencies": {
+    "@changesets/cli": "2.31.1",
     "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^21.2.0",
     "@nestjs/schematics": "^11.0.0",
