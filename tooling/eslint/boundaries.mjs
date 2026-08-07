@@ -16,7 +16,12 @@ import { ALL_MODULES } from './modules.mjs';
 
 const moduleConstraints = ALL_MODULES.map((module) => ({
   sourceTag: `module:${module}`,
-  onlyDependOnLibsWithTags: [`module:${module}`, 'scope:shared', 'type:application', 'type:infrastructure'],
+  onlyDependOnLibsWithTags: [
+    `module:${module}`,
+    'scope:shared',
+    'type:application',
+    'type:infrastructure',
+  ],
 }));
 
 export const depConstraints = [
@@ -25,17 +30,30 @@ export const depConstraints = [
   // queda garantizada por el aislamiento de type:domain de abajo: ningun sourceTag permite
   // llegar al domain de otro modulo, sea cual sea su scope).
   { sourceTag: 'scope:platform', notDependOnLibsWithTags: ['scope:product-rental'] },
-  { sourceTag: 'scope:frontend', notDependOnLibsWithTags: ['scope:platform', 'scope:product-rental'] },
+  {
+    sourceTag: 'scope:frontend',
+    notDependOnLibsWithTags: ['scope:platform', 'scope:product-rental'],
+  },
 
   // Eje type - direccion de dependencia de Clean Architecture (mismo modulo, matriz SS5).
   { sourceTag: 'type:domain', onlyDependOnLibsWithTags: ['type:domain', 'scope:shared'] },
   {
     sourceTag: 'type:application',
-    onlyDependOnLibsWithTags: ['type:domain', 'type:application', 'type:infrastructure', 'scope:shared'],
+    onlyDependOnLibsWithTags: [
+      'type:domain',
+      'type:application',
+      'type:infrastructure',
+      'scope:shared',
+    ],
   },
   {
     sourceTag: 'type:infrastructure',
-    onlyDependOnLibsWithTags: ['type:domain', 'type:application', 'type:infrastructure', 'scope:shared'],
+    onlyDependOnLibsWithTags: [
+      'type:domain',
+      'type:application',
+      'type:infrastructure',
+      'scope:shared',
+    ],
   },
 
   // Eje type - type:feature lo llevan tanto apps/api (scope:platform) como web-admin/
@@ -47,7 +65,14 @@ export const depConstraints = [
   // no les abre nada nuevo a ellos, solo a apps/api.
   {
     sourceTag: 'type:feature',
-    onlyDependOnLibsWithTags: ['type:feature', 'type:ui', 'type:util', 'type:domain', 'type:application', 'type:infrastructure'],
+    onlyDependOnLibsWithTags: [
+      'type:feature',
+      'type:ui',
+      'type:util',
+      'type:domain',
+      'type:application',
+      'type:infrastructure',
+    ],
   },
   { sourceTag: 'type:ui', onlyDependOnLibsWithTags: ['type:ui'] },
 
@@ -73,7 +98,7 @@ export const boundariesConfig = [
           // que es exactamente el patron que este `allow` exceptua. El eslint.config.mjs
           // raiz tampoco es un proyecto Nx (es config, no codigo de dominio) - generadores
           // oficiales de Nx (@nx/nest, @nx/next, ...) lo referencian por ruta relativa.
-          allow: ['tooling/eslint/', 'tooling/jest/', 'eslint\\.config\\.mjs$'],
+          allow: ['tooling/eslint/', 'tooling/jest/', 'tooling/testing/', 'eslint\\.config\\.mjs$'],
           depConstraints,
         },
       ],

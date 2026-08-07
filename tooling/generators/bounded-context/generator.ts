@@ -111,10 +111,10 @@ export default async function boundedContextGenerator(
           ].join('\n'),
     );
 
-    // docs/engineering/04-TESTING-FOUNDATION.md SS1: preset unico en tooling/jest/base.config.ts.
-    // @nx/js:library genera por defecto jest.config.cts (con `module.exports`, que falla al
-    // typecheckearse con ts-jest en este workspace) - se reemplaza por un jest.config.ts que
-    // apunta al preset unico.
+    // docs/engineering/04-TESTING-FOUNDATION.md SS1: preset unico en tooling/jest/base.config.ts,
+    // con la particularidad de cada fila de esa tabla agregada aqui por capa. @nx/js:library
+    // genera por defecto jest.config.cts (con `module.exports`, que falla al typecheckearse
+    // en este workspace) - se reemplaza siempre por un jest.config.ts.
     tree.delete(joinPathFragments(projectRoot, 'jest.config.cts'));
     const jestPresetPath = joinPathFragments(
       offsetFromRoot(projectRoot),
@@ -122,17 +122,36 @@ export default async function boundedContextGenerator(
     );
     tree.write(
       joinPathFragments(projectRoot, 'jest.config.ts'),
-      [
-        'export default {',
-        `  displayName: '${projectName}',`,
-        `  preset: '${jestPresetPath}',`,
-        "  testEnvironment: 'node',",
-        // Un modulo recien generado no tiene tests todavia - `nx test` no debe fallar solo
-        // por ausencia de specs (distinto de un test que existe y falla).
-        '  passWithNoTests: true,',
-        '};',
-        '',
-      ].join('\n'),
+      layer === 'infrastructure'
+        ? [
+            'export default {',
+            `  displayName: '${projectName}',`,
+            `  preset: '${jestPresetPath}',`,
+            "  testEnvironment: 'node',",
+            "  testMatch: ['**/*.integration.spec.ts'],",
+            // globalSetup/globalTeardown de Testcontainers - un contenedor por proyecto,
+            // reutilizado entre todos los .integration.spec.ts de esta corrida (SS2).
+            `  globalSetup: '${joinPathFragments(offsetFromRoot(projectRoot), 'tooling/testing/testcontainers/jest-global-setup.ts')}',`,
+            `  globalTeardown: '${joinPathFragments(offsetFromRoot(projectRoot), 'tooling/testing/testcontainers/jest-global-teardown.ts')}',`,
+            '  testTimeout: 60000,',
+            '  passWithNoTests: true,',
+            '};',
+            '',
+          ].join('\n')
+        : [
+            'export default {',
+            `  displayName: '${projectName}',`,
+            `  preset: '${jestPresetPath}',`,
+            "  testEnvironment: 'node',",
+            // docs/engineering/04-TESTING-FOUNDATION.md SS1: coverage activa por defecto en
+            // domain/application (opt-in en infrastructure, por eso no aparece arriba).
+            '  collectCoverage: true,',
+            // Un modulo recien generado no tiene tests todavia - `nx test` no debe fallar solo
+            // por ausencia de specs (distinto de un test que existe y falla).
+            '  passWithNoTests: true,',
+            '};',
+            '',
+          ].join('\n'),
     );
 
     // El binding puerto -> adaptador de docs/05-CONVENCIONES-BACKEND.md SS3-4 (`<modulo>.module.ts`,

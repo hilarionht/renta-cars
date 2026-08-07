@@ -9,7 +9,16 @@ import { baseConfig } from './base.mjs';
 import { boundariesConfig } from './boundaries.mjs';
 
 /** @type {import('eslint').Linter.Config[]} */
-export const sharedConfig = [...nx.configs['flat/base'], ...baseConfig, ...boundariesConfig];
+export const sharedConfig = [
+  // Ignores globales aqui (no solo en el eslint.config.mjs raiz): `nx run <proyecto>:lint`
+  // corre `eslint .` acotado a la carpeta del proyecto, usando el eslint.config.mjs propio
+  // de ese proyecto (que reexporta sharedConfig) - el `ignores` del raiz nunca se evalua
+  // en ese caso.
+  { ignores: ['**/dist', '**/coverage', '**/.next', '**/.expo'] },
+  ...nx.configs['flat/base'],
+  ...baseConfig,
+  ...boundariesConfig,
+];
 
 export { domainLayerRestrictions } from './domain-restrictions.mjs';
 export { ALL_MODULES, PLATFORM_MODULES, RENTAL_MODULES } from './modules.mjs';

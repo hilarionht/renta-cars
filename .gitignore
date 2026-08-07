@@ -16,6 +16,7 @@ out-tsc
 
 # editors
 .idea
+.claude
 
 # OS
 .DS_Store
