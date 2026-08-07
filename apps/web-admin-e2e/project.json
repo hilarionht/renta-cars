@@ -1,0 +1,7 @@
+{
+  "name": "web-admin-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/web-admin-e2e/src",
+  "projectType": "application",
+  "tags": ["type:e2e"]
+}
