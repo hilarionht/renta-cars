@@ -11,7 +11,13 @@ export interface RedisTestContainer {
 
 export async function startRedisContainer(): Promise<RedisTestContainer> {
   const container = await new RedisContainer(REDIS_IMAGE).start();
-  return { container, connectionUri: container.getConnectionUrl() };
+  // Mismo problema que tooling/testing/testcontainers/postgres.ts: "localhost" resuelve de
+  // forma ambigua (IPv6 primero) contra el puerto publicado por Docker Desktop/Windows -
+  // ioredis, con `enableOfflineQueue: false` (apps/api/src/app/redis/redis.provider.ts),
+  // falla rapido en vez de reintentar con la otra familia de direcciones. "127.0.0.1"
+  // explicito evita la ambiguedad.
+  const connectionUri = container.getConnectionUrl().replace('localhost', '127.0.0.1');
+  return { container, connectionUri };
 }
 
 export async function stopRedisContainer(instance: RedisTestContainer): Promise<void> {
