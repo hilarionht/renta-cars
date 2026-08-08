@@ -1,6 +1,10 @@
 // Secuencia de bootstrap - docs/technical/03-BACKEND-ARCHITECTURE.md SS2. Pasos 2-3 (Helmet/
 // CORS, ValidationPipe) agregados en el paso 9 de docs/engineering/10-BOOTSTRAP-PLAN.md.
 
+// Primer import, sin excepcion (ver el comentario del propio archivo) - paso 12 de
+// docs/engineering/10-BOOTSTRAP-PLAN.md.
+import './instrumentation';
+
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';

@@ -7,6 +7,7 @@ import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
 import { validate } from '../config/env.validation';
 import jwtConfig from '../config/jwt.config';
+import observabilityConfig from '../config/observability.config';
 import redisConfig from '../config/redis.config';
 import storageConfig from '../config/storage.config';
 import { AuthModule } from './auth/auth.module';
@@ -25,19 +26,30 @@ import { HealthModule } from './health/health.module';
     ConfigModule.forRoot({
       isGlobal: true,
       validate,
-      load: [appConfig, databaseConfig, redisConfig, storageConfig, jwtConfig],
+      load: [appConfig, databaseConfig, redisConfig, storageConfig, jwtConfig, observabilityConfig],
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        pinoHttp: {
-          level: configService.getOrThrow<string>('app.logLevel'),
-          transport:
-            configService.getOrThrow<string>('app.nodeEnv') === 'production'
-              ? undefined
-              : { target: 'pino-pretty' },
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const isProduction = configService.getOrThrow<string>('app.nodeEnv') === 'production';
+        // pino-opentelemetry-transport lee OTEL_EXPORTER_OTLP_ENDPOINT/OTEL_SERVICE_NAME
+        // directo del entorno (mismos valores que src/instrumentation.ts) - envía logs JSON
+        // al mismo otel-collector que recibe trazas/métricas (docs/engineering/
+        // 08-OBSERVABILITY-BOOTSTRAP.md §1), no bloqueante si el collector no está arriba.
+        // pino-pretty solo en desarrollo, para legibilidad de consola - ninguno de los dos
+        // reemplaza al otro, `targets` hace fan-out a ambos.
+        const otlpTarget = { target: 'pino-opentelemetry-transport', options: {}, level: 'debug' };
+        return {
+          pinoHttp: {
+            level: configService.getOrThrow<string>('app.logLevel'),
+            transport: {
+              targets: isProduction
+                ? [otlpTarget]
+                : [otlpTarget, { target: 'pino-pretty', options: {}, level: 'debug' }],
+            },
+          },
+        };
+      },
     }),
     AuthModule,
     HealthModule,

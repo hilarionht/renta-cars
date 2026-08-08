@@ -70,6 +70,17 @@ class EnvironmentVariables {
   @IsInt()
   @Min(1)
   JWT_ACCESS_TTL?: number;
+
+  // --- observability (docs/engineering/08-OBSERVABILITY-BOOTSTRAP.md §1) ---
+  // Ambas con default seguro (namespace observability.config.ts) - el SDK de OpenTelemetry
+  // no bloquea el arranque si el collector no esta disponible, por diseño de la libreria.
+  @IsOptional()
+  @IsString()
+  OTEL_EXPORTER_OTLP_ENDPOINT?: string;
+
+  @IsOptional()
+  @IsString()
+  OTEL_SERVICE_NAME?: string;
 }
 
 // Usado por ConfigModule.forRoot({ validate }) - corre una unica vez al arrancar; si falta
