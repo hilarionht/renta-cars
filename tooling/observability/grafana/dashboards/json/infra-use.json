@@ -1,0 +1,56 @@
+{
+  "title": "Infraestructura (USE)",
+  "uid": "renta-infra-use",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "tags": ["renta", "use"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Postgres - conexiones del pool",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "description": "db_client_connection_count (instrumentation-pg, vía el adapter de Prisma) - verificado con datos reales en el bootstrap del paso 12.",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "db_client_connection_count{db_system_name=\"postgresql\"}",
+          "legendFormat": "{{db_client_connection_state}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Redis - comandos/s",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "description": "Panel vacío por una incompatibilidad real verificada en el paso 12: @opentelemetry/instrumentation-ioredis 0.69.0 solo soporta ioredis '>=2.0.0 <6' y este workspace fija ioredis ^6.0.0 (paso 7) - la instrumentación detecta la versión no soportada y no parchea el cliente, sin error visible. No se bajó la versión de ioredis unilateralmente (decisión de un paso ya cerrado); se documenta el bloqueo en vez de ocultarlo.",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(db_client_operation_duration_seconds_count{db_system_name=\"redis\"}[5m]))",
+          "legendFormat": "comandos/s"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "BullMQ - profundidad de cola",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "description": "Sin colas todavía (paso 12 del bootstrap no instrumenta BullMQ - no hay Processor de negocio aún). Panel queda vacío hasta el primer módulo con colas.",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "bullmq_queue_depth",
+          "legendFormat": "{{queue}}"
+        }
+      ]
+    }
+  ]
+}

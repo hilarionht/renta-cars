@@ -1,0 +1,24 @@
+# Backend de trazas local (docs/technical/10-DECISIONES.md #5) - almacenamiento en disco
+# del propio contenedor, suficiente para el bootstrap; retencion/almacenamiento gestionado
+# queda para el proveedor de staging/produccion (docs/ADR/0011-hosting-provider-staging-
+# produccion.md, sin resolver).
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal

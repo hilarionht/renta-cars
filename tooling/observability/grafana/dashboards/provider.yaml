@@ -1,0 +1,15 @@
+# docs/engineering/08-OBSERVABILITY-BOOTSTRAP.md §2: dashboards versionados como JSON de
+# provisioning, no armados a mano en la UI.
+
+apiVersion: 1
+
+providers:
+  - name: renta
+    orgId: 1
+    folder: Renta
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/json

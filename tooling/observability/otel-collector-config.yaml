@@ -1,0 +1,49 @@
+# docs/engineering/08-OBSERVABILITY-BOOTSTRAP.md §1: recibe OTLP de apps/api (logs, trazas,
+# metricas) y enruta a Tempo/Prometheus/Loki - el unico punto de la arquitectura al que
+# apps/api exporta (OTEL_EXPORTER_OTLP_ENDPOINT), nunca a los backends directamente.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  # Tempo expone su propio receptor OTLP (docs/technical/06-OBSERVABILITY.md §2).
+  otlp_grpc/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Prometheus scrapea este endpoint (tooling/observability/prometheus.yml) en vez de que
+  # el collector empuje - docs/technical/06-OBSERVABILITY.md §3 acepta cualquiera de las
+  # dos rutas, esta evita habilitar remote-write en Prometheus solo para el bootstrap.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+  # Loki >=3 acepta OTLP nativo en /otlp - docs/technical/06-OBSERVABILITY.md §1 (misma
+  # ruta del colector de OpenTelemetry para logs).
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp_grpc/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp_http/loki]

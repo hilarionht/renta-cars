@@ -1,0 +1,53 @@
+{
+  "title": "Salud",
+  "uid": "renta-health",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "tags": ["renta", "health"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "platform_health_ready",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "degradado" }, "1": { "text": "ok" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "platform_health_ready",
+          "legendFormat": "{{exported_job}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Logs de /health/ready (Loki)",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+      "description": "req_url es metadata estructurada (par clave/valor por línea vía OTLP), no texto de la línea - un filtro `|= \"health/ready\"` sobre el cuerpo del log no matchea (verificado en el bootstrap del paso 12); se filtra por metadata estructurada en su lugar.",
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{service_name=\"api\"} | req_url=\"/health/ready\""
+        }
+      ]
+    }
+  ]
+}

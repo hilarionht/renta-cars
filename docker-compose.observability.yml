@@ -1,0 +1,73 @@
+# Perfil de observabilidad, opt-in (docs/engineering/06-DOCKER.md §5, docs/engineering/
+# 08-OBSERVABILITY-BOOTSTRAP.md §1) - nunca se levanta con `docker compose up` solo:
+#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up
+# Stack "LGTM": otel-collector recibe OTLP de apps/api (logs/trazas/metricas) y enruta a
+# Tempo/Prometheus/Loki; Grafana los visualiza con datasources/dashboards pre-provisionados.
+
+volumes:
+  tempo-data:
+  loki-data:
+  grafana-data:
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ['--config=/etc/otel-collector-config.yaml']
+    volumes:
+      - ./tooling/observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP - apps/api apunta aquí (OTEL_EXPORTER_OTLP_ENDPOINT)
+    networks:
+      - renta-dev
+    depends_on:
+      - tempo
+      - loki
+
+  tempo:
+    image: grafana/tempo:latest
+    command: ['-config.file=/etc/tempo.yaml']
+    volumes:
+      - ./tooling/observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    networks:
+      - renta-dev
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./tooling/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - '9090:9090'
+    networks:
+      - renta-dev
+
+  loki:
+    image: grafana/loki:latest
+    networks:
+      - renta-dev
+    volumes:
+      - loki-data:/loki
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      # Solo desarrollo local (perfil opt-in, nunca levantado en staging/producción) -
+      # evita el paso manual de login para el chequeo de humo de docs/engineering/
+      # 08-OBSERVABILITY-BOOTSTRAP.md.
+      GF_AUTH_DISABLE_LOGIN_FORM: 'true'
+    volumes:
+      - ./tooling/observability/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./tooling/observability/grafana/dashboards/provider.yaml:/etc/grafana/provisioning/dashboards/provider.yaml:ro
+      - ./tooling/observability/grafana/dashboards/json:/etc/grafana/provisioning/dashboards/json:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - '3001:3000'
+    networks:
+      - renta-dev
+    depends_on:
+      - tempo
+      - prometheus
+      - loki
