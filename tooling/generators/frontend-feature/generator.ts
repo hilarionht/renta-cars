@@ -14,13 +14,16 @@ const UI_KIT_ALIAS = {
 
 // Convencion de enrutado por app - docs/06-CONVENCIONES-FRONTEND.md SS3 (Next.js App Router)
 // y SS4 (Expo Router). No inventa una tercera convencion: cada app usa la suya.
+// web-admin se genera con `--src` (Next.js App Router bajo src/app/, docs/engineering/
+// 10-BOOTSTRAP-PLAN.md paso 13) - mobile no usa carpeta `src/` para sus rutas (Expo Router
+// las resuelve desde app/ en la raiz del proyecto).
 function featureFileForApp(
   app: FrontendFeatureGeneratorSchema['app'],
   appRoot: string,
   name: string,
 ): string {
   return app === 'web-admin'
-    ? joinPathFragments(appRoot, 'app', '(admin)', name, 'page.tsx')
+    ? joinPathFragments(appRoot, 'src', 'app', '(admin)', name, 'page.tsx')
     : joinPathFragments(appRoot, 'app', name, 'index.tsx');
 }
 
