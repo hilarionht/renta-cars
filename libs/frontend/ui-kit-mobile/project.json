@@ -1,0 +1,18 @@
+{
+  "name": "frontend-ui-kit-mobile",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/frontend/ui-kit-mobile/src",
+  "projectType": "library",
+  "tags": ["scope:shared", "type:ui", "platform:mobile"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/frontend/ui-kit-mobile"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

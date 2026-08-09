@@ -62,7 +62,11 @@ export const baseConfig = [
         'error',
         { selector: 'typeLike', format: ['PascalCase'] },
         { selector: 'variable', format: ['camelCase', 'UPPER_CASE'], leadingUnderscore: 'allow' },
-        { selector: 'function', format: ['camelCase'] },
+        // PascalCase agregado en el paso 13 (docs/engineering/10-BOOTSTRAP-PLAN.md): un
+        // componente de React es una funcion, y la convencion universal del ecosistema
+        // (docs/06-CONVENCIONES-FRONTEND.md) es PascalCase - no reemplaza camelCase, lo
+        // amplia (una funcion de backend sigue validandose igual que antes).
+        { selector: 'function', format: ['camelCase', 'PascalCase'] },
         { selector: 'parameter', format: ['camelCase'], leadingUnderscore: 'allow' },
         {
           selector: 'variable',

@@ -1,0 +1,18 @@
+{
+  "name": "frontend-ui-kit-core",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/frontend/ui-kit-core/src",
+  "projectType": "library",
+  "tags": ["scope:shared", "type:ui"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/frontend/ui-kit-core"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

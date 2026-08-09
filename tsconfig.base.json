@@ -3,7 +3,12 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "@platform/shared-kernel": ["./libs/platform/shared-kernel/src/index.ts"]
+      "@platform/shared-kernel": ["./libs/platform/shared-kernel/src/index.ts"],
+      "@frontend/domain-types": ["./libs/frontend/domain-types/src/index.ts"],
+      "@frontend/ui-kit-core": ["./libs/frontend/ui-kit-core/src/index.ts"],
+      "@frontend/data-access": ["./libs/frontend/data-access/src/index.ts"],
+      "@frontend/ui-kit-web": ["./libs/frontend/ui-kit-web/src/index.ts"],
+      "@frontend/ui-kit-mobile": ["./libs/frontend/ui-kit-mobile/src/index.ts"]
     },
     "target": "es2022",
     "module": "esnext",

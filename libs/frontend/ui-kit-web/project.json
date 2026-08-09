@@ -1,0 +1,18 @@
+{
+  "name": "frontend-ui-kit-web",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/frontend/ui-kit-web/src",
+  "projectType": "library",
+  "tags": ["scope:shared", "type:ui", "platform:web"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/frontend/ui-kit-web"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}
