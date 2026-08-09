@@ -1,0 +1,7 @@
+{
+  "name": "design-system-docs",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/design-system-docs/src",
+  "projectType": "application",
+  "tags": ["scope:frontend", "type:e2e"]
+}
