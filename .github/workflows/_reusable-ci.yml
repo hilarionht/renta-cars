@@ -58,6 +58,13 @@ jobs:
       - run: npm run db:generate
         env:
           DATABASE_URL: postgresql://build:build@build:5432/build
+      # api-e2e:test levanta apps/api real (docs/engineering/04-TESTING-FOUNDATION.md §5) -
+      # ConfigModule falla fail-fast sin STORAGE_*/JWT_* (docs/engineering/02-DEVELOPER-
+      # EXPERIENCE.md §1 pasos 4-5). No hay .env en CI (gitignored) ni secretos de proveedor
+      # configurados todavia (docs/engineering/05-CI-CD.md §5) - mismo par de pasos que el
+      # bootstrap local, STORAGE_* de .env.example ya son valores de desarrollo no secretos.
+      - run: cp .env.example .env
+      - run: npm run security:generate-jwt-keys >> .env
       # Un unico target `test` cubre unitarios/aplicacion, integracion (Testcontainers, para
       # cualquier proyecto `type:infrastructure` futuro) y el smoke e2e de api-e2e (mismo
       # nombre de target `test`, docs/engineering/04-TESTING-FOUNDATION.md) - Nx ya resuelve
