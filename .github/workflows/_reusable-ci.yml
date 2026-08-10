@@ -33,8 +33,12 @@ jobs:
       # docs/engineering/02-DEVELOPER-EXPERIENCE.md §1 paso 3: npm ci no genera el cliente de
       # Prisma por si solo (sin postinstall a proposito, ver 06-DOCKER.md §1) - sin este paso,
       # cualquier target que compile apps/api (typecheck, build) falla con "Module '@prisma/
-      # client' has no exported member 'PrismaClient'".
+      # client' has no exported member 'PrismaClient'". prisma.config.ts exige DATABASE_URL
+      # resoluble solo para cargar la config (generate no se conecta a ninguna base, mismo
+      # placeholder que usa apps/api/Dockerfile en su etapa build).
       - run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://build:build@build:5432/build
       - name: nx affected --target=lint,typecheck
         env:
           NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
@@ -52,6 +56,8 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://build:build@build:5432/build
       # Un unico target `test` cubre unitarios/aplicacion, integracion (Testcontainers, para
       # cualquier proyecto `type:infrastructure` futuro) y el smoke e2e de api-e2e (mismo
       # nombre de target `test`, docs/engineering/04-TESTING-FOUNDATION.md) - Nx ya resuelve
@@ -85,6 +91,8 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://build:build@build:5432/build
       - name: nx affected --target=build
         env:
           NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
