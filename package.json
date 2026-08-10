@@ -17,6 +17,7 @@
     "e2e": "nx affected --target=e2e",
     "generate:module": "nx g ./tooling/generators:bounded-context",
     "generate:feature": "nx g ./tooling/generators:frontend-feature",
+    "db:generate": "prisma generate",
     "db:migrate": "ts-node tooling/scripts/db/migrate.ts",
     "db:seed": "ts-node tooling/scripts/db/seed.ts",
     "db:studio": "prisma studio",
