@@ -4,7 +4,8 @@ name: Nightly E2E
 # diferido de pr.yml cuando el equipo fije ese umbral con datos reales de Fase 0
 # (docs/10-TESTING.md §8, docs/technical/08-DEVOPS.md §2.1 - decisión explícitamente no
 # cerrada por ningún documento, no se cierra aquí tampoco). Mientras tanto, corre el
-# conjunto E2E completo contra main como regresión nocturna, no un subconjunto acotado -
+# conjunto E2E completo contra master (rama principal de este repositorio) como regresión
+# nocturna, no un subconjunto acotado -
 # pr.yml ya ejecuta E2E en cada PR por defecto.
 
 on:

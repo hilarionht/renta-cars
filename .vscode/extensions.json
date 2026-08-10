@@ -1,3 +1,10 @@
 {
-  "recommendations": ["ms-playwright.playwright", "esbenp.prettier-vscode"]
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "Prisma.prisma",
+    "nrwl.angular-console",
+    "ms-azuretools.vscode-docker",
+    "ms-playwright.playwright"
+  ]
 }

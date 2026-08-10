@@ -1,10 +1,11 @@
 name: PR
 
-# docs/engineering/05-CI-CD.md §2: pipeline completo de PR contra main.
+# docs/engineering/05-CI-CD.md §2: pipeline completo de PR contra master (rama principal
+# de este repositorio - la documentacion usa "main" como nombre generico).
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
@@ -15,7 +16,7 @@ jobs:
     uses: ./.github/workflows/_reusable-ci.yml
     secrets: inherit
     with:
-      base: origin/main
+      base: origin/master
 
   docker-validate:
     needs: [ci]
@@ -48,7 +49,7 @@ jobs:
       - name: nx affected --target=e2e
         env:
           NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
-        run: npx nx affected --target=e2e --base=origin/main
+        run: npx nx affected --target=e2e --base=origin/master
       - name: Publicar trazas de Playwright
         if: failure()
         uses: actions/upload-artifact@v4

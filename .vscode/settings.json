@@ -1,0 +1,14 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "eslint.useFlatConfig": true,
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+  "files.exclude": {
+    "**/dist": true,
+    "**/.nx/cache": true
+  },
+  "search.exclude": {
+    "**/dist": true,
+    "**/.nx/cache": true
+  }
+}

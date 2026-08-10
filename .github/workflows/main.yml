@@ -1,7 +1,8 @@
 name: Main
 
 # docs/engineering/05-CI-CD.md §3: repite el pipeline de pr.yml (§2.1) sobre el estado final
-# de main, luego construye y publica la imagen de apps/api.
+# de master (rama principal de este repositorio - la documentación usa "main" como nombre
+# genérico), luego construye y publica la imagen de apps/api.
 #
 # Migración contra staging, despliegue a staging y despliegue a producción (§3 puntos 2-4)
 # NO están implementados todavía: technical/08-DEVOPS.md §5 deja el proveedor de
@@ -11,7 +12,7 @@ name: Main
 
 on:
   push:
-    branches: [main]
+    branches: [master]
 
 concurrency:
   group: main-${{ github.sha }}

@@ -1,0 +1,6 @@
+# docs/engineering/10-BOOTSTRAP-PLAN.md paso 14: mapeo inicial - equipo de plataforma como
+# dueno por defecto de TODO hasta que existan equipos de modulo dedicados. La granularidad
+# completa (cada .prisma, cada proyecto Nx module:*, cada workflow de CI a su propio equipo -
+# docs/technical/08-DEVOPS.md SS2.3) se agrega cuando esos equipos existan; hoy coincidirian
+# todos con el mismo dueno, asi que anadir esas lineas ahora seria ruido sin informacion nueva.
+*       @hilarionht

@@ -1,0 +1,28 @@
+{
+  "name": "renta",
+  "image": "node:20.19.4-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "postCreateCommand": "npm install && cp .env.example .env && npm run db:migrate",
+  "forwardPorts": [3000, 3001, 5432, 6379, 9001],
+  "portsAttributes": {
+    "3000": { "label": "apps/api" },
+    "3001": { "label": "apps/web-admin" },
+    "5432": { "label": "Postgres" },
+    "6379": { "label": "Redis" },
+    "9001": { "label": "MinIO consola" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "Prisma.prisma",
+        "nrwl.angular-console",
+        "ms-azuretools.vscode-docker",
+        "ms-playwright.playwright"
+      ]
+    }
+  }
+}
