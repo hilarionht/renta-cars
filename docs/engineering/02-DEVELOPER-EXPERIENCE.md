@@ -23,7 +23,7 @@ Ningún paso adicional (no hay decisión de puerto, de base de datos, ni de prov
 | Script                       | Comando subyacente                                                | Propósito                                                                           |
 | ---------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `dev`                        | `nx serve api`                                                    | API en modo watch                                                                   |
-| `dev:web`                    | `nx serve web-admin`                                              | Next.js en modo dev                                                                 |
+| `dev:web`                    | `nx dev web-admin`                                                | Next.js en modo dev                                                                 |
 | `dev:mobile`                 | `nx start mobile`                                                 | Metro bundler de Expo                                                               |
 | `build`                      | `nx run-many --target=build`                                      | Build completo (uso puntual; CI usa `affected`)                                     |
 | `test`                       | `nx affected --target=test`                                       | Igual criterio que CI local                                                         |
