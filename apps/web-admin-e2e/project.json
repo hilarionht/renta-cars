@@ -3,5 +3,26 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/web-admin-e2e/src",
   "projectType": "application",
-  "tags": ["type:e2e"]
+  "tags": ["type:e2e"],
+  "// e2e": "Sin historias todavia (docs/engineering/10-BOOTSTRAP-PLAN.md paso 10: apps/web-admin-e2e generado sin tests hasta que exista UI real en el paso 13/Fase 0) - a diferencia de Jest (passWithNoTests en cada jest.config.ts), Playwright trata 'sin tests' como fallo por defecto y bloquearia todo PR mientras no exista el primer golden path real.",
+  "targets": {
+    "e2e": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/web-admin-e2e",
+        "command": "playwright test --pass-with-no-tests"
+      },
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "^{projectRoot}/tsconfig*.json",
+        { "externalDependencies": ["@playwright/test"] }
+      ],
+      "outputs": [
+        "{workspaceRoot}/dist/.playwright/apps/web-admin-e2e/test-output",
+        "{workspaceRoot}/dist/.playwright/apps/web-admin-e2e/playwright-report"
+      ]
+    }
+  }
 }

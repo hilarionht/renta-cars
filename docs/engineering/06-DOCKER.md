@@ -36,12 +36,12 @@ docs/
 
 ## 3. `docker-compose.yml` — servicios base
 
-| Servicio | Imagen | Puerto host | Propósito |
-|---|---|---|---|
-| `postgres` | `postgres:16-alpine` | `5432` | Base de datos única multi-schema ([04-MODELO-DATOS.md §2](../04-MODELO-DATOS.md)) |
-| `redis` | `redis:7-alpine` | `6379` | Cache, `ThrottlerGuard` (Redis storage), backing de BullMQ |
-| `minio` | `minio/minio` | `9000` (API), `9001` (consola) | `StorageProviderPort` local ([11-INTEGRACIONES.md §11](../11-INTEGRACIONES.md)) |
-| `minio-init` | `minio/mc` | — | Job de un solo uso: crea el bucket por defecto y credenciales de acceso al arrancar por primera vez; `depends_on: minio` con condición `service_healthy` |
+| Servicio     | Imagen               | Puerto host                    | Propósito                                                                                                                                                |
+| ------------ | -------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postgres`   | `postgres:16-alpine` | `5432`                         | Base de datos única multi-schema ([04-MODELO-DATOS.md §2](../04-MODELO-DATOS.md))                                                                        |
+| `redis`      | `redis:7-alpine`     | `6379`                         | Cache, `ThrottlerGuard` (Redis storage), backing de BullMQ                                                                                               |
+| `minio`      | `minio/minio`        | `9000` (API), `9001` (consola) | `StorageProviderPort` local ([11-INTEGRACIONES.md §11](../11-INTEGRACIONES.md))                                                                          |
+| `minio-init` | `minio/mc`           | —                              | Job de un solo uso: crea el bucket por defecto y credenciales de acceso al arrancar por primera vez; `depends_on: minio` con condición `service_healthy` |
 
 - **Volúmenes nombrados**: `postgres-data`, `minio-data` — persisten entre `docker compose down`/`up`, se eliminan explícitamente con `docker compose down -v` cuando un desarrollador necesita un estado limpio (documentado en [02-DEVELOPER-EXPERIENCE.md](02-DEVELOPER-EXPERIENCE.md) como comando de "reset total", no en el flujo estándar).
 - **Red**: una única red bridge por defecto (`renta-dev`) — todos los servicios se resuelven por nombre de servicio (`postgres`, `redis`, `minio`) desde `apps/api` corriendo en el host o desde su propio contenedor si se decide containerizar también el dev loop (no es el caso por defecto, §5 de [02-DEVELOPER-EXPERIENCE.md](02-DEVELOPER-EXPERIENCE.md): `apps/api` corre nativo en modo watch, no en contenedor, durante desarrollo diario).
@@ -56,7 +56,7 @@ Cargado automáticamente por `docker compose up` junto al archivo base (comporta
 
 ## 5. Perfil de observabilidad (opt-in)
 
-`docker-compose.observability.yml`, activado explícitamente con `docker compose -f docker-compose.yml -f docker-compose.observability.yml up` (o un script `npm run dev:observability`) — **no** se levanta por defecto en `docker compose up` (§1 de [technical/08-DEVOPS.md](../technical/08-DEVOPS.md): "activable aparte para no forzar su arranque en el ciclo diario de desarrollo"). Contenido detallado en [08-OBSERVABILITY-BOOTSTRAP.md](08-OBSERVABILITY-BOOTSTRAP.md).
+`docker-compose.observability.yml`, activado explícitamente con `docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.observability.yml up` (o un script `npm run dev:observability`) — **no** se levanta por defecto en `docker compose up` (§1 de [technical/08-DEVOPS.md](../technical/08-DEVOPS.md): "activable aparte para no forzar su arranque en el ciclo diario de desarrollo"). El `-f docker-compose.override.yml` explícito es obligatorio aquí: especificar cualquier `-f` desactiva la carga automática nativa de Compose descrita en §4 (a diferencia de `docker compose up` sin flags) — omitirlo deja a `postgres`/`redis`/`minio` sin sus puertos publicados al host (§4) y `apps/api` corriendo nativo (§3) pierde conectividad, con el perfil de observabilidad ya arriba pero la app fallando en `/health/ready`. Contenido detallado en [08-OBSERVABILITY-BOOTSTRAP.md](08-OBSERVABILITY-BOOTSTRAP.md).
 
 ## 6. Paridad con producción
 

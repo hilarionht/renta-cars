@@ -14,6 +14,9 @@ import { execSync } from 'node:child_process';
 interface Vulnerability {
   severity: 'info' | 'low' | 'moderate' | 'high' | 'critical';
   fixAvailable: boolean | { name: string; version: string; isSemVerMajor: boolean };
+  // Entradas string ("Depends on vulnerable versions of X") vs. objeto (advisory propio,
+  // con GHSA/CVE) - ver comentario de hasDirectAdvisory().
+  via: Array<string | { url: string }>;
 }
 
 interface AuditReport {
@@ -52,10 +55,25 @@ function hasSafeFix(fixAvailable: Vulnerability['fixAvailable']): boolean {
   return !fixAvailable.isSemVerMajor;
 }
 
+// `via` con solo strings ("Depends on vulnerable versions of X") significa que el propio
+// paquete no tiene una advisory directa - esta vulnerable unicamente porque hereda una de
+// sus dependencias, que ya aparece como su propia entrada en el reporte (con su propio
+// fixAvailable, evaluado por separado). Confirmado en la practica (@expo/metro-config,
+// docs/engineering/05-CI-CD.md §2): npm reporta `fixAvailable: true` (booleano) para estas
+// entradas heredadas incluso cuando la version instalada YA es la mas reciente publicada y
+// `npm audit fix` no cambia nada - un booleano sin una version real y distinta a instalar
+// detras. Sin este filtro, ese falso positivo bloquea CI de forma permanente hasta que el
+// paquete rio arriba (con advisory propia) publique un fix, algo que su propia entrada en
+// el reporte ya refleja correctamente.
+function hasDirectAdvisory(via: Vulnerability['via']): boolean {
+  return via.some((entry) => typeof entry === 'object');
+}
+
 const report = runAudit();
 const blocking = Object.entries(report.vulnerabilities ?? {}).filter(
   ([, vulnerability]) =>
     (vulnerability.severity === 'high' || vulnerability.severity === 'critical') &&
+    hasDirectAdvisory(vulnerability.via) &&
     hasSafeFix(vulnerability.fixAvailable),
 );
 
