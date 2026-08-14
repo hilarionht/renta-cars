@@ -15,14 +15,24 @@ export type DomainErrorConstructor = new (...args: any[]) => DomainError;
 
 export type DomainErrorRegistry = ReadonlyMap<DomainErrorConstructor, DomainErrorMapping>;
 
+export type DomainErrorEntries = ReadonlyArray<
+  readonly [DomainErrorConstructor, DomainErrorMapping]
+>;
+
 // Token de inyeccion - docs/technical/09-CODING-STANDARDS.md SS1. Registro declarativo
-// (mapa, no codigo imperativo) de docs/technical/09-CODING-STANDARDS.md SS3: cada modulo
-// de negocio agrega sus propias entradas cuando declara sus DomainError. Vacio a proposito
-// en este paso (9 de docs/engineering/10-BOOTSTRAP-PLAN.md) - todavia no existe ningun
-// modulo de negocio.
+// (mapa, no codigo imperativo, SS3): cada modulo de negocio exporta su propia lista de
+// entradas desde su index.ts (una constante simple, no un provider de Nest) - esta factory
+// las mergea en un unico Map. Mecanismo aditivo: un modulo futuro solo agrega su propio
+// spread, nunca toca esta funcion.
 export const DOMAIN_ERROR_REGISTRY = Symbol('DomainErrorRegistry');
 
-export const emptyDomainErrorRegistryProvider: Provider = {
-  provide: DOMAIN_ERROR_REGISTRY,
-  useValue: new Map<DomainErrorConstructor, DomainErrorMapping>(),
-};
+export function mergeDomainErrorRegistry(...entryLists: DomainErrorEntries[]): DomainErrorRegistry {
+  return new Map(entryLists.flat());
+}
+
+export function domainErrorRegistryProvider(...entryLists: DomainErrorEntries[]): Provider {
+  return {
+    provide: DOMAIN_ERROR_REGISTRY,
+    useValue: mergeDomainErrorRegistry(...entryLists),
+  };
+}

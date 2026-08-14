@@ -1,2 +1,118 @@
 // @@schema("identity") — Session, User, Role (docs/technical/02-PROYECTOS.md §2.1).
-// Vacio a proposito: Fase 0 de docs/01-ROADMAP.md §2 agrega los primeros modelos.
+// Reglas de autoria de este archivo: docs/persistence/08-PRISMA-CONVENTIONS.md - un unico
+// @@schema por archivo, modelo PascalCase + @@map snake_case plural, escalar camelCase +
+// @map, enums reflejan el string del VO tal cual, toda referencia inter-schema
+// (companyId/branchId, hacia organization) es un escalar plano sin @relation.
+
+model User {
+  id           String     @id @db.Uuid
+  companyId    String     @map("company_id") @db.Uuid
+  branchId     String?    @map("branch_id") @db.Uuid
+  email        String
+  passwordHash String     @map("password_hash")
+  name         String
+  status       UserStatus
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  version      Int        @default(1)
+
+  roles        UserRole[]
+  sessions     Session[]
+
+  @@unique([companyId, email], map: "users_company_id_email_key")
+  @@map("users")
+  @@schema("identity")
+}
+
+enum UserStatus {
+  Active
+  Disabled
+
+  @@map("user_status")
+  @@schema("identity")
+}
+
+model Role {
+  id          String     @id @db.Uuid
+  companyId   String?    @map("company_id") @db.Uuid
+  roleName    String     @map("role_name")
+  scope       RoleScope
+  status      RoleStatus
+  permissions String[]
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  version     Int        @default(1)
+
+  userRoles   UserRole[]
+
+  // Los partial unique indexes reales (role_name unico solo si scope=System,
+  // (company_id, role_name) unico solo si scope=Custom) no son expresables en el DSL de
+  // Prisma - se agregan a mano en la migracion generada. Este @@index cubre performance de
+  // lookup, no la unicidad.
+  @@index([roleName], map: "roles_role_name_idx")
+  @@map("roles")
+  @@schema("identity")
+}
+
+enum RoleScope {
+  System
+  Custom
+
+  @@map("role_scope")
+  @@schema("identity")
+}
+
+// Solo aplica a scope=Custom - un System role nunca se desactiva (INV-026). Campo agregado
+// mas alla de lo que docs/model/02-AGGREGATES.md modelaba originalmente; ver actualizacion
+// correspondiente en ese documento en el mismo cambio que introduce este schema.
+enum RoleStatus {
+  Active
+  Inactive
+
+  @@map("role_status")
+  @@schema("identity")
+}
+
+model UserRole {
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "user_roles_user_id_fkey")
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "user_roles_role_id_fkey")
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+  @@schema("identity")
+}
+
+model Session {
+  id               String        @id @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  companyId        String        @map("company_id") @db.Uuid
+  refreshTokenHash String        @unique @map("refresh_token_hash")
+  deviceUserAgent  String?       @map("device_user_agent")
+  deviceIpAddress  String?       @map("device_ip_address")
+  status           SessionStatus
+  issuedAt         DateTime      @default(now()) @map("issued_at")
+  rotatedAt        DateTime?     @map("rotated_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  version          Int           @default(1)
+
+  user             User          @relation(fields: [userId], references: [id], onDelete: Restrict, map: "sessions_user_id_fkey")
+
+  @@map("sessions")
+  @@schema("identity")
+}
+
+enum SessionStatus {
+  Active
+  Rotated
+  Revoked
+
+  @@map("session_status")
+  @@schema("identity")
+}

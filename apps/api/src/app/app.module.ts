@@ -13,7 +13,7 @@ import storageConfig from '../config/storage.config';
 import { AuthModule } from './auth/auth.module';
 import { AllExceptionsFilter } from './errors/all-exceptions.filter';
 import { DomainExceptionFilter } from './errors/domain-exception.filter';
-import { emptyDomainErrorRegistryProvider } from './errors/domain-error-registry';
+import { domainErrorRegistryProvider } from './errors/domain-error-registry';
 import { HealthModule } from './health/health.module';
 
 // AppModule vacio salvo ConfigModule global (paso 7 de docs/engineering/10-BOOTSTRAP-PLAN.md)
@@ -55,7 +55,7 @@ import { HealthModule } from './health/health.module';
     HealthModule,
   ],
   providers: [
-    emptyDomainErrorRegistryProvider,
+    domainErrorRegistryProvider(),
     // Orden importa, e Nest lo evalua al REVES del orden de registro (el ultimo
     // registrado se prueba primero) - verificado a mano lanzando un DomainError real y
     // confirmando cual filtro lo capturaba antes de fijar este orden. AllExceptionsFilter

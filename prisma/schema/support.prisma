@@ -1,3 +1,27 @@
 // @@schema("support") — File, Notification, AuditLogEntry, outbox_event
 // (docs/technical/02-PROYECTOS.md §2.5, docs/technical/04-PERSISTENCE.md §4).
-// Vacio a proposito: Fase 0 de docs/01-ROADMAP.md §2 agrega los primeros modelos.
+// File/Notification/AuditLogEntry siguen vacios a proposito (Audit es Fase 0 item 7,
+// todavia no construido) - solo se agrega OutboxEvent, infra transversal de la que
+// Identity & Access ya depende para escribir sus eventos de forma atomica con el cambio de
+// estado (docs/technical/04-PERSISTENCE.md SS4). Sin OutboxRelayWorker todavia (BullMQ) -
+// gap de durabilidad documentado en docs/persistence/10-DECISIONES.md.
+
+model OutboxEvent {
+  // A diferencia de User/Role/Session (agregados de dominio, id generado por EntityId.
+  // generate() en domain/), OutboxEvent es un envelope tecnico sin identidad de negocio -
+  // aca si tiene sentido dejar que la base genere el id.
+  id            String    @id @default(uuid()) @db.Uuid
+  eventId       String    @unique @map("event_id") @db.Uuid
+  eventType     String    @map("event_type")
+  aggregateType String    @map("aggregate_type")
+  aggregateId   String    @map("aggregate_id") @db.Uuid
+  companyId     String?   @map("company_id") @db.Uuid
+  sourceSchema  String    @map("source_schema")
+  payload       Json
+  occurredAt    DateTime  @map("occurred_at")
+  publishedAt   DateTime? @map("published_at")
+
+  @@index([publishedAt], map: "outbox_event_published_at_idx")
+  @@map("outbox_event")
+  @@schema("support")
+}
