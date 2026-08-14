@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import { ClsModule } from 'nestjs-cls';
 
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
@@ -9,12 +10,14 @@ import { validate } from '../config/env.validation';
 import jwtConfig from '../config/jwt.config';
 import observabilityConfig from '../config/observability.config';
 import redisConfig from '../config/redis.config';
+import securityConfig from '../config/security.config';
 import storageConfig from '../config/storage.config';
 import { AuthModule } from './auth/auth.module';
 import { AllExceptionsFilter } from './errors/all-exceptions.filter';
 import { DomainExceptionFilter } from './errors/domain-exception.filter';
 import { domainErrorRegistryProvider } from './errors/domain-error-registry';
 import { HealthModule } from './health/health.module';
+import { PrismaModule } from './persistence/prisma.module';
 
 // AppModule vacio salvo ConfigModule global (paso 7 de docs/engineering/10-BOOTSTRAP-PLAN.md)
 // - ningun modulo de negocio todavia. HealthModule no es un modulo de negocio, es
@@ -26,8 +29,21 @@ import { HealthModule } from './health/health.module';
     ConfigModule.forRoot({
       isGlobal: true,
       validate,
-      load: [appConfig, databaseConfig, redisConfig, storageConfig, jwtConfig, observabilityConfig],
+      load: [
+        appConfig,
+        databaseConfig,
+        redisConfig,
+        storageConfig,
+        jwtConfig,
+        securityConfig,
+        observabilityConfig,
+      ],
     }),
+    // ClsModule (AsyncLocalStorage) antes que PrismaModule - RequestContext (poblado por
+    // TenantContextGuard, leido por el Prisma Client Extension de tenant-scope) depende de
+    // ClsService (apps/api/src/app/context/request-context.ts).
+    ClsModule.forRoot({ global: true, middleware: { mount: true } }),
+    PrismaModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {

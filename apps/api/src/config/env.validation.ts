@@ -35,6 +35,12 @@ class EnvironmentVariables {
   @IsString()
   DATABASE_URL!: string;
 
+  // Rol de runtime de la app, sujeto a RLS - docs/persistence/06-RLS.md §3. DATABASE_URL
+  // (rol dueño de las tablas) sigue siendo el que usan las migraciones (prisma.config.ts,
+  // tooling/scripts/db/migrate.ts), nunca la app.
+  @IsString()
+  APP_DATABASE_URL!: string;
+
   // --- redis ---
   @IsString()
   REDIS_URL!: string;

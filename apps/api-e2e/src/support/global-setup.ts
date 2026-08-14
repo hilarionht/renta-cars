@@ -48,6 +48,7 @@ export default async function globalSetup(): Promise<void> {
       ...process.env,
       PORT: String(API_PORT),
       DATABASE_URL: postgres.connectionUri,
+      APP_DATABASE_URL: postgres.appRuntimeConnectionUri,
       REDIS_URL: redis.connectionUri,
     },
     // stdio heredado: si apps/api falla al arrancar (p.ej. env invalida), el error real
