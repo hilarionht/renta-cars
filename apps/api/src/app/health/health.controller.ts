@@ -2,7 +2,8 @@ import { Controller, Get } from '@nestjs/common';
 import { HealthCheck, HealthCheckService, PrismaHealthIndicator } from '@nestjs/terminus';
 import { metrics } from '@opentelemetry/api';
 
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '@platform/persistence-kernel';
+
 import { RedisHealthIndicator } from './indicators/redis.health-indicator';
 
 // docs/technical/06-OBSERVABILITY.md SS5: ambos endpoints emiten platform_health_ready

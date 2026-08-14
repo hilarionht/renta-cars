@@ -9,3 +9,5 @@ export interface UnitOfWorkTransaction {
 export interface UnitOfWork {
   run<T>(work: (tx: UnitOfWorkTransaction) => Promise<T>): Promise<T>;
 }
+
+export const UNIT_OF_WORK = Symbol('UnitOfWork');

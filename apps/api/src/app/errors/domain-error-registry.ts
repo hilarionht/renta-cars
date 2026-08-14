@@ -1,23 +1,14 @@
 import type { Provider } from '@nestjs/common';
 
-import type { DomainError } from '@platform/shared-kernel';
+import type {
+  DomainErrorConstructor,
+  DomainErrorEntries,
+  DomainErrorMapping,
+} from '@platform/shared-kernel';
 
-export interface DomainErrorMapping {
-  status: number;
-  code: string;
-  title: string;
-}
-
-// Constructor de una subclase de DomainError - patron estandar de TypeScript para "una
-// clase que extiende X" (misma tecnica que usan las libs de tipos del propio lenguaje).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type DomainErrorConstructor = new (...args: any[]) => DomainError;
+export type { DomainErrorConstructor, DomainErrorEntries, DomainErrorMapping };
 
 export type DomainErrorRegistry = ReadonlyMap<DomainErrorConstructor, DomainErrorMapping>;
-
-export type DomainErrorEntries = ReadonlyArray<
-  readonly [DomainErrorConstructor, DomainErrorMapping]
->;
 
 // Token de inyeccion - docs/technical/09-CODING-STANDARDS.md SS1. Registro declarativo
 // (mapa, no codigo imperativo, SS3): cada modulo de negocio exporta su propia lista de

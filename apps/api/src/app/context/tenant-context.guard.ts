@@ -1,8 +1,9 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 
+import { RequestContext } from '@platform/persistence-kernel';
+
 import type { JwtPayload } from '../auth/jwt-payload.interface';
-import { RequestContext } from './request-context';
 
 // docs/technical/03-BACKEND-ARCHITECTURE.md SS7, segundo guard de la cadena (corre despues
 // de JwtAuthGuard). Construye el RequestContext a partir del payload YA validado por el JWT

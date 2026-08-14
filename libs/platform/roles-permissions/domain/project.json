@@ -1,0 +1,18 @@
+{
+  "name": "platform-roles-permissions-domain",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/roles-permissions/domain/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:domain", "module:roles-permissions"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/roles-permissions/domain"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

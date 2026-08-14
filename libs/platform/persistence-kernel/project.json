@@ -1,0 +1,19 @@
+{
+  "name": "platform-persistence-kernel",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/persistence-kernel/src",
+  "projectType": "library",
+  "// tags": "scope:shared (no scope:platform/scope:frontend) - igual criterio que shared-kernel: infraestructura generica de Prisma que cualquier modulo (identity/users/roles-permissions y futuros) reutiliza, no propiedad de un modulo de negocio. type:infrastructure porque, a diferencia de shared-kernel (type:domain, sin @prisma/client), esta libreria SI depende de @prisma/client/@nestjs/common (PrismaService, extension de tenant-scope) - moverla fuera de apps/api era necesario porque libs/ nunca puede importar apps/ por ruta relativa (tooling/eslint/boundaries.mjs).",
+  "tags": ["scope:shared", "type:infrastructure", "module:persistence-kernel"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/persistence-kernel"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}
