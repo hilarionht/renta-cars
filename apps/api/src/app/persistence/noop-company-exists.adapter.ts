@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import type { CompanyExistsPort } from './company-exists.port';
+import type { CompanyExistsPort } from '@platform/shared-kernel';
 
 // Companies (Fase 0 item 3) no esta construido todavia - este adapter es un placeholder
 // que siempre responde true, documentado como tal, no una validacion real disfrazada.

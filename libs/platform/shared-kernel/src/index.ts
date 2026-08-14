@@ -13,3 +13,5 @@ export { UNIT_OF_WORK } from './ports/unit-of-work';
 export type { UnitOfWork, UnitOfWorkTransaction } from './ports/unit-of-work';
 export { DOMAIN_EVENT_PUBLISHER } from './ports/domain-event-publisher';
 export type { DomainEventPublisher, DomainEventToPublish } from './ports/domain-event-publisher';
+export { COMPANY_EXISTS_PORT } from './ports/company-exists.port';
+export type { CompanyExistsPort } from './ports/company-exists.port';
