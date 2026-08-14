@@ -14,4 +14,7 @@ export interface UserLookupResult {
 
 export interface UserLookupPort {
   findByCompanyAndEmail(companyId: string, email: string): Promise<UserLookupResult | null>;
+  // Usado por RefreshSession (platform-identity) para re-armar los claims del access_token
+  // nuevo sin volver a pedir email/password - Session solo guarda userId/companyId.
+  findById(userId: string): Promise<UserLookupResult | null>;
 }

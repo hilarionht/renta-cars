@@ -8,6 +8,7 @@ import './instrumentation';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 
@@ -17,6 +18,10 @@ import { validationExceptionFactory } from './app/errors/validation-exception-fa
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
+
+  // Necesario para leer la cookie httpOnly refresh_token en refresh/logout de clientes web
+  // (docs/09-SEGURIDAD.md SS1, platform-identity-infrastructure/http/auth.controller.ts).
+  app.use(cookieParser());
 
   const configService = app.get(ConfigService);
   const isProduction = configService.getOrThrow<string>('app.nodeEnv') === 'production';

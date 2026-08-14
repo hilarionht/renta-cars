@@ -7,3 +7,4 @@ export { tenantScopeExtension } from './tenant-scope.extension';
 export { PrismaUnitOfWork, asPrismaTransaction } from './prisma-unit-of-work';
 export { ReadTransaction } from './read-transaction';
 export { OutboxWriter } from './outbox-writer';
+export { IS_PUBLIC_KEY, Public } from './public.decorator';

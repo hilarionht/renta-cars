@@ -14,11 +14,25 @@ export class PrismaUserLookupAdapter implements UserLookupPort {
       where: { companyId, email },
       include: { roles: true },
     });
+    return record ? this.toResult(record) : null;
+  }
 
-    if (!record) {
-      return null;
-    }
+  async findById(userId: string): Promise<UserLookupResult | null> {
+    const record = await this.prisma.user.findFirst({
+      where: { id: userId },
+      include: { roles: true },
+    });
+    return record ? this.toResult(record) : null;
+  }
 
+  private toResult(record: {
+    id: string;
+    companyId: string;
+    branchId: string | null;
+    passwordHash: string;
+    status: string;
+    roles: { roleId: string }[];
+  }): UserLookupResult {
     return {
       userId: record.id,
       companyId: record.companyId,
