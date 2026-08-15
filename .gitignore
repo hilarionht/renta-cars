@@ -10,6 +10,9 @@ out-tsc
 .nx/cache
 .nx/workspace-data
 
+# Test coverage output (por-proyecto, generado por `jest --coverage`)
+coverage
+
 # environment
 .env
 .env.local
