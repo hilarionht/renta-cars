@@ -10,6 +10,9 @@ describe('GET /health/ready', () => {
     const response = await request(baseUrl as string).get('/health/ready');
 
     expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({ status: 'ok' });
+    // Envuelto en {data, meta} desde que ResponseEnvelopeInterceptor se volvio APP_INTERCEPTOR
+    // global (Identity & Access, Fase 0) - antes health/* era el unico endpoint real y
+    // ningun interceptor corria sobre el todavia.
+    expect(response.body).toMatchObject({ data: { status: 'ok' } });
   });
 });

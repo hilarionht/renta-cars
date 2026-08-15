@@ -100,12 +100,17 @@ export const baseConfig = [
     // `expect.anything` (tipos de @types/jest) devuelven `any` - cualquier assertion anidada
     // sobre la forma de un payload dispara los no-unsafe-* aunque el test sea correcto; son
     // ruido especifico de las utilidades de Jest, no descuido de tipado en codigo de negocio.
-    files: ['**/*.spec.ts', '**/*.integration.spec.ts'],
+    // `*.e2e-spec.ts` (Supertest, apps/api-e2e) suma otro caso legitimo: `response.body` de
+    // supertest es `any` - cualquier acceso a `.data`/.code (el envelope {data,meta} y el
+    // problem+json de la API) dispara no-unsafe-member-access/no-unsafe-call por la misma
+    // razon (limite de tipado de la libreria, no del código bajo test).
+    files: ['**/*.spec.ts', '**/*.integration.spec.ts', '**/*.e2e-spec.ts'],
     rules: {
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
   {

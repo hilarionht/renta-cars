@@ -38,6 +38,11 @@ export default async function globalSetup(): Promise<void> {
 
   const postgres = await startPostgresContainer();
   registerContainer('api-e2e-postgres', postgres.container);
+  // Expuestas para que los .e2e-spec.ts puedan sembrar datos directo en Postgres (p. ej. el
+  // primer usuario/rol de una company, que hoy no tiene ningun camino via API - Companies,
+  // Fase 0 items 3-4, no existe todavia) sin pasar por apps/api.
+  process.env.TEST_DATABASE_URL = postgres.connectionUri;
+  process.env.TEST_APP_DATABASE_URL = postgres.appRuntimeConnectionUri;
 
   const redis = await startRedisContainer();
   registerContainer('api-e2e-redis', redis.container);
