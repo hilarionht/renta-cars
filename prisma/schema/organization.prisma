@@ -1,2 +1,66 @@
 // @@schema("organization") — Company, Branch, CompanySettings (docs/technical/02-PROYECTOS.md §2.2).
-// Vacio a proposito: Fase 0 de docs/01-ROADMAP.md §2 agrega los primeros modelos.
+// CompanySettings queda fuera de esta tanda (Fase 0 item 8, docs/01-ROADMAP.md §2) - sus
+// politicas referencian reglas de negocio de Rental Operations que todavia no existen.
+
+model Company {
+  // Raiz de tenant (docs/persistence/06-RLS.md §4.1) - no tiene su propio companyId, su
+  // propio id ES el valor que toda otra tabla porta como company_id. Generado en domain/
+  // (EntityId.generate<'Company'>()) antes de persistir, nunca @default(uuid()) - mismo
+  // patron que todo otro aggregate root del modelo.
+  id                  String        @id @db.Uuid
+  legalName           String        @map("legal_name")
+  // INV-016: unica unicidad verdaderamente global del modelo (Company no tiene su propio
+  // tenant que la escope) - ver docs/persistence/10-DECISIONES.md sobre por que se valida
+  // atrapando el constraint, no con un pre-check.
+  taxId               String        @unique @map("tax_id")
+  billingContactEmail String        @map("billing_contact_email")
+  billingContactPhone String?       @map("billing_contact_phone")
+  status              CompanyStatus
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+  version             Int           @default(1)
+
+  @@map("companies")
+  @@schema("organization")
+}
+
+enum CompanyStatus {
+  Active
+  Suspended
+
+  @@schema("organization")
+}
+
+model Branch {
+  id        String @id @db.Uuid
+  companyId String @map("company_id") @db.Uuid
+  // BranchName: VO agregado, no estaba en el catalogo de docs/model/04-VALUE_OBJECTS.md -
+  // ver docs/model/02-AGGREGATES.md §5 actualizado en el mismo cambio.
+  name      String
+
+  addressLine1         String  @map("address_line1")
+  addressLine2         String? @map("address_line2")
+  addressCity          String  @map("address_city")
+  addressStateProvince String? @map("address_state_province")
+  addressPostalCode    String? @map("address_postal_code")
+  addressCountry       String  @map("address_country")
+
+  // Horario semanal - sin mas detalle en los docs para justificar una tabla normalizada
+  // (docs/model/04-VALUE_OBJECTS.md §3: "Rango horario valido por dia de semana").
+  operatingHours Json @map("operating_hours")
+
+  status    BranchStatus
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  version   Int          @default(1)
+
+  @@map("branches")
+  @@schema("organization")
+}
+
+enum BranchStatus {
+  Active
+  Closed
+
+  @@schema("organization")
+}
