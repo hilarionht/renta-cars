@@ -116,6 +116,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.28",
     "@nestjs/terminus": "^11.1.1",
+    "@nestjs/throttler": "6.5.0",
     "@node-rs/argon2": "2.1.0",
     "@opentelemetry/api-logs": "0.221.0",
     "@opentelemetry/auto-instrumentations-node": "0.79.0",

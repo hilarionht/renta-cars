@@ -46,6 +46,6 @@ export class RevokeSessionHandler {
           payload: { ...event },
         });
       }
-    });
+    }, session.companyId);
   }
 }

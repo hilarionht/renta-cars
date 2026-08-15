@@ -46,6 +46,7 @@ export class RefreshSessionHandler {
 
     const activeSessionsForUser = await this.sessionRepository.findActiveForUser(
       matchedSession.userId,
+      matchedSession.companyId,
     );
     const { hash: newHash, plaintext: newPlaintext } = this.refreshTokenHasher.generate();
 
@@ -85,7 +86,7 @@ export class RefreshSessionHandler {
           },
         });
       }
-    });
+    }, matchedSession.companyId);
 
     if (outcome.theftDetected || !outcome.newSession) {
       // Nunca se filtra "robo detectado" en la respuesta al cliente - reutiliza el mismo
@@ -93,7 +94,7 @@ export class RefreshSessionHandler {
       throw new RefreshTokenReusedError(matchedSession.userId);
     }
 
-    const user = await this.userLookup.findById(matchedSession.userId);
+    const user = await this.userLookup.findById(matchedSession.userId, matchedSession.companyId);
     if (!user) {
       throw new InvalidRefreshTokenError();
     }

@@ -26,35 +26,37 @@ Esta envoltura ya está fijada en [03-DOMINIO.md §4](../03-DOMINIO.md) y se her
 
 ## 3. Catálogo — Identity & Access
 
-| Evento | Payload conceptual | Publicado por | Consumido por (hoy) | Cruza BC |
-|---|---|---|---|---|
-| `UserCreated.v1` | `userId`, `companyId`, `branchId?`, `email`, `roles[]` | `User` | Support (Audit, Notifications — bienvenida) | Sí |
-| `UserDisabled.v1` | `userId`, `disabledBy`, `reason?` | `User` | Support (Audit) | Sí |
-| `UserPasswordChanged.v1` | `userId`, `changedBy` | `User` | Support (Audit) | Sí |
-| `RoleCreated.v1` | `roleId`, `companyId`, `scope` | `Role` | Support (Audit) | Sí |
-| `RolePermissionsChanged.v1` | `roleId`, `addedPermissions[]`, `removedPermissions[]` | `Role` | Support (Audit) | Sí |
-| `SessionCreated.v1` | `sessionId`, `userId`, `deviceContext` | `Session` | Support (Audit) | Sí |
-| `SessionRevoked.v1` | `sessionId`, `userId`, `reason` | `Session` | Support (Audit) | Sí |
-| `SessionTheftDetected.v1` | `userId`, `affectedSessionIds[]` | `SessionSecurityService` | Support (Audit — prioridad de seguridad, ver [09-SEGURIDAD.md §4](../09-SEGURIDAD.md)) | Sí |
+| Evento                      | Payload conceptual                                                                     | Publicado por                                             | Consumido por (hoy)                                                                                     | Cruza BC |
+| --------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
+| `UserCreated.v1`            | `userId`, `companyId`, `branchId?`, `email`, `roles[]`                                 | `User`                                                    | Support (Audit, Notifications — bienvenida)                                                             | Sí       |
+| `UserDisabled.v1`           | `userId`, `disabledBy`, `reason?`                                                      | `User`                                                    | Support (Audit)                                                                                         | Sí       |
+| `UserPasswordChanged.v1`    | `userId`, `changedBy`                                                                  | `User`                                                    | Support (Audit)                                                                                         | Sí       |
+| `RoleCreated.v1`            | `roleId`, `companyId`, `scope`                                                         | `Role`                                                    | Support (Audit)                                                                                         | Sí       |
+| `RolePermissionsChanged.v1` | `roleId`, `addedPermissions[]`, `removedPermissions[]`                                 | `Role`                                                    | Support (Audit)                                                                                         | Sí       |
+| `RoleDeactivated.v1`        | `roleId`                                                                               | `Role`                                                    | Support (Audit)                                                                                         | Sí       |
+| `SessionCreated.v1`         | `sessionId`, `userId`, `deviceContext`                                                 | `Session`                                                 | Support (Audit)                                                                                         | Sí       |
+| `SessionRevoked.v1`         | `sessionId`, `userId`, `reason`                                                        | `Session`                                                 | Support (Audit)                                                                                         | Sí       |
+| `SessionTheftDetected.v1`   | `userId`, `affectedSessionIds[]`                                                       | `SessionSecurityService`                                  | Support (Audit — prioridad de seguridad, ver [09-SEGURIDAD.md §4](../09-SEGURIDAD.md))                  | Sí       |
+| `LoginFailed.v1`            | `email`, `companyId?`, `reason` (`unknown_email`\|`invalid_password`\|`user_disabled`) | — (sin agregado; el intento no persiste ningún `Session`) | Support (Audit — [09-SEGURIDAD.md §4](../09-SEGURIDAD.md) exige auditar login fallido, no solo exitoso) | Sí       |
 
-`UserCreated.v1` es el único de este grupo ya fijado como contrato en [03-DOMINIO.md §4](../03-DOMINIO.md); el resto se formaliza aquí por primera vez, coherente con el nivel de detalle de esta fase.
+`UserCreated.v1` es el único de este grupo ya fijado como contrato en [03-DOMINIO.md §4](../03-DOMINIO.md); el resto se formaliza aquí por primera vez, coherente con el nivel de detalle de esta fase. `RoleDeactivated.v1` y `LoginFailed.v1` se agregaron durante la implementación de Identity & Access (Fase 0): el primero junto con el campo `RoleStatus` (ver [02-AGGREGATES.md §2](02-AGGREGATES.md)), el segundo porque `09-SEGURIDAD.md §4` exige auditar login fallido y ningún evento lo cubría.
 
 ## 4. Catálogo — Organization
 
-| Evento | Payload conceptual | Publicado por | Consumido por (hoy) | Cruza BC |
-|---|---|---|---|---|
-| `CompanyRegistered.v1` | `companyId`, `legalName`, `taxId` | `Company` | Support (Audit) | Sí |
-| `CompanySuspended.v1` | `companyId`, `reason` | `Company` | Support (Audit, Notifications) | Sí |
-| `BranchOpened.v1` | `branchId`, `companyId`, `address` | `Branch` | — (interno de Organization) | No |
-| `BranchClosed.v1` | `branchId`, `companyId` | `Branch` | Rental Operations (informativo — un `Vehicle` de esa `Branch` no puede recibir nuevas asignaciones, consultado vía puerto, no reactivo) | Sí |
-| `CompanySettingsUpdated.v1` | `companyId`, `policyName`, `newValueSummary` | `CompanySettings` | Support (Audit) | Sí |
+| Evento                      | Payload conceptual                           | Publicado por     | Consumido por (hoy)                                                                                                                     | Cruza BC |
+| --------------------------- | -------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `CompanyRegistered.v1`      | `companyId`, `legalName`, `taxId`            | `Company`         | Support (Audit)                                                                                                                         | Sí       |
+| `CompanySuspended.v1`       | `companyId`, `reason`                        | `Company`         | Support (Audit, Notifications)                                                                                                          | Sí       |
+| `BranchOpened.v1`           | `branchId`, `companyId`, `address`           | `Branch`          | — (interno de Organization)                                                                                                             | No       |
+| `BranchClosed.v1`           | `branchId`, `companyId`                      | `Branch`          | Rental Operations (informativo — un `Vehicle` de esa `Branch` no puede recibir nuevas asignaciones, consultado vía puerto, no reactivo) | Sí       |
+| `CompanySettingsUpdated.v1` | `companyId`, `policyName`, `newValueSummary` | `CompanySettings` | Support (Audit)                                                                                                                         | Sí       |
 
 ## 5. Catálogo — Scheduling
 
-| Evento | Payload conceptual | Publicado por | Consumido por (hoy) | Cruza BC |
-|---|---|---|---|---|
-| `AvailabilitySlotCreated.v1` | `slotId`, `resourceType`, `resourceId`, `dateRange`, `slotKind` | `AvailabilitySlot` | — (consumido síncronamente vía consulta, no reactivamente en v1.0) | No |
-| `AvailabilitySlotReleased.v1` | `slotId`, `resourceType`, `resourceId` | `AvailabilitySlot` | — | No |
+| Evento                        | Payload conceptual                                              | Publicado por      | Consumido por (hoy)                                                | Cruza BC |
+| ----------------------------- | --------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------ | -------- |
+| `AvailabilitySlotCreated.v1`  | `slotId`, `resourceType`, `resourceId`, `dateRange`, `slotKind` | `AvailabilitySlot` | — (consumido síncronamente vía consulta, no reactivamente en v1.0) | No       |
+| `AvailabilitySlotReleased.v1` | `slotId`, `resourceType`, `resourceId`                          | `AvailabilitySlot` | —                                                                  | No       |
 
 Nota: `Scheduling` es deliberadamente el Bounded Context con menor actividad de eventos hacia afuera — su interacción principal con `Rental Operations` es síncrona, vía `CalendarPort` (ver [01-BOUNDED_CONTEXTS.md §4.2](01-BOUNDED_CONTEXTS.md)), no reactiva. Estos dos eventos existen sobre todo para `Audit` y para una futura proyección de utilización de recursos (Reports), no como mecanismo de coordinación de negocio.
 
@@ -62,46 +64,46 @@ Nota: `Scheduling` es deliberadamente el Bounded Context con menor actividad de 
 
 ### 6.1 Vehicle / VehicleCategory
 
-| Evento | Payload conceptual | Publicado por | Consumido por (hoy) | Cruza BC |
-|---|---|---|---|---|
-| `VehicleRegistered.v1` | `vehicleId`, `branchId`, `licensePlate`, `vin`, `categoryId` | `Vehicle` | — | No |
-| `VehicleDocumentationLoaded.v1` | `vehicleId`, `documentId`, `documentType`, `validUntil` | `Vehicle` | Support (Audit) | Sí |
-| `VehicleEnabled.v1` | `vehicleId` | `Vehicle` | Scheduling (informativo, no reactivo — el vehículo se vuelve elegible para `AvailabilitySlot`) | Sí |
-| `VehicleStatusChanged.v1` | `vehicleId`, `previousStatus`, `newStatus`, `reason?` | `Vehicle` | Reports, Scheduling (si `newStatus` es `Maintenance`/`OutOfService`, se traduce a un `Blackout` vía la ACL de `AvailabilityService`) | Sí |
-| `MaintenanceScheduled.v1` | `vehicleId`, `maintenanceId`, `type`, `window` | `Vehicle` | Scheduling (bloqueo del `AvailabilitySlot` futuro correspondiente) | Sí |
-| `MaintenanceCompleted.v1` | `vehicleId`, `maintenanceId`, `fitForService: boolean` | `Vehicle` | Reports | Sí |
-| `VehicleCategoryCreated.v1` | `categoryId`, `companyId`, `name` | `VehicleCategory` | — | No |
-| `RateChanged.v1` | `categoryId`, `rateId`, `amount`, `validFrom` | `VehicleCategory` | Reports (histórico de precios) | Sí |
+| Evento                          | Payload conceptual                                           | Publicado por     | Consumido por (hoy)                                                                                                                  | Cruza BC |
+| ------------------------------- | ------------------------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| `VehicleRegistered.v1`          | `vehicleId`, `branchId`, `licensePlate`, `vin`, `categoryId` | `Vehicle`         | —                                                                                                                                    | No       |
+| `VehicleDocumentationLoaded.v1` | `vehicleId`, `documentId`, `documentType`, `validUntil`      | `Vehicle`         | Support (Audit)                                                                                                                      | Sí       |
+| `VehicleEnabled.v1`             | `vehicleId`                                                  | `Vehicle`         | Scheduling (informativo, no reactivo — el vehículo se vuelve elegible para `AvailabilitySlot`)                                       | Sí       |
+| `VehicleStatusChanged.v1`       | `vehicleId`, `previousStatus`, `newStatus`, `reason?`        | `Vehicle`         | Reports, Scheduling (si `newStatus` es `Maintenance`/`OutOfService`, se traduce a un `Blackout` vía la ACL de `AvailabilityService`) | Sí       |
+| `MaintenanceScheduled.v1`       | `vehicleId`, `maintenanceId`, `type`, `window`               | `Vehicle`         | Scheduling (bloqueo del `AvailabilitySlot` futuro correspondiente)                                                                   | Sí       |
+| `MaintenanceCompleted.v1`       | `vehicleId`, `maintenanceId`, `fitForService: boolean`       | `Vehicle`         | Reports                                                                                                                              | Sí       |
+| `VehicleCategoryCreated.v1`     | `categoryId`, `companyId`, `name`                            | `VehicleCategory` | —                                                                                                                                    | No       |
+| `RateChanged.v1`                | `categoryId`, `rateId`, `amount`, `validFrom`                | `VehicleCategory` | Reports (histórico de precios)                                                                                                       | Sí       |
 
 Ya fijado en contrato previo: `VehicleStatusChanged.v1` ([03-DOMINIO.md §4](../03-DOMINIO.md)).
 
 ### 6.2 Customer
 
-| Evento | Payload conceptual | Publicado por | Consumido por (hoy) | Cruza BC |
-|---|---|---|---|---|
-| `CustomerRegistered.v1` | `customerId`, `companyId`, `customerType` | `Customer` | Support (Notifications — bienvenida opcional) | Sí |
-| `CustomerDocumentValidated.v1` | `customerId`, `documentId`, `documentType` | `Customer` | — | No |
-| `CustomerDocumentExpired.v1` | `customerId`, `documentId` | `Customer` (transición automática por fecha, disparada por job de vigencia) | Support (Notifications — alerta interna, no al cliente) | Sí |
-| `AdditionalDriverRegistered.v1` | `customerId`, `driverId` | `Customer` | — | No |
-| `CustomerBlocked.v1` | `customerId`, `reason` | `Customer` | Support (Audit) | Sí |
-| `CustomerUnblocked.v1` | `customerId`, `unblockedBy` | `Customer` | Support (Audit — decisión manual auditada, [domain/07-EXCEPCIONES.md §12](../domain/07-EXCEPCIONES.md)) | Sí |
+| Evento                          | Payload conceptual                         | Publicado por                                                               | Consumido por (hoy)                                                                                     | Cruza BC |
+| ------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
+| `CustomerRegistered.v1`         | `customerId`, `companyId`, `customerType`  | `Customer`                                                                  | Support (Notifications — bienvenida opcional)                                                           | Sí       |
+| `CustomerDocumentValidated.v1`  | `customerId`, `documentId`, `documentType` | `Customer`                                                                  | —                                                                                                       | No       |
+| `CustomerDocumentExpired.v1`    | `customerId`, `documentId`                 | `Customer` (transición automática por fecha, disparada por job de vigencia) | Support (Notifications — alerta interna, no al cliente)                                                 | Sí       |
+| `AdditionalDriverRegistered.v1` | `customerId`, `driverId`                   | `Customer`                                                                  | —                                                                                                       | No       |
+| `CustomerBlocked.v1`            | `customerId`, `reason`                     | `Customer`                                                                  | Support (Audit)                                                                                         | Sí       |
+| `CustomerUnblocked.v1`          | `customerId`, `unblockedBy`                | `Customer`                                                                  | Support (Audit — decisión manual auditada, [domain/07-EXCEPCIONES.md §12](../domain/07-EXCEPCIONES.md)) | Sí       |
 
 ### 6.3 Reservation
 
-| Evento | Payload conceptual | Publicado por | Consumido por (hoy) | Cruza BC |
-|---|---|---|---|---|
-| `ReservationCreated.v1` | `reservationId`, `customerId`, `vehicleId`, `dateRange`, `status: Draft` | `Reservation` | — | No |
-| `ReservationConfirmed.v1` | `reservationId`, `customerId`, `vehicleId`, `dateRange`, `priceBreakdown` | `Reservation` | Support (Notifications, Reports) | Sí |
-| `ReservationRejectedByAvailability.v1` | `reservationId`, `vehicleId`, `dateRange` | `Reservation` | Support (Notifications — ofrecer alternativa) | Sí |
-| `ReservationCancelled.v1` | `reservationId`, `cancelledBy`, `penaltyApplied?: PriceAdjustment` | `Reservation` | Support (Notifications, Reports), Scheduling (liberación del slot, vía la ACL síncrona, no reactiva a este evento) | Sí |
-| `ReservationCheckedOut.v1` | `reservationId`, `vehicleId`, `inspectionId`, `odometer` | `Reservation` | Rental Operations (`Vehicle`, vía comando síncrono — no reactivo, ver nota abajo), Support (Notifications) | Sí |
-| `ReservationRescheduled.v1` | `reservationId`, `previousRange`, `newRange`, `priceBreakdown` | `Reservation` | Reports | Sí |
-| `ExtensionRequested.v1` | `reservationId`, `requestedNewEndDate` | `Reservation` | — | No |
-| `ExtensionApproved.v1` | `reservationId`, `newRange`, `priceBreakdown` | `Reservation` | Support (Notifications) | Sí |
-| `VehicleSwapped.v1` | `reservationId`, `previousVehicleId`, `newVehicleId`, `reason` | `Reservation` | Rental Operations (`Vehicle` — actualización informativa de ambos vehículos) | No* |
-| `ReservationCheckedIn.v1` | `reservationId`, `vehicleId`, `inspectionId`, `priceBreakdown` (desglose completo final) | `Reservation` | Commerce (`Invoices`, dispara emisión — ACL de traducción, [01-BOUNDED_CONTEXTS.md §4.3](01-BOUNDED_CONTEXTS.md)), Support (Notifications) | Sí |
-| `NoShowRegistered.v1` | `reservationId`, `penaltyApplied?: PriceAdjustment` | `Reservation` | Support (Notifications, Reports) | Sí |
-| `ReservationClosed.v1` | `reservationId` | `Reservation` (reacciona internamente a `InvoiceIssued.v1`) | Reports | No |
+| Evento                                 | Payload conceptual                                                                       | Publicado por                                               | Consumido por (hoy)                                                                                                                        | Cruza BC |
+| -------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| `ReservationCreated.v1`                | `reservationId`, `customerId`, `vehicleId`, `dateRange`, `status: Draft`                 | `Reservation`                                               | —                                                                                                                                          | No       |
+| `ReservationConfirmed.v1`              | `reservationId`, `customerId`, `vehicleId`, `dateRange`, `priceBreakdown`                | `Reservation`                                               | Support (Notifications, Reports)                                                                                                           | Sí       |
+| `ReservationRejectedByAvailability.v1` | `reservationId`, `vehicleId`, `dateRange`                                                | `Reservation`                                               | Support (Notifications — ofrecer alternativa)                                                                                              | Sí       |
+| `ReservationCancelled.v1`              | `reservationId`, `cancelledBy`, `penaltyApplied?: PriceAdjustment`                       | `Reservation`                                               | Support (Notifications, Reports), Scheduling (liberación del slot, vía la ACL síncrona, no reactiva a este evento)                         | Sí       |
+| `ReservationCheckedOut.v1`             | `reservationId`, `vehicleId`, `inspectionId`, `odometer`                                 | `Reservation`                                               | Rental Operations (`Vehicle`, vía comando síncrono — no reactivo, ver nota abajo), Support (Notifications)                                 | Sí       |
+| `ReservationRescheduled.v1`            | `reservationId`, `previousRange`, `newRange`, `priceBreakdown`                           | `Reservation`                                               | Reports                                                                                                                                    | Sí       |
+| `ExtensionRequested.v1`                | `reservationId`, `requestedNewEndDate`                                                   | `Reservation`                                               | —                                                                                                                                          | No       |
+| `ExtensionApproved.v1`                 | `reservationId`, `newRange`, `priceBreakdown`                                            | `Reservation`                                               | Support (Notifications)                                                                                                                    | Sí       |
+| `VehicleSwapped.v1`                    | `reservationId`, `previousVehicleId`, `newVehicleId`, `reason`                           | `Reservation`                                               | Rental Operations (`Vehicle` — actualización informativa de ambos vehículos)                                                               | No*      |
+| `ReservationCheckedIn.v1`              | `reservationId`, `vehicleId`, `inspectionId`, `priceBreakdown` (desglose completo final) | `Reservation`                                               | Commerce (`Invoices`, dispara emisión — ACL de traducción, [01-BOUNDED_CONTEXTS.md §4.3](01-BOUNDED_CONTEXTS.md)), Support (Notifications) | Sí       |
+| `NoShowRegistered.v1`                  | `reservationId`, `penaltyApplied?: PriceAdjustment`                                      | `Reservation`                                               | Support (Notifications, Reports)                                                                                                           | Sí       |
+| `ReservationClosed.v1`                 | `reservationId`                                                                          | `Reservation` (reacciona internamente a `InvoiceIssued.v1`) | Reports                                                                                                                                    | No       |
 
 `*` `VehicleSwapped.v1` no cruza Bounded Context en sentido estricto (`Vehicle` es del mismo BC que `Reservation`), pero sí cruza agregado — se mantiene como evento versionado igualmente por disciplina uniforme.
 
@@ -111,35 +113,35 @@ Ya fijados en contrato previo: `ReservationConfirmed.v1`, `ReservationCancelled.
 
 ## 7. Catálogo — Commerce
 
-| Evento | Payload conceptual | Publicado por | Consumido por (hoy) | Cruza BC |
-|---|---|---|---|---|
-| `SecurityDepositHeld.v1` | `depositId`, `reservationId`, `amount` | `SecurityDeposit` | Support (Notifications) | Sí |
-| `SecurityDepositReleased.v1` | `depositId`, `reservationId` | `SecurityDeposit` | Support (Notifications) | Sí |
-| `SecurityDepositPartiallyRetained.v1` | `depositId`, `reservationId`, `retainedAmount`, `reason` | `SecurityDeposit` | Support (Notifications) | Sí |
-| `PaymentSucceeded.v1` | `paymentId`, `invoiceId?`, `depositId?`, `amount`, `method` | `Payment` | Commerce (`Invoices` — concilia), Support (Notifications, Reports) | Sí |
-| `PaymentFailed.v1` | `paymentId`, `invoiceId?`, `reason` | `Payment` | Support (Notifications) | Sí |
-| `PaymentRefunded.v1` | `paymentId`, `amount` | `Payment` | Support (Notifications, Reports) | Sí |
-| `InvoiceIssued.v1` | `invoiceId`, `reservationId`, `customerId`, `invoiceNumber`, `charges[]`, `total` | `Invoice` | Support (Notifications), Commerce (`Payments` — inicia cobro si aplica), Rental Operations (`Reservation` — habilita transición a `Closed`) | Sí |
-| `InvoiceVoided.v1` | `invoiceId`, `reason` | `Invoice` | Support (Audit) | Sí |
+| Evento                                | Payload conceptual                                                                | Publicado por     | Consumido por (hoy)                                                                                                                         | Cruza BC |
+| ------------------------------------- | --------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `SecurityDepositHeld.v1`              | `depositId`, `reservationId`, `amount`                                            | `SecurityDeposit` | Support (Notifications)                                                                                                                     | Sí       |
+| `SecurityDepositReleased.v1`          | `depositId`, `reservationId`                                                      | `SecurityDeposit` | Support (Notifications)                                                                                                                     | Sí       |
+| `SecurityDepositPartiallyRetained.v1` | `depositId`, `reservationId`, `retainedAmount`, `reason`                          | `SecurityDeposit` | Support (Notifications)                                                                                                                     | Sí       |
+| `PaymentSucceeded.v1`                 | `paymentId`, `invoiceId?`, `depositId?`, `amount`, `method`                       | `Payment`         | Commerce (`Invoices` — concilia), Support (Notifications, Reports)                                                                          | Sí       |
+| `PaymentFailed.v1`                    | `paymentId`, `invoiceId?`, `reason`                                               | `Payment`         | Support (Notifications)                                                                                                                     | Sí       |
+| `PaymentRefunded.v1`                  | `paymentId`, `amount`                                                             | `Payment`         | Support (Notifications, Reports)                                                                                                            | Sí       |
+| `InvoiceIssued.v1`                    | `invoiceId`, `reservationId`, `customerId`, `invoiceNumber`, `charges[]`, `total` | `Invoice`         | Support (Notifications), Commerce (`Payments` — inicia cobro si aplica), Rental Operations (`Reservation` — habilita transición a `Closed`) | Sí       |
+| `InvoiceVoided.v1`                    | `invoiceId`, `reason`                                                             | `Invoice`         | Support (Audit)                                                                                                                             | Sí       |
 
 Ya fijados en contrato previo: `PaymentSucceeded.v1`, `PaymentFailed.v1`, `InvoiceIssued.v1` ([03-DOMINIO.md §4](../03-DOMINIO.md)).
 
 ## 8. Catálogo — Support
 
-| Evento | Payload conceptual | Publicado por | Consumido por (hoy) | Cruza BC |
-|---|---|---|---|---|
-| `FileUploaded.v1` | `fileId`, `contentType`, `uploadedBy` | `File` | Support (Audit) | No |
-| `FileDeleted.v1` | `fileId` | `File` | Support (Audit) | No |
-| `NotificationSent.v1` | `notificationId`, `channel`, `kind` | `Notification` | Support (Audit) | No |
-| `NotificationDelivered.v1` | `notificationId`, `deliveredAt` | `Notification` (traducido desde el webhook del proveedor, p. ej. `WhatsAppMessageDelivered.v1` — ver [11-INTEGRACIONES.md §3](../11-INTEGRACIONES.md)) | — | No |
-| `NotificationFailed.v1` | `notificationId`, `reason`, `channelsExhausted: boolean` | `Notification` | Rental Operations (escalamiento a Agente de Reservas si `channelsExhausted` y `kind = Confirmation`, [domain/07-EXCEPCIONES.md §4](../domain/07-EXCEPCIONES.md)) | Sí |
+| Evento                     | Payload conceptual                                       | Publicado por                                                                                                                                          | Consumido por (hoy)                                                                                                                                              | Cruza BC |
+| -------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `FileUploaded.v1`          | `fileId`, `contentType`, `uploadedBy`                    | `File`                                                                                                                                                 | Support (Audit)                                                                                                                                                  | No       |
+| `FileDeleted.v1`           | `fileId`                                                 | `File`                                                                                                                                                 | Support (Audit)                                                                                                                                                  | No       |
+| `NotificationSent.v1`      | `notificationId`, `channel`, `kind`                      | `Notification`                                                                                                                                         | Support (Audit)                                                                                                                                                  | No       |
+| `NotificationDelivered.v1` | `notificationId`, `deliveredAt`                          | `Notification` (traducido desde el webhook del proveedor, p. ej. `WhatsAppMessageDelivered.v1` — ver [11-INTEGRACIONES.md §3](../11-INTEGRACIONES.md)) | —                                                                                                                                                                | No       |
+| `NotificationFailed.v1`    | `notificationId`, `reason`, `channelsExhausted: boolean` | `Notification`                                                                                                                                         | Rental Operations (escalamiento a Agente de Reservas si `channelsExhausted` y `kind = Confirmation`, [domain/07-EXCEPCIONES.md §4](../domain/07-EXCEPCIONES.md)) | Sí       |
 
 `AuditLogEntry` no publica eventos — es, por diseño, un consumidor terminal (ver [02-AGGREGATES.md §17](02-AGGREGATES.md)).
 
 ## 9. Quién publica, quién consume (regla transversal)
 
-- **Publica**: siempre la capa de aplicación del módulo dueño del agregado, al final de un Command Handler exitoso, después de persistir — nunca el propio agregado de dominio de forma directa al bus ([05-CONVENCIONES-BACKEND.md §8](../05-CONVENCIONES-BACKEND.md)). El agregado *produce* el evento como valor/registro interno; la aplicación lo *emite*.
-- **Consume**: cualquier módulo interesado, vía un `Listener` en su propia carpeta `infrastructure/events/`, sin importar código del módulo emisor más allá del *shape* versionado del evento.
+- **Publica**: siempre la capa de aplicación del módulo dueño del agregado, al final de un Command Handler exitoso, después de persistir — nunca el propio agregado de dominio de forma directa al bus ([05-CONVENCIONES-BACKEND.md §8](../05-CONVENCIONES-BACKEND.md)). El agregado _produce_ el evento como valor/registro interno; la aplicación lo _emite_.
+- **Consume**: cualquier módulo interesado, vía un `Listener` en su propia carpeta `infrastructure/events/`, sin importar código del módulo emisor más allá del _shape_ versionado del evento.
 - **`Support`/`Audit` observa todo**: por regla transversal de plataforma, todo evento de dominio (sin excepción, incluidos los que no "cruzan BC" en el sentido de negocio) se registra en `AuditLogEntry`. Esta es la razón por la que no se repite como consumidor en cada fila de este catálogo — sería ruido, no información.
 
 ## 10. Garantías de entrega

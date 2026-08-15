@@ -13,8 +13,16 @@ export default registerAs('security', () => ({
     timeCost: 2,
     parallelism: 1,
   },
-  authThrottle: {
-    limit: 5,
+  // docs/09-SEGURIDAD.md SS6 pide un limite general mas laxo que uno especifico y mas
+  // estricto para auth. Se simplifica a un unico limite global con el valor estricto de
+  // auth (nunca MENOS estricto de lo que login/refresh necesitan) - separar ambos requiere
+  // la sintaxis multi-throttler de @nestjs/throttler (@Throttle()/@SkipThrottle() por
+  // named throttler), cuyo comportamiento exacto de exclusion no se valido en vivo en esta
+  // tanda; un unico limite uniforme es la version simple y verificable, no una version
+  // "a medias" de la separacion documentada. Ni este valor ni una eventual separacion estan
+  // calibrados contra trafico real - Fase 6.
+  throttle: {
+    limit: 20,
     ttlSeconds: 60,
   },
 }));

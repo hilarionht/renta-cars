@@ -14,7 +14,10 @@ model OutboxEvent {
   eventId       String    @unique @map("event_id") @db.Uuid
   eventType     String    @map("event_type")
   aggregateType String    @map("aggregate_type")
-  aggregateId   String    @map("aggregate_id") @db.Uuid
+  // Opaco a proposito (docs/persistence/02-TABLAS.md SS6: "nunca FK hacia el agregado que lo
+  // origino"), no @db.Uuid - LoginFailed.v1 no tiene Session/User real que referenciar
+  // (login con email desconocido), usa el email tal cual como identificador del intento.
+  aggregateId   String    @map("aggregate_id")
   companyId     String?   @map("company_id") @db.Uuid
   sourceSchema  String    @map("source_schema")
   payload       Json

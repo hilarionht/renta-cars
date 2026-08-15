@@ -88,7 +88,7 @@ export class LoginHandler {
           payload: { ...event },
         });
       }
-    });
+    }, session.companyId);
 
     return { accessToken, refreshToken: plaintext, sessionId: session.id.toString() };
   }
@@ -109,6 +109,6 @@ export class LoginHandler {
         companyId: command.companyId,
         payload: { email: command.email, companyId: command.companyId, reason },
       });
-    });
+    }, command.companyId);
   }
 }

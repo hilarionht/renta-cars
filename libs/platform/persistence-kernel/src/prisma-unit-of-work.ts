@@ -18,11 +18,11 @@ export class PrismaUnitOfWork implements UnitOfWork {
     private readonly requestContext: RequestContext,
   ) {}
 
-  async run<T>(work: (tx: UnitOfWorkTransaction) => Promise<T>): Promise<T> {
-    const { companyId } = this.requestContext.get();
+  async run<T>(work: (tx: UnitOfWorkTransaction) => Promise<T>, companyId?: string): Promise<T> {
+    const scopedCompanyId = companyId ?? this.requestContext.get().companyId;
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.current_company_id', ${companyId}, true)`;
+      await tx.$executeRaw`SELECT set_config('app.current_company_id', ${scopedCompanyId}, true)`;
       return work(tx as unknown as UnitOfWorkTransaction);
     });
   }

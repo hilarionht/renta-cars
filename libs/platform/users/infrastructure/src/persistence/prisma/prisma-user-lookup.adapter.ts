@@ -1,27 +1,28 @@
 import { Injectable } from '@nestjs/common';
 
-import { PrismaService } from '@platform/persistence-kernel';
+import { ReadTransaction } from '@platform/persistence-kernel';
 import type { UserLookupPort, UserLookupResult } from '@platform/users/application';
 
 // Puerto publico consumido por platform-identity (Login) - superficie minima de solo
-// lectura, nunca expone UserRepository completo cross-modulo.
+// lectura, nunca expone UserRepository completo cross-modulo. Login/RefreshSession corren
+// sin RequestContext poblado (@Public()) - companyId siempre explicito, nunca ambiente.
 @Injectable()
 export class PrismaUserLookupAdapter implements UserLookupPort {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly readTransaction: ReadTransaction) {}
 
   async findByCompanyAndEmail(companyId: string, email: string): Promise<UserLookupResult | null> {
-    const record = await this.prisma.user.findFirst({
-      where: { companyId, email },
-      include: { roles: true },
-    });
+    const record = await this.readTransaction.run(
+      (tx) => tx.user.findFirst({ where: { companyId, email }, include: { roles: true } }),
+      companyId,
+    );
     return record ? this.toResult(record) : null;
   }
 
-  async findById(userId: string): Promise<UserLookupResult | null> {
-    const record = await this.prisma.user.findFirst({
-      where: { id: userId },
-      include: { roles: true },
-    });
+  async findById(userId: string, companyId: string): Promise<UserLookupResult | null> {
+    const record = await this.readTransaction.run(
+      (tx) => tx.user.findFirst({ where: { id: userId, companyId }, include: { roles: true } }),
+      companyId,
+    );
     return record ? this.toResult(record) : null;
   }
 

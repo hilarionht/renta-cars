@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { HealthCheck, HealthCheckService, PrismaHealthIndicator } from '@nestjs/terminus';
 import { metrics } from '@opentelemetry/api';
 
-import { PrismaService } from '@platform/persistence-kernel';
+import { Public, PrismaService } from '@platform/persistence-kernel';
 
 import { RedisHealthIndicator } from './indicators/redis.health-indicator';
 
@@ -15,6 +15,8 @@ const healthReadyGauge = metrics.getMeter('api').createGauge('platform_health_re
 
 // docs/technical/03-BACKEND-ARCHITECTURE.md SS10: dos endpoints, semantica distinta.
 // Ambos publicos (sin JwtAuthGuard) y sin detalle interno mas alla de ok/degraded/down.
+// @Public() explicito desde que JwtAuthGuard es APP_GUARD global (Fase 0, esta tanda) -
+// antes no hacia falta porque el guard nunca corria por defecto.
 @Controller('health')
 export class HealthController {
   constructor(
@@ -25,6 +27,7 @@ export class HealthController {
   ) {}
 
   // Solo confirma que el proceso responde - politica de reinicio del contenedor.
+  @Public()
   @Get('live')
   @HealthCheck()
   live() {
@@ -32,6 +35,7 @@ export class HealthController {
   }
 
   // Conectividad real a Postgres y Redis - admision de trafico del balanceador.
+  @Public()
   @Get('ready')
   @HealthCheck()
   async ready() {

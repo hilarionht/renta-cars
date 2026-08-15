@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { User as PrismaUser, UserRole as PrismaUserRole } from '@prisma/client';
 
 import {
@@ -7,34 +7,28 @@ import {
   EntityId,
   type UnitOfWorkTransaction,
 } from '@platform/shared-kernel';
-import {
-  asPrismaTransaction,
-  PrismaService,
-  TENANT_SCOPED_PRISMA,
-} from '@platform/persistence-kernel';
+import { asPrismaTransaction, ReadTransaction } from '@platform/persistence-kernel';
 import { PasswordHash, PersonName, User, type UserId } from '@platform/users/domain';
 import type { UserRepository } from '@platform/users/application';
 
 @Injectable()
 export class PrismaUserRepository implements UserRepository {
-  constructor(
-    private readonly prisma: PrismaService,
-    @Inject(TENANT_SCOPED_PRISMA) private readonly scopedPrisma: PrismaService,
-  ) {}
+  constructor(private readonly readTransaction: ReadTransaction) {}
 
+  // Sin companyId explicito - estos dos metodos siempre corren en rutas autenticadas
+  // (TenantContextGuard ya poblo RequestContext), a diferencia de PrismaUserLookupAdapter
+  // (consumido por Login/RefreshSession, sin JWT todavia).
   async findById(id: UserId): Promise<User | null> {
-    const record = await this.scopedPrisma.user.findFirst({
-      where: { id: id.toString() },
-      include: { roles: true },
-    });
+    const record = await this.readTransaction.run((tx) =>
+      tx.user.findFirst({ where: { id: id.toString() }, include: { roles: true } }),
+    );
     return record ? this.toDomain(record) : null;
   }
 
   async findByCompanyAndEmail(companyId: string, email: string): Promise<User | null> {
-    const record = await this.prisma.user.findFirst({
-      where: { companyId, email },
-      include: { roles: true },
-    });
+    const record = await this.readTransaction.run((tx) =>
+      tx.user.findFirst({ where: { companyId, email }, include: { roles: true } }),
+    );
     return record ? this.toDomain(record) : null;
   }
 

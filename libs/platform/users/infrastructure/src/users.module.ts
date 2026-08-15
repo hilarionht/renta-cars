@@ -40,6 +40,9 @@ import { GetUserHandler } from './queries/get-user.handler';
     RevokeRoleHandler,
     GetUserHandler,
   ],
-  exports: [USER_LOOKUP_PORT],
+  // PASSWORD_HASHER se exporta ademas de USER_LOOKUP_PORT - LoginHandler (platform-identity)
+  // lo necesita para verificar la contraseña presentada contra el hash guardado, usando el
+  // mismo hasher que CreateUser/ChangePassword (nunca dos implementaciones de argon2id).
+  exports: [USER_LOOKUP_PORT, PASSWORD_HASHER],
 })
 export class UsersModule {}
