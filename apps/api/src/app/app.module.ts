@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { ClsModule } from 'nestjs-cls';
@@ -16,6 +17,7 @@ import {
   COMPANIES_DOMAIN_ERROR_ENTRIES,
 } from '@platform/companies/infrastructure';
 import { BranchesModule, BRANCHES_DOMAIN_ERROR_ENTRIES } from '@platform/branches/infrastructure';
+import { AuditModule, AUDIT_DOMAIN_ERROR_ENTRIES } from '@platform/audit/infrastructure';
 
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
@@ -39,12 +41,13 @@ import { ResponseEnvelopeInterceptor } from './interceptors/response-envelope.in
 import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 import { PrismaModule } from './persistence/prisma.module';
 
-// Composicion de Identity & Access + Organization (Fase 0 - docs/01-ROADMAP.md SS2). Orden
-// de import: RolesPermissions -> Users -> Identity -> Companies -> Branches, mismo orden de
-// dependencia real y de composicion documentada (docs/technical/03-BACKEND-ARCHITECTURE.md
-// SS1) - cada uno depende del anterior via su puerto publico (ROLE_LOOKUP_PORT,
-// USER_LOOKUP_PORT; Companies/Branches no dependen de ningun otro modulo de negocio, ver
-// plan de implementacion).
+// Composicion de Identity & Access + Organization + Audit (Fase 0 - docs/01-ROADMAP.md SS2).
+// Orden de import: RolesPermissions -> Users -> Identity -> Companies -> Branches -> Audit,
+// mismo orden de dependencia real y de composicion documentada
+// (docs/technical/03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del anterior via su
+// puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Companies/Branches no dependen de
+// ningun otro modulo de negocio; Audit no depende de ninguno - escucha eventos de todos via
+// EventEmitter2, nunca importa su codigo).
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -64,6 +67,12 @@ import { PrismaModule } from './persistence/prisma.module';
     // TenantContextGuard, leido por el Prisma Client Extension de tenant-scope) depende de
     // ClsService (libs/platform/persistence-kernel/src/request-context.ts).
     ClsModule.forRoot({ global: true, middleware: { mount: true } }),
+    // wildcard:true - Audit (platform-audit-infrastructure) escucha con @OnEvent('**'), el
+    // doble comodin necesario para capturar eventType de dos segmentos ("Nombre.v1") bajo el
+    // delimitador por defecto ('.'). Global automaticamente (EventEmitterModule.forRoot() no
+    // necesita { global: true } explicito) - OutboxWriter (dentro de PrismaModule) inyecta
+    // EventEmitter2 sin que este modulo lo exporte a mano.
+    EventEmitterModule.forRoot({ wildcard: true }),
     PrismaModule,
     // docs/technical/03-BACKEND-ARCHITECTURE.md SS7 (ThrottlerGuard, ultimo guard de la
     // cadena) - limite unico global, ver security.config.ts sobre por que no se separo un
@@ -111,6 +120,7 @@ import { PrismaModule } from './persistence/prisma.module';
     IdentityModule,
     CompaniesModule,
     BranchesModule,
+    AuditModule,
   ],
   providers: [
     domainErrorRegistryProvider(
@@ -119,6 +129,7 @@ import { PrismaModule } from './persistence/prisma.module';
       IDENTITY_DOMAIN_ERROR_ENTRIES,
       COMPANIES_DOMAIN_ERROR_ENTRIES,
       BRANCHES_DOMAIN_ERROR_ENTRIES,
+      AUDIT_DOMAIN_ERROR_ENTRIES,
     ),
     // Orden importa, e Nest lo evalua al REVES del orden de registro (el ultimo
     // registrado se prueba primero) - verificado a mano lanzando un DomainError real y
