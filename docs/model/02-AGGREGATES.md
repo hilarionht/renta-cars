@@ -163,7 +163,7 @@ Este documento define los agregados definitivos de la Plataforma: la unidad de c
 
 **Entidades internas**: ninguna.
 
-**Value Objects**: `Address`, `OperatingHours`, `BranchStatus` (`Active`, `Closed`).
+**Value Objects**: `Address`, `OperatingHours`, `BranchStatus` (`Active`, `Closed`), `BranchName` (agregado durante la implementación de Organization — no estaba en el catálogo original, ver [04-VALUE_OBJECTS.md §3](04-VALUE_OBJECTS.md); una sucursal sin nombre no es usable en ningún flujo real, mismo hueco que `PersonName` tuvo para `User` en Identity & Access).
 
 **Eventos**: `BranchOpened.v1`, `BranchClosed.v1`.
 

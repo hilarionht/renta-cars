@@ -154,6 +154,26 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: se acepta el gap explícitamente por ahora. Alcance real: una fila de `outbox_event` queda con `published_at IS NULL` únicamente si el proceso de `apps/api` muere en la ventana exacta entre el commit de la transacción y la confirmación en memoria — no hay pérdida de datos de negocio (el `User`/`Role`/`Session` ya está persistido), solo de la notificación del evento. No hay ningún consumidor de eventos todavía (`Audit`, Fase 0 ítem 7, no existe) — construir el worker antes que exista al menos un consumidor real habría sido trabajo sin forma de verificarse. Queda como ítem pendiente explícito para cuando `Audit` (u otro consumidor) se construya.
 
+## #17 — Bootstrap RLS de `companies`: `WITH CHECK` implícito vía id generado en dominio
+
+**Contexto**: `organization.companies` es la única tabla cuya política RLS compara su propio `id`, no `company_id` ([06-RLS.md §4.1](06-RLS.md)) — es la raíz de tenant, no tiene un tenant "padre" que la escope. Registrar una `Company` nueva (`POST /companies`, `@Public()`) es la primera escritura sobre esa fila: en ese momento no existe ningún `app.current_company_id` legítimo todavía, porque la company que lo definiría es precisamente la que se está creando.
+
+**Decisión**: sin necesidad de ningún GUC de bypass nuevo (a diferencia de `sessions.refresh_token_hash`, §14). `Company.create()` genera el `id` en `domain/` (`EntityId.generate<'Company'>()`) antes de persistir — mismo patrón que todo agregado del modelo. `RegisterCompanyHandler` llama `unitOfWork.run(work, company.id.toString())`, fijando `SET LOCAL app.current_company_id` a ese mismo id antes del `INSERT`. Postgres usa la expresión `USING` como `WITH CHECK` quando una política no define uno explícito — como la fila insertada tiene exactamente `id = app.current_company_id`, el chequeo pasa de forma natural. Verificado con un `INSERT` real contra Postgres (no solo en teoría): visible bajo su propio contexto, invisible bajo cualquier otro.
+
+**Bug real encontrado en el camino**: la primera versión de la migración `organization_rls` olvidó `GRANT USAGE ON SCHEMA organization TO app_runtime` (la migración `identity_rls` sí lo tenía) — el primer `INSERT` de prueba falló con `permission denied for schema organization`, antes de llegar siquiera a evaluar la política RLS. Corregido en el mismo commit que introdujo la migración, nunca llegó a un commit separado.
+
+## #18 — `DuplicateTaxIdError` se detecta atrapando el constraint único de Postgres, no con un pre-check
+
+**Contexto**: INV-016 (`TaxId` único a nivel de Plataforma) es la única unicidad verdaderamente global del modelo — todas las demás (p. ej. `Email` de `User`, INV-014) están scopeadas por `company_id`. Un pre-check típico (`SELECT ... WHERE tax_id = $1` antes del `INSERT`) fallaría bajo RLS: la política de `companies` solo deja ver "la propia" (§4.1), y durante el registro de una company nueva no existe ninguna "propia" todavía — el pre-check buscaría cruzando todas las companies existentes exactamente en el momento en que RLS se lo impide.
+
+**Decisión**: `PrismaCompanyRepository.save()` intenta el `INSERT`/`UPDATE` directamente y atrapa el código de constraint único de Postgres (Prisma `P2002`), traduciéndolo a `DuplicateTaxIdError`. Ventaja adicional sobre un pre-check (más allá de esquivar el problema de RLS): elimina la carrera TOCTOU entre el `SELECT` y el `INSERT` que un pre-check tendría de todos modos bajo escritura concurrente.
+
+## #19 — `OutboxRelayWorker` sigue sin construirse (extiende la decisión #16 a Organization)
+
+**Contexto**: `CompanyRegistered.v1`/`CompanySuspended.v1`/`BranchOpened.v1`/`BranchClosed.v1` se escriben en `outbox_event` de la misma forma que los eventos de Identity & Access (§16) — mismo mecanismo, mismo gap.
+
+**Decisión**: sin cambios respecto a §16 — se documenta aquí solo para dejar constancia de que Organization no introdujo ninguna excepción a esa decisión ya tomada.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
