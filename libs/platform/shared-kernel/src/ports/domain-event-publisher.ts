@@ -2,11 +2,10 @@ import type { UnitOfWorkTransaction } from './unit-of-work';
 
 // Puerto que application/ usa para publicar un evento de dominio dentro de la misma
 // transaccion que el cambio de estado (docs/technical/04-PERSISTENCE.md SS4, Outbox). La
-// implementacion real (apps/api) escribe la fila en support.outbox_event. Sin emision
-// EventEmitter2 en proceso todavia - no hay ningun listener real (Audit, Fase 0 item 7, no
-// existe en esta tanda) asi que agregar esa segunda via ahora seria complejidad sin
-// consumidor, mismo criterio que ya se acepto para el OutboxRelayWorker (docs/persistence/
-// 10-DECISIONES.md).
+// implementacion real (OutboxWriter, libs/platform/persistence-kernel) escribe la fila en
+// support.outbox_event Y emite via EventEmitter2 (best-effort, in-process) para que Audit
+// (platform-audit-infrastructure) la consuma de inmediato - agregado cuando Audit se
+// construyo (Fase 0 item 7), ver docs/persistence/10-DECISIONES.md.
 export const DOMAIN_EVENT_PUBLISHER = Symbol('DomainEventPublisher');
 
 export interface DomainEventToPublish {
@@ -15,6 +14,12 @@ export interface DomainEventToPublish {
   aggregateId: string;
   companyId: string | null;
   payload: Record<string, unknown>;
+}
+
+// Forma exacta que OutboxWriter emite via EventEmitter2 - DomainEventToPublish mas el
+// timestamp que ya calcula para la fila de outbox_event (mismo valor en ambos lados).
+export interface DomainEventEmitted extends DomainEventToPublish {
+  occurredAt: Date;
 }
 
 export interface DomainEventPublisher {
