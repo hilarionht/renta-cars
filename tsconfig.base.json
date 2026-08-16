@@ -32,7 +32,10 @@
       ],
       "@platform/branches/domain": ["./libs/platform/branches/domain/src/index.ts"],
       "@platform/branches/application": ["./libs/platform/branches/application/src/index.ts"],
-      "@platform/branches/infrastructure": ["./libs/platform/branches/infrastructure/src/index.ts"]
+      "@platform/branches/infrastructure": ["./libs/platform/branches/infrastructure/src/index.ts"],
+      "@platform/audit/domain": ["./libs/platform/audit/domain/src/index.ts"],
+      "@platform/audit/application": ["./libs/platform/audit/application/src/index.ts"],
+      "@platform/audit/infrastructure": ["./libs/platform/audit/infrastructure/src/index.ts"]
     },
     "target": "es2022",
     "module": "esnext",

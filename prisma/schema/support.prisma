@@ -1,10 +1,9 @@
 // @@schema("support") — File, Notification, AuditLogEntry, outbox_event
 // (docs/technical/02-PROYECTOS.md §2.5, docs/technical/04-PERSISTENCE.md §4).
-// File/Notification/AuditLogEntry siguen vacios a proposito (Audit es Fase 0 item 7,
-// todavia no construido) - solo se agrega OutboxEvent, infra transversal de la que
-// Identity & Access ya depende para escribir sus eventos de forma atomica con el cambio de
-// estado (docs/technical/04-PERSISTENCE.md SS4). Sin OutboxRelayWorker todavia (BullMQ) -
-// gap de durabilidad documentado en docs/persistence/10-DECISIONES.md.
+// File/Notification siguen vacios a proposito (Fase 0 items 8/9, todavia no construidos).
+// Sin OutboxRelayWorker todavia (BullMQ) - gap de durabilidad documentado en
+// docs/persistence/10-DECISIONES.md, reconfirmado ahora que Audit (el primer consumidor
+// real) ya existe.
 
 model OutboxEvent {
   // A diferencia de User/Role/Session (agregados de dominio, id generado por EntityId.
@@ -26,5 +25,31 @@ model OutboxEvent {
 
   @@index([publishedAt], map: "outbox_event_published_at_idx")
   @@map("outbox_event")
+  @@schema("support")
+}
+
+model AuditLogEntry {
+  // Generado en domain/ (EntityId.generate<'AuditLogEntry'>()) - AuditLogEntry es un
+  // aggregate root real (docs/model/02-AGGREGATES.md §17), a diferencia de OutboxEvent
+  // (envelope tecnico sin identidad de negocio).
+  id          String   @id @db.Uuid
+  // Nulable - ausente solo en eventos verdaderamente globales de Plataforma (docs/
+  // persistence/06-RLS.md §4.3), mismo patron que outbox_event.company_id.
+  companyId   String?  @map("company_id") @db.Uuid
+  actorRef    String   @map("actor_ref")
+  action      String
+  subjectType String   @map("subject_type")
+  // Opaco (docs/persistence/02-TABLAS.md §6.3: "sin relacion tipada") - mismo criterio que
+  // outbox_event.aggregate_id.
+  subjectId   String   @map("subject_id")
+  payload     Json
+  occurredAt  DateTime @map("occurred_at")
+
+  // Sin version (INV-024: append-only, nunca hay una segunda escritura que pueda entrar en
+  // conflicto con la primera) - unica excepcion a docs/persistence/10-DECISIONES.md #5.
+  // Sin createdAt/updatedAt - occurredAt es el unico instante que le importa a esta tabla.
+  @@index([companyId, occurredAt(sort: Desc)], map: "audit_log_company_occurred_idx")
+  @@index([subjectType, subjectId, occurredAt(sort: Desc)], map: "audit_log_subject_occurred_idx")
+  @@map("audit_log")
   @@schema("support")
 }
