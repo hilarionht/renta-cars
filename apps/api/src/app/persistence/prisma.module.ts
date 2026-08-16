@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 
-import { COMPANY_EXISTS_PORT, DOMAIN_EVENT_PUBLISHER, UNIT_OF_WORK } from '@platform/shared-kernel';
+import { DOMAIN_EVENT_PUBLISHER, UNIT_OF_WORK } from '@platform/shared-kernel';
 import {
   OutboxWriter,
   PrismaService,
@@ -10,8 +10,6 @@ import {
   TENANT_SCOPED_PRISMA,
   tenantScopeExtension,
 } from '@platform/persistence-kernel';
-
-import { NoopCompanyExistsAdapter } from './noop-company-exists.adapter';
 
 // Modulo global (docs/technical/03-BACKEND-ARCHITECTURE.md SS3: "nunca reimportado por
 // modulo") - la infraestructura de Prisma en si (PrismaService, extension de tenant-scope,
@@ -38,11 +36,6 @@ import { NoopCompanyExistsAdapter } from './noop-company-exists.adapter';
     },
     { provide: UNIT_OF_WORK, useClass: PrismaUnitOfWork },
     { provide: DOMAIN_EVENT_PUBLISHER, useClass: OutboxWriter },
-    // Companies (Fase 0 item 3) no existe todavia - placeholder honesto (siempre true),
-    // documentado en noop-company-exists.adapter.ts. Bindeado global aca (no en cada
-    // <modulo>.module.ts) porque los modulos de negocio (libs/) no pueden importar este
-    // adapter concreto de apps/api.
-    { provide: COMPANY_EXISTS_PORT, useClass: NoopCompanyExistsAdapter },
   ],
   exports: [
     PrismaService,
@@ -51,7 +44,6 @@ import { NoopCompanyExistsAdapter } from './noop-company-exists.adapter';
     TENANT_SCOPED_PRISMA,
     UNIT_OF_WORK,
     DOMAIN_EVENT_PUBLISHER,
-    COMPANY_EXISTS_PORT,
   ],
 })
 export class PrismaModule {}

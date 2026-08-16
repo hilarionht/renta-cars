@@ -12,6 +12,7 @@ import {
   USER_REPOSITORY,
 } from '@platform/users/application';
 import { RolesPermissionsModule } from '@platform/roles-permissions/infrastructure';
+import { CompaniesModule } from '@platform/companies/infrastructure';
 
 import { Argon2PasswordHasher } from './providers/argon2-password-hasher.provider';
 import { PrismaUserLookupAdapter } from './persistence/prisma/prisma-user-lookup.adapter';
@@ -19,14 +20,15 @@ import { PrismaUserRepository } from './persistence/prisma/prisma-user.repositor
 import { UsersController } from './http/users.controller';
 import { GetUserHandler } from './queries/get-user.handler';
 
-// Importa RolesPermissionsModule (no solo el puerto) - necesita que ROLE_LOOKUP_PORT este
-// bindeado en el arbol de DI (docs/technical/03-BACKEND-ARCHITECTURE.md SS1: orden de
-// import Identity -> Organization ya refleja esta dependencia real). COMPANY_EXISTS_PORT NO
-// se bindea aca - libs/ no puede importar el adapter no-op de apps/api (tooling/eslint/
-// boundaries.mjs); se bindea global en apps/api/src/app/persistence/prisma.module.ts, ya
-// @Global(), visible en todo el arbol de DI sin que cada modulo lo repita.
+// Importa RolesPermissionsModule/CompaniesModule (no solo sus puertos) - necesita que
+// ROLE_LOOKUP_PORT/COMPANY_EXISTS_PORT esten bindeados en el arbol de DI (ninguno de los dos
+// modulos es @Global()). Companies ahora existe de verdad (antes de esta tanda,
+// COMPANY_EXISTS_PORT se bindeaba global en apps/api via NoopCompanyExistsAdapter - ya
+// eliminado, ver plan de implementacion) - el import invierte el orden literal del roadmap
+// (Companies #3 antes que Users #5) pero coincide con la dependencia real de dominio (un
+// User pertenece a una Company).
 @Module({
-  imports: [RolesPermissionsModule],
+  imports: [RolesPermissionsModule, CompaniesModule],
   controllers: [UsersController],
   providers: [
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },

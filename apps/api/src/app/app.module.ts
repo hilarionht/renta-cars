@@ -11,6 +11,11 @@ import {
 } from '@platform/roles-permissions/infrastructure';
 import { UsersModule, USERS_DOMAIN_ERROR_ENTRIES } from '@platform/users/infrastructure';
 import { IdentityModule, IDENTITY_DOMAIN_ERROR_ENTRIES } from '@platform/identity/infrastructure';
+import {
+  CompaniesModule,
+  COMPANIES_DOMAIN_ERROR_ENTRIES,
+} from '@platform/companies/infrastructure';
+import { BranchesModule, BRANCHES_DOMAIN_ERROR_ENTRIES } from '@platform/branches/infrastructure';
 
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
@@ -22,6 +27,7 @@ import securityConfig from '../config/security.config';
 import storageConfig from '../config/storage.config';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { CompanyStatusGuard } from './context/company-status.guard';
 import { TenantContextGuard } from './context/tenant-context.guard';
 import { AllExceptionsFilter } from './errors/all-exceptions.filter';
 import { DomainExceptionFilter } from './errors/domain-exception.filter';
@@ -33,11 +39,12 @@ import { ResponseEnvelopeInterceptor } from './interceptors/response-envelope.in
 import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 import { PrismaModule } from './persistence/prisma.module';
 
-// Composicion de Identity & Access (Fase 0 - docs/01-ROADMAP.md SS2) - primer trabajo de
-// dominio real desde que la Engineering Foundation quedo completa (Paso 15). Orden de
-// import: RolesPermissions -> Users -> Identity, mismo orden de dependencia real
-// (docs/technical/03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del anterior via su
-// puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT).
+// Composicion de Identity & Access + Organization (Fase 0 - docs/01-ROADMAP.md SS2). Orden
+// de import: RolesPermissions -> Users -> Identity -> Companies -> Branches, mismo orden de
+// dependencia real y de composicion documentada (docs/technical/03-BACKEND-ARCHITECTURE.md
+// SS1) - cada uno depende del anterior via su puerto publico (ROLE_LOOKUP_PORT,
+// USER_LOOKUP_PORT; Companies/Branches no dependen de ningun otro modulo de negocio, ver
+// plan de implementacion).
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -102,12 +109,16 @@ import { PrismaModule } from './persistence/prisma.module';
     RolesPermissionsModule,
     UsersModule,
     IdentityModule,
+    CompaniesModule,
+    BranchesModule,
   ],
   providers: [
     domainErrorRegistryProvider(
       ROLES_PERMISSIONS_DOMAIN_ERROR_ENTRIES,
       USERS_DOMAIN_ERROR_ENTRIES,
       IDENTITY_DOMAIN_ERROR_ENTRIES,
+      COMPANIES_DOMAIN_ERROR_ENTRIES,
+      BRANCHES_DOMAIN_ERROR_ENTRIES,
     ),
     // Orden importa, e Nest lo evalua al REVES del orden de registro (el ultimo
     // registrado se prueba primero) - verificado a mano lanzando un DomainError real y
@@ -122,14 +133,14 @@ import { PrismaModule } from './persistence/prisma.module';
     { provide: APP_INTERCEPTOR, useClass: TimeoutInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ResponseEnvelopeInterceptor },
     // docs/technical/03-BACKEND-ARCHITECTURE.md SS7: JwtAuthGuard -> TenantContextGuard ->
-    // [CompanyStatusGuard/TenantModuleEnabledGuard, no existen todavia - Companies/Settings,
-    // Fase 0 items 3/8] -> PermissionGuard (ya disponible via @UseGuards() puntual, no
-    // global - nada puebla permissions[] todavia asi que aplicarlo global bloquearia todo)
-    // -> ThrottlerGuard. auth.module.ts documentaba "sin registro global todavia... hasta
-    // que el primer controller protegido lo necesite" - AuthController/UsersController/
-    // RolesController son ese trigger.
+    // CompanyStatusGuard -> [TenantModuleEnabledGuard, no existe todavia - necesita
+    // CompanySettings.EnabledProductModules, Fase 0 item 8, deliberadamente fuera de esta
+    // tanda - ver plan de implementacion] -> PermissionGuard (ya disponible via
+    // @UseGuards() puntual, no global - nada puebla permissions[] todavia asi que aplicarlo
+    // global bloquearia todo) -> ThrottlerGuard.
     { provide: APP_GUARD, useExisting: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantContextGuard },
+    { provide: APP_GUARD, useClass: CompanyStatusGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
