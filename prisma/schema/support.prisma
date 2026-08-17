@@ -1,6 +1,6 @@
 // @@schema("support") — File, Notification, AuditLogEntry, outbox_event
 // (docs/technical/02-PROYECTOS.md §2.5, docs/technical/04-PERSISTENCE.md §4).
-// File/Notification siguen vacios a proposito (Fase 0 items 8/9, todavia no construidos).
+// Notification sigue vacio a proposito (Fase 0 item 8, Settings, deliberadamente diferido).
 // Sin OutboxRelayWorker todavia (BullMQ) - gap de durabilidad documentado en
 // docs/persistence/10-DECISIONES.md, reconfirmado ahora que Audit (el primer consumidor
 // real) ya existe.
@@ -51,5 +51,36 @@ model AuditLogEntry {
   @@index([companyId, occurredAt(sort: Desc)], map: "audit_log_company_occurred_idx")
   @@index([subjectType, subjectId, occurredAt(sort: Desc)], map: "audit_log_subject_occurred_idx")
   @@map("audit_log")
+  @@schema("support")
+}
+
+model File {
+  // Generado en domain/ (EntityId.generate<'File'>()) - aggregate root real (docs/model/
+  // 02-AGGREGATES.md §15), mismo criterio que AuditLogEntry.
+  id           String       @id @db.Uuid
+  companyId    String       @map("company_id") @db.Uuid
+  // Unico - dos File nunca comparten el mismo puntero de storage (docs/persistence/
+  // 05-INDICES-Y-CONSTRAINTS.md, refuerzo de INV-025). Reforzado tambien en
+  // PrismaFileRepository.save() (P2002 -> FileAlreadyConfirmedError).
+  storageRef   String       @unique @map("storage_ref")
+  contentType  String       @map("content_type")
+  uploadStatus UploadStatus @map("upload_status")
+  // Opaco, cross-schema, sin FK - mismo criterio que audit_log.actor_ref.
+  uploadedBy   String       @map("uploaded_by")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  version      Int          @default(1)
+
+  @@index([companyId, createdAt(sort: Desc)], map: "files_company_created_idx")
+  @@map("files")
+  @@schema("support")
+}
+
+// Enum nativo de Postgres (2 valores cerrados) - mismo criterio que CompanyStatus/
+// BranchStatus (docs/persistence/10-DECISIONES.md #12).
+enum UploadStatus {
+  Uploaded
+  Deleted
+
   @@schema("support")
 }
