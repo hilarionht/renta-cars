@@ -32,6 +32,9 @@ const AGGREGATE_TYPE_TO_SCHEMA: Record<string, string> = {
   Branch: 'organization',
   CompanySettings: 'organization',
   File: 'support',
+  // Agregado proactivamente esta vez, no descubierto por un smoke test fallando (mismo
+  // mapa que ya causo bugs reales dos veces: #26/#35 en docs/persistence/10-DECISIONES.md).
+  Customer: 'rental',
 };
 
 function schemaFor(aggregateType: string): string {

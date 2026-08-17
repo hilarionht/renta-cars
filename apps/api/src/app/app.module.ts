@@ -20,6 +20,7 @@ import { BranchesModule, BRANCHES_DOMAIN_ERROR_ENTRIES } from '@platform/branche
 import { AuditModule, AUDIT_DOMAIN_ERROR_ENTRIES } from '@platform/audit/infrastructure';
 import { FilesModule, FILES_DOMAIN_ERROR_ENTRIES } from '@platform/files/infrastructure';
 import { SettingsModule, SETTINGS_DOMAIN_ERROR_ENTRIES } from '@platform/settings/infrastructure';
+import { CustomersModule, CUSTOMERS_DOMAIN_ERROR_ENTRIES } from '@rental/customers/infrastructure';
 
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
@@ -45,9 +46,11 @@ import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 import { PrismaModule } from './persistence/prisma.module';
 
 // Composicion completa de Fase 0 (docs/01-ROADMAP.md SS2 - los 9 items, aunque Settings/#8
-// cubre solo 2 de sus 9 politicas, ver docs/persistence/10-DECISIONES.md). Orden de import:
+// cubre solo 2 de sus 9 politicas, ver docs/persistence/10-DECISIONES.md) + Customers, primer
+// item de Fase 1 y primer modulo scope:product-rental compuesto aca (ver tooling/eslint/
+// boundaries.mjs sobre la correccion de INV-P03 que esto exigio). Orden de import:
 // RolesPermissions -> Users -> Identity -> Settings -> Companies -> Branches -> Audit ->
-// Files, mismo orden de dependencia real y de composicion documentada
+// Files -> Customers, mismo orden de dependencia real y de composicion documentada
 // (docs/technical/03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del anterior via su
 // puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Settings no depende de ningun otro
 // modulo de negocio, pero Companies SI depende de Settings ahora - ver CompaniesModule -
@@ -130,6 +133,7 @@ import { PrismaModule } from './persistence/prisma.module';
     BranchesModule,
     AuditModule,
     FilesModule,
+    CustomersModule,
   ],
   providers: [
     domainErrorRegistryProvider(
@@ -141,6 +145,7 @@ import { PrismaModule } from './persistence/prisma.module';
       BRANCHES_DOMAIN_ERROR_ENTRIES,
       AUDIT_DOMAIN_ERROR_ENTRIES,
       FILES_DOMAIN_ERROR_ENTRIES,
+      CUSTOMERS_DOMAIN_ERROR_ENTRIES,
     ),
     // Orden importa, e Nest lo evalua al REVES del orden de registro (el ultimo
     // registrado se prueba primero) - verificado a mano lanzando un DomainError real y
