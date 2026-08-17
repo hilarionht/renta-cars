@@ -44,7 +44,14 @@
       ],
       "@platform/settings/domain": ["./libs/platform/settings/domain/src/index.ts"],
       "@platform/settings/application": ["./libs/platform/settings/application/src/index.ts"],
-      "@platform/settings/infrastructure": ["./libs/platform/settings/infrastructure/src/index.ts"]
+      "@platform/settings/infrastructure": ["./libs/platform/settings/infrastructure/src/index.ts"],
+      "@rental/customers/domain": ["./libs/products/rental/customers/domain/src/index.ts"],
+      "@rental/customers/application": [
+        "./libs/products/rental/customers/application/src/index.ts"
+      ],
+      "@rental/customers/infrastructure": [
+        "./libs/products/rental/customers/infrastructure/src/index.ts"
+      ]
     },
     "target": "es2022",
     "module": "esnext",

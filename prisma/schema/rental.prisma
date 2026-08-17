@@ -1,3 +1,125 @@
 // @@schema("rental") — Customer, Vehicle, VehicleCategory, Reservation, Invoice/Charge
 // (empaquetado fisico, docs/technical/04-PERSISTENCE.md §1). docs/technical/02-PROYECTOS.md §3.
-// Vacio a proposito: Fase 0 de docs/01-ROADMAP.md §2 agrega los primeros modelos.
+// Customer/IdentityDocument/AdditionalDriver: primeros modelos reales, Fase 1 item 1
+// (docs/01-ROADMAP.md §3). Vehicle/VehicleCategory/Reservation/Invoice/Charge siguen vacios
+// a proposito.
+
+model Customer {
+  // Raiz de este aggregate - generado en domain/ (EntityId.generate<'Customer'>()), mismo
+  // patron que todo otro aggregate root del modelo.
+  id                String              @id @db.Uuid
+  companyId         String              @map("company_id") @db.Uuid
+  name              String
+  taxIdOrDocumentId String              @map("tax_id_or_document_id")
+  contactEmail      String              @map("contact_email")
+  contactPhone      String              @map("contact_phone")
+  customerType      CustomerType        @map("customer_type")
+  // Ciclo de documentacion (Registered -> Active), independiente de blockStatus -
+  // docs/persistence/10-DECISIONES.md sobre por que son 2 columnas, no una cadena de 3.
+  status            CustomerStatus
+  blockStatus       CustomerBlockStatus @map("block_status")
+  blockReason       String?             @map("block_reason")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  version           Int                 @default(1)
+
+  identityDocuments IdentityDocument[]
+  additionalDrivers AdditionalDriver[]
+
+  // Clave natural (docs/persistence/04-COLUMNAS-CONCEPTUALES.md §6).
+  @@unique([companyId, taxIdOrDocumentId])
+  @@map("customers")
+  @@schema("rental")
+}
+
+enum CustomerType {
+  Individual
+  Corporate
+
+  @@schema("rental")
+}
+
+enum CustomerStatus {
+  Registered
+  Active
+
+  @@schema("rental")
+}
+
+enum CustomerBlockStatus {
+  None
+  Blocked
+
+  @@schema("rental")
+}
+
+enum DocumentType {
+  NationalId
+  DriversLicense
+
+  @@schema("rental")
+}
+
+enum IdentityDocumentStatus {
+  Pending
+  Verified
+  Expired
+
+  @@schema("rental")
+}
+
+enum AdditionalDriverStatus {
+  Registered
+  Validated
+  Revoked
+
+  @@schema("rental")
+}
+
+model IdentityDocument {
+  id                 String                 @id @db.Uuid
+  companyId          String                 @map("company_id") @db.Uuid
+  // Propietario polimorfico (docs/persistence/03-RELACIONES.md §5) - exactamente una de las
+  // 2 columnas poblada, nunca ambas ni ninguna. El CHECK que lo garantiza se agrega a mano
+  // en la migracion (no expresable declarativamente aca).
+  customerId         String?                @map("customer_id") @db.Uuid
+  additionalDriverId String?                @map("additional_driver_id") @db.Uuid
+  documentType       DocumentType           @map("document_type")
+  // Opaco, sin FK real - support.files.id, cross-schema (mismo patron ya usado para
+  // vehicle_documents.file_id, invoices.pdf_file_id, etc.).
+  fileId             String                 @map("file_id")
+  expiryDate         DateTime               @map("expiry_date")
+  status             IdentityDocumentStatus
+  // INV-011 - siempre false esta tanda, DocumentExtractionPort (OCR) diferido.
+  extractedByOcr     Boolean                @default(false) @map("extracted_by_ocr")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+  // Sin version - append-only (renovar crea un documento nuevo), protegida por la version
+  // del Customer/AdditionalDriver que la contiene.
+
+  customer         Customer?         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  additionalDriver AdditionalDriver? @relation(fields: [additionalDriverId], references: [id], onDelete: Cascade)
+
+  @@map("identity_documents")
+  @@schema("rental")
+}
+
+model AdditionalDriver {
+  id         String                 @id @db.Uuid
+  companyId  String                 @map("company_id") @db.Uuid
+  customerId String                 @map("customer_id") @db.Uuid
+  name       String
+  status     AdditionalDriverStatus
+  createdAt  DateTime               @default(now()) @map("created_at")
+  updatedAt  DateTime               @updatedAt @map("updated_at")
+  // Excepcion real y deliberada: a diferencia de IdentityDocument (append-only, sin
+  // version), AdditionalDriver SI tiene version propia (docs/persistence/
+  // 04-COLUMNAS-CONCEPTUALES.md §6), ver docs/persistence/10-DECISIONES.md.
+  version    Int                    @default(1)
+
+  customer          Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  identityDocuments IdentityDocument[]
+
+  @@map("additional_drivers")
+  @@schema("rental")
+}
