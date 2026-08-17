@@ -7,6 +7,7 @@ import {
   RegisterCompanyHandler,
   UpdateCompanyDetailsHandler,
 } from '@platform/companies/application';
+import { SettingsModule } from '@platform/settings/infrastructure';
 
 import { PrismaCompanyExistsAdapter } from './persistence/prisma/prisma-company-exists.adapter';
 import { PrismaCompanyLookupAdapter } from './persistence/prisma/prisma-company-lookup.adapter';
@@ -18,7 +19,12 @@ import { GetCompanyHandler } from './queries/get-company.handler';
 // de cuando este modulo no existia (NoopCompanyExistsAdapter, ahora eliminado), la
 // implementacion real SI pertenece a este modulo de negocio, no a la composicion de
 // apps/api. Reemplaza el binding que prisma.module.ts tenia hacia el placeholder.
+// Importa SettingsModule (no solo el token) - mismo mecanismo que UsersModule importando
+// CompaniesModule: CreateDefaultSettingsHandler solo existe en el arbol de DI si el modulo
+// que lo provee esta importado. RegisterCompanyHandler lo usa para crear CompanySettings
+// junto con cada Company nueva (docs/persistence/07-MIGRACIONES.md SS5.2).
 @Module({
+  imports: [SettingsModule],
   controllers: [CompaniesController],
   providers: [
     { provide: COMPANY_REPOSITORY, useClass: PrismaCompanyRepository },

@@ -1,5 +1,6 @@
 import type { DomainEventPublisher, UnitOfWork } from '@platform/shared-kernel';
 import type { Company } from '@platform/companies/domain';
+import type { CreateDefaultSettingsHandler } from '@platform/settings/application';
 
 import { RegisterCompanyHandler } from './register-company.handler';
 import type { CompanyRepository } from '../../ports/company.repository';
@@ -19,16 +20,37 @@ function buildHandler() {
   const eventPublisher: DomainEventPublisher = {
     publish: jest.fn().mockResolvedValue(undefined),
   };
+  const createDefaultSettings = {
+    execute: jest.fn().mockResolvedValue(undefined),
+  } as unknown as CreateDefaultSettingsHandler;
 
-  const handler = new RegisterCompanyHandler(companyRepository, unitOfWork, eventPublisher);
+  const handler = new RegisterCompanyHandler(
+    companyRepository,
+    unitOfWork,
+    eventPublisher,
+    createDefaultSettings,
+  );
 
-  return { handler, companyRepository, unitOfWork, eventPublisher, savedCompanies };
+  return {
+    handler,
+    companyRepository,
+    unitOfWork,
+    eventPublisher,
+    createDefaultSettings,
+    savedCompanies,
+  };
 }
 
 describe('RegisterCompanyHandler', () => {
   it('crea la company, la persiste dentro de UnitOfWork.run(company.id) y publica CompanyRegistered.v1', async () => {
-    const { handler, companyRepository, unitOfWork, eventPublisher, savedCompanies } =
-      buildHandler();
+    const {
+      handler,
+      companyRepository,
+      unitOfWork,
+      eventPublisher,
+      createDefaultSettings,
+      savedCompanies,
+    } = buildHandler();
 
     const companyId = await handler.execute({
       legalName: 'Renta Demo SA',
@@ -49,6 +71,14 @@ describe('RegisterCompanyHandler', () => {
         eventType: 'CompanyRegistered.v1',
         companyId: companyId.toString(),
       }),
+    );
+    // CompanySettings se crea junto con Company, en la misma transaccion (docs/persistence/
+    // 07-MIGRACIONES.md SS5.2) - RegisterCompanyHandler orquesta llamando a
+    // CreateDefaultSettingsHandler con el mismo `tx`, nunca construyendo CompanySettings el
+    // mismo (companies/application no puede importar settings/domain).
+    expect(createDefaultSettings.execute).toHaveBeenCalledWith(
+      { companyId: companyId.toString() },
+      expect.anything(),
     );
   });
 });
