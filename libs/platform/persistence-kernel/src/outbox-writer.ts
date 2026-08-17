@@ -30,6 +30,7 @@ const AGGREGATE_TYPE_TO_SCHEMA: Record<string, string> = {
   Session: 'identity',
   Company: 'organization',
   Branch: 'organization',
+  CompanySettings: 'organization',
   File: 'support',
 };
 

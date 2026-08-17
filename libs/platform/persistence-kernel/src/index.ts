@@ -8,3 +8,7 @@ export { PrismaUnitOfWork, asPrismaTransaction } from './prisma-unit-of-work';
 export { ReadTransaction } from './read-transaction';
 export { OutboxWriter } from './outbox-writer';
 export { IS_PUBLIC_KEY, Public } from './public.decorator';
+export {
+  REQUIRES_PRODUCT_MODULE_KEY,
+  RequiresProductModule,
+} from './requires-product-module.decorator';

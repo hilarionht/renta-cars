@@ -19,6 +19,7 @@ import {
 import { BranchesModule, BRANCHES_DOMAIN_ERROR_ENTRIES } from '@platform/branches/infrastructure';
 import { AuditModule, AUDIT_DOMAIN_ERROR_ENTRIES } from '@platform/audit/infrastructure';
 import { FilesModule, FILES_DOMAIN_ERROR_ENTRIES } from '@platform/files/infrastructure';
+import { SettingsModule, SETTINGS_DOMAIN_ERROR_ENTRIES } from '@platform/settings/infrastructure';
 
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
@@ -32,6 +33,7 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { CompanyStatusGuard } from './context/company-status.guard';
 import { TenantContextGuard } from './context/tenant-context.guard';
+import { TenantModuleEnabledGuard } from './context/tenant-module-enabled.guard';
 import { AllExceptionsFilter } from './errors/all-exceptions.filter';
 import { DomainExceptionFilter } from './errors/domain-exception.filter';
 import { domainErrorRegistryProvider } from './errors/domain-error-registry';
@@ -42,14 +44,15 @@ import { ResponseEnvelopeInterceptor } from './interceptors/response-envelope.in
 import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 import { PrismaModule } from './persistence/prisma.module';
 
-// Composicion de Identity & Access + Organization + Audit + Files (Fase 0 -
-// docs/01-ROADMAP.md SS2, ultimo item pendiente - Settings/#8 sigue diferido). Orden de
-// import: RolesPermissions -> Users -> Identity -> Companies -> Branches -> Audit -> Files,
-// mismo orden de dependencia real y de composicion documentada
+// Composicion completa de Fase 0 (docs/01-ROADMAP.md SS2 - los 9 items, aunque Settings/#8
+// cubre solo 2 de sus 9 politicas, ver docs/persistence/10-DECISIONES.md). Orden de import:
+// RolesPermissions -> Users -> Identity -> Settings -> Companies -> Branches -> Audit ->
+// Files, mismo orden de dependencia real y de composicion documentada
 // (docs/technical/03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del anterior via su
-// puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Companies/Branches no dependen de
-// ningun otro modulo de negocio; Audit no depende de ninguno - escucha eventos de todos via
-// EventEmitter2, nunca importa su codigo; Files tampoco depende de ningun otro modulo de
+// puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Settings no depende de ningun otro
+// modulo de negocio, pero Companies SI depende de Settings ahora - ver CompaniesModule -
+// asi que Settings se importa antes; Audit no depende de ninguno - escucha eventos de todos
+// via EventEmitter2, nunca importa su codigo; Files tampoco depende de ningun otro modulo de
 // negocio, solo de IntegrationProvidersModule, importado dentro de FilesModule mismo -
 // apps/api nunca ve STORAGE_PROVIDER_PORT).
 @Module({
@@ -122,6 +125,7 @@ import { PrismaModule } from './persistence/prisma.module';
     RolesPermissionsModule,
     UsersModule,
     IdentityModule,
+    SettingsModule,
     CompaniesModule,
     BranchesModule,
     AuditModule,
@@ -132,6 +136,7 @@ import { PrismaModule } from './persistence/prisma.module';
       ROLES_PERMISSIONS_DOMAIN_ERROR_ENTRIES,
       USERS_DOMAIN_ERROR_ENTRIES,
       IDENTITY_DOMAIN_ERROR_ENTRIES,
+      SETTINGS_DOMAIN_ERROR_ENTRIES,
       COMPANIES_DOMAIN_ERROR_ENTRIES,
       BRANCHES_DOMAIN_ERROR_ENTRIES,
       AUDIT_DOMAIN_ERROR_ENTRIES,
@@ -150,14 +155,15 @@ import { PrismaModule } from './persistence/prisma.module';
     { provide: APP_INTERCEPTOR, useClass: TimeoutInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ResponseEnvelopeInterceptor },
     // docs/technical/03-BACKEND-ARCHITECTURE.md SS7: JwtAuthGuard -> TenantContextGuard ->
-    // CompanyStatusGuard -> [TenantModuleEnabledGuard, no existe todavia - necesita
-    // CompanySettings.EnabledProductModules, Fase 0 item 8, deliberadamente fuera de esta
-    // tanda - ver plan de implementacion] -> PermissionGuard (ya disponible via
-    // @UseGuards() puntual, no global - nada puebla permissions[] todavia asi que aplicarlo
-    // global bloquearia todo) -> ThrottlerGuard.
+    // CompanyStatusGuard -> TenantModuleEnabledGuard (opt-in via @RequiresProductModule(),
+    // pasa siempre en rutas sin el decorator - ninguna ruta de Fase 0 lo usa, el primer
+    // consumidor real llega con Fase 1/libs/products/rental) -> PermissionGuard (ya
+    // disponible via @UseGuards() puntual, no global - nada puebla permissions[] todavia asi
+    // que aplicarlo global bloquearia todo) -> ThrottlerGuard.
     { provide: APP_GUARD, useExisting: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantContextGuard },
     { provide: APP_GUARD, useClass: CompanyStatusGuard },
+    { provide: APP_GUARD, useClass: TenantModuleEnabledGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
