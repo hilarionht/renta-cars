@@ -198,6 +198,12 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: se difiere de nuevo, con la razón actualizada. El emit inmediato in-process (§20) cubre el caso feliz (>99%): el gap remanente — un evento se pierde solo si `apps/api` muere en la ventana exacta entre el commit de la transacción y el emit en memoria — no compromete ningún dato de negocio, únicamente esa fila puntual de auditoría. No se construye tampoco `event_consumption_log` ([technical/05-EVENTING.md §3](../technical/05-EVENTING.md), tabla de idempotencia para reintentos) — sin `OutboxRelayWorker`, no existe ningún mecanismo que reemita un evento ya entregado, así que el riesgo de entrega duplicada que esa tabla resuelve no existe todavía. Mismo criterio en ambos casos: se construye cuando haya un escenario real de reintento que lo necesite, no antes.
 
+## #24 — `GET /audit-log` es consistente-eventual respecto al request que disparó el evento, no consistente-inmediato
+
+**Contexto**: consecuencia directa, no anticipada explícitamente hasta encontrarla, del emit fire-and-forget de §20. `OutboxWriter.publish()` llama `EventEmitter2.emit(...)` sin esperar a que `DomainEventAuditListener.handle()` (async, hace su propio `INSERT` a `support.audit_log`) termine — el request de negocio (p. ej. `POST /branches`) responde 201 en cuanto su propia transacción hace commit, sin esperar al listener. El e2e de Audit, al hacer `GET /audit-log` inmediatamente después del `POST /branches` en la misma corrida, resultó **flaky de verdad** (Nx lo marcó como "flaky task" en una corrida real, no una sospecha teórica): a veces la fila de `BranchOpened.v1` todavía no existía cuando llegaba la lectura.
+
+**Decisión**: no se cambia el emit a `emitAsync()` ni se acopla el request de negocio a la escritura de auditoría — eso reintroduciría exactamente el riesgo que el fire-and-forget evita a propósito (un fallo o lentitud de Audit haciendo fallar o demorar una operación de negocio). Se documenta el comportamiento como contrato explícito: cualquier consumidor de `GET /audit-log` (incluidos tests) debe tratarlo como eventual, nunca asumir visibilidad sincrónica inmediatamente después del request que originó el evento. El e2e correspondiente hace polling corto (intervalos de 100ms, tope 5s) en vez de una lectura única.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
