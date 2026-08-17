@@ -61,6 +61,13 @@ class EnvironmentVariables {
   @IsString()
   STORAGE_REGION!: string;
 
+  // Opcional: tiene default en codigo (storage.config.ts) - mismo criterio que
+  // JWT_ACCESS_TTL/JWT_REFRESH_TTL.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  STORAGE_MAX_UPLOAD_BYTES?: number;
+
   // --- jwt (docs/technical/07-SECURITY.md SS1, generadas con
   // tooling/scripts/security/generate-jwt-keys.ts) ---
   @IsString()

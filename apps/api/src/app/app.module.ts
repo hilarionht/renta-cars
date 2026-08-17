@@ -18,6 +18,7 @@ import {
 } from '@platform/companies/infrastructure';
 import { BranchesModule, BRANCHES_DOMAIN_ERROR_ENTRIES } from '@platform/branches/infrastructure';
 import { AuditModule, AUDIT_DOMAIN_ERROR_ENTRIES } from '@platform/audit/infrastructure';
+import { FilesModule, FILES_DOMAIN_ERROR_ENTRIES } from '@platform/files/infrastructure';
 
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
@@ -41,13 +42,16 @@ import { ResponseEnvelopeInterceptor } from './interceptors/response-envelope.in
 import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 import { PrismaModule } from './persistence/prisma.module';
 
-// Composicion de Identity & Access + Organization + Audit (Fase 0 - docs/01-ROADMAP.md SS2).
-// Orden de import: RolesPermissions -> Users -> Identity -> Companies -> Branches -> Audit,
+// Composicion de Identity & Access + Organization + Audit + Files (Fase 0 -
+// docs/01-ROADMAP.md SS2, ultimo item pendiente - Settings/#8 sigue diferido). Orden de
+// import: RolesPermissions -> Users -> Identity -> Companies -> Branches -> Audit -> Files,
 // mismo orden de dependencia real y de composicion documentada
 // (docs/technical/03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del anterior via su
 // puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Companies/Branches no dependen de
 // ningun otro modulo de negocio; Audit no depende de ninguno - escucha eventos de todos via
-// EventEmitter2, nunca importa su codigo).
+// EventEmitter2, nunca importa su codigo; Files tampoco depende de ningun otro modulo de
+// negocio, solo de IntegrationProvidersModule, importado dentro de FilesModule mismo -
+// apps/api nunca ve STORAGE_PROVIDER_PORT).
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -121,6 +125,7 @@ import { PrismaModule } from './persistence/prisma.module';
     CompaniesModule,
     BranchesModule,
     AuditModule,
+    FilesModule,
   ],
   providers: [
     domainErrorRegistryProvider(
@@ -130,6 +135,7 @@ import { PrismaModule } from './persistence/prisma.module';
       COMPANIES_DOMAIN_ERROR_ENTRIES,
       BRANCHES_DOMAIN_ERROR_ENTRIES,
       AUDIT_DOMAIN_ERROR_ENTRIES,
+      FILES_DOMAIN_ERROR_ENTRIES,
     ),
     // Orden importa, e Nest lo evalua al REVES del orden de registro (el ultimo
     // registrado se prueba primero) - verificado a mano lanzando un DomainError real y
