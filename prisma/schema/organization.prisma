@@ -1,6 +1,8 @@
 // @@schema("organization") — Company, Branch, CompanySettings (docs/technical/02-PROYECTOS.md §2.2).
-// CompanySettings queda fuera de esta tanda (Fase 0 item 8, docs/01-ROADMAP.md §2) - sus
-// politicas referencian reglas de negocio de Rental Operations que todavia no existen.
+// CompanySettings (mas abajo) cubre solo 2 de sus 9 politicas documentadas
+// (EnabledProductModules, PaymentMethodsEnabled) - las otras 7 referencian reglas de negocio
+// de Rental Operations que todavia no existen (Fase 1), gap explicito documentado en
+// docs/persistence/10-DECISIONES.md.
 
 model Company {
   // Raiz de tenant (docs/persistence/06-RLS.md §4.1) - no tiene su propio companyId, su
@@ -61,6 +63,40 @@ model Branch {
 enum BranchStatus {
   Active
   Closed
+
+  @@schema("organization")
+}
+
+model CompanySettings {
+  // Identidad prestada de Company - sin columna id propia (docs/persistence/
+  // 04-COLUMNAS-CONCEPTUALES.md SS4: "identidad = company_id, y ademas es la propia clave
+  // primaria"). Sin @relation/FK real hacia companies - mismo criterio ya usado para
+  // branches.company_id (integridad via RLS + aplicacion, no Postgres).
+  companyId String @id @map("company_id") @db.Uuid
+
+  // String[] deliberado, no un enum nativo - conjunto ABIERTO por diseño (docs/contracts/
+  // 08-VERSIONING.md SS5: "nunca una lista cerrada exhaustiva"), agregar un producto nuevo
+  // (p.ej. Workshop) no debe requerir una migracion. Contraste con paymentMethodsEnabled
+  // abajo, que SI es un catalogo cerrado.
+  enabledProductModules String[] @map("enabled_product_modules")
+
+  // Enum nativo - catalogo verdaderamente cerrado de 4 valores (docs/model/
+  // 04-VALUE_OBJECTS.md SS6).
+  paymentMethodsEnabled PaymentMethod[] @map("payment_methods_enabled")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  version   Int      @default(1)
+
+  @@map("company_settings")
+  @@schema("organization")
+}
+
+enum PaymentMethod {
+  Card
+  Cash
+  Transfer
+  DigitalWallet
 
   @@schema("organization")
 }

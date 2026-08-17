@@ -41,7 +41,10 @@
       "@platform/files/infrastructure": ["./libs/platform/files/infrastructure/src/index.ts"],
       "@platform/integration-providers/infrastructure": [
         "./libs/platform/integration-providers/infrastructure/src/index.ts"
-      ]
+      ],
+      "@platform/settings/domain": ["./libs/platform/settings/domain/src/index.ts"],
+      "@platform/settings/application": ["./libs/platform/settings/application/src/index.ts"],
+      "@platform/settings/infrastructure": ["./libs/platform/settings/infrastructure/src/index.ts"]
     },
     "target": "es2022",
     "module": "esnext",

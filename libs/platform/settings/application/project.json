@@ -1,0 +1,18 @@
+{
+  "name": "platform-settings-application",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/settings/application/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:application", "module:settings"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/settings/application"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}
