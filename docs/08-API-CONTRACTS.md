@@ -66,6 +66,8 @@ GET /api/v1/reservations?cursor=<opaque>&limit=25
 
 `limit` máximo permitido por endpoint (configurable, default 25, tope 100) para evitar queries no acotadas.
 
+**Gap conocido — `GET /audit-log`**: implementado (Fase 0 ítem 7) como lista plana con límite fijo (`LIST_LIMIT = 100`, `occurredAt DESC`), sin cursor — pese a que esta sección nombra Audit explícitamente como caso de alto volumen. Decisión documentada en [persistence/10-DECISIONES.md](persistence/10-DECISIONES.md): ningún endpoint del codebase implementó todavía el mecanismo de cursor y el volumen real en esta fase es mínimo; se prefirió dejar el gap explícito antes que construir un mecanismo de paginación sin un segundo caso de uso que lo justifique todavía. Pendiente para cuando el volumen real lo exija.
+
 ## 6. Filtros y ordenamiento
 
 - Filtros como query params planos y explícitos por endpoint (`?status=confirmed&vehicleId=...`), documentados en OpenAPI por recurso — no se acepta un lenguaje de query genérico tipo `?filter[status][eq]=confirmed` salvo que un caso real de filtrado combinatorio complejo lo justifique (no existe en v1.0).

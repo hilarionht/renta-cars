@@ -174,6 +174,30 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: sin cambios respecto a §16 — se documenta aquí solo para dejar constancia de que Organization no introdujo ninguna excepción a esa decisión ya tomada.
 
+## #20 — `OutboxWriter` nunca emitía a ningún bus in-process (bug real, no una omisión de alcance)
+
+**Contexto**: al construir Audit (Fase 0 ítem 7, primer consumidor real de eventos) se encontró que `OutboxWriter.publish()` — la única implementación de `DomainEventPublisher` que usan todos los módulos ya construidos vía `UnitOfWork.run()` — solo insertaba la fila en `outbox_event`; nunca llamaba a `EventEmitter2.emit(...)`, ni existía `@nestjs/event-emitter` como dependencia. Ningún evento de ningún módulo (Identity, Users, Roles, Companies, Branches) había llegado jamás a un listener in-process.
+
+**Decisión**: se agrega el emit dentro de `OutboxWriter.publish()` mismo (no en cada Command Handler), justo después del `INSERT` exitoso, fire-and-forget (`emit()`, no `emitAsync()` — un fallo del listener de Audit nunca debe hacer fallar la operación de negocio que lo originó). Al vivir en el único punto compartido por todos los módulos, este único cambio cubre retroactivamente Identity/Users/Roles/Companies/Branches sin tocar ningún Command Handler existente — confirmado con el e2e de Audit, que ve `SessionCreated.v1` (Identity) auditado correctamente sin que ese módulo se haya modificado.
+
+## #21 — Patrón de wildcard de `EventEmitter2`: `'**'`, no `'*'` como decían los docs
+
+**Contexto**: [technical/05-EVENTING.md §5](../technical/05-EVENTING.md) describe el listener catch-all de Audit como suscrito a `'*'`. Los `eventType` reales tienen la forma `Nombre.vN` (dos segmentos separados por `.`, el delimitador por defecto de `EventEmitter2` en modo `wildcard`) — un `@OnEvent('*')` de un solo nivel no captura un evento de dos segmentos.
+
+**Decisión**: `EventEmitterModule.forRoot({ wildcard: true })` + `@OnEvent('**')` (doble comodín, cruza niveles) en `DomainEventAuditListener`. Verificado empíricamente, no solo asumido: el e2e de Audit confirma la captura real de `CompanyRegistered.v1`, `SessionCreated.v1` y `BranchOpened.v1` bajo este patrón. La doc de eventing queda desactualizada en ese punto puntual — se corrige aquí como referencia hasta que se actualice directamente.
+
+## #22 — `AuditLogEntry` sin `version` (única excepción a la decisión #5)
+
+**Contexto**: la decisión #5 fija `version` en todo Aggregate Root para concurrencia optimista. `AuditLogEntry` es append-only estricto (INV-024, [model/07-INVARIANTS.md §1/§6](../model/07-INVARIANTS.md)) — nunca hay una segunda escritura sobre la misma fila con la que la primera pueda entrar en conflicto.
+
+**Decisión**: se omite `version` deliberadamente. Segunda capa de defensa de INV-024, independiente de RLS: `GRANT SELECT, INSERT ON support.audit_log TO app_runtime` sin `UPDATE`/`DELETE` — un `REVOKE` a nivel de motor (RLS filtra filas, `GRANT` filtra qué operaciones existen del todo), verificado con un test de integración real que confirma que `app_runtime` recibe `permission denied for table audit_log` en ambos intentos.
+
+## #23 — `OutboxRelayWorker` sigue diferido (extiende #16/#19 — ahora con un consumidor real)
+
+**Contexto**: Audit es el consumidor real que §16 nombraba como condición para reconsiderar el worker de BullMQ que reintenta la publicación de eventos no confirmados tras un crash de proceso.
+
+**Decisión**: se difiere de nuevo, con la razón actualizada. El emit inmediato in-process (§20) cubre el caso feliz (>99%): el gap remanente — un evento se pierde solo si `apps/api` muere en la ventana exacta entre el commit de la transacción y el emit en memoria — no compromete ningún dato de negocio, únicamente esa fila puntual de auditoría. No se construye tampoco `event_consumption_log` ([technical/05-EVENTING.md §3](../technical/05-EVENTING.md), tabla de idempotencia para reintentos) — sin `OutboxRelayWorker`, no existe ningún mecanismo que reemita un evento ya entregado, así que el riesgo de entrega duplicada que esa tabla resuelve no existe todavía. Mismo criterio en ambos casos: se construye cuando haya un escenario real de reintento que lo necesite, no antes.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
