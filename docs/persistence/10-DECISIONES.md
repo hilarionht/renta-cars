@@ -234,6 +234,42 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: el segundo `INSERT` dispara `P2002`, atrapado en `PrismaFileRepository.save()` y traducido a `FileAlreadyConfirmedError` (`409 FILE_ALREADY_CONFIRMED`) — mismo patrón exacto que `DuplicateTaxIdError` en `PrismaCompanyRepository` (§18): la unicidad se valida atrapando el constraint de Postgres, no con un pre-check.
 
+## #30 — Settings (`CompanySettings`) acotado a 2 de las 9 políticas documentadas
+
+**Contexto**: `docs/model/02-AGGREGATES.md` §6 documenta 9 Value Objects de política (`CancellationPolicy`, `DepositPolicy`, `LateReturnPolicy`, `MaintenanceThresholdPolicy`, `PaymentMethodsEnabled`, `DraftExpirationPolicy`, `MinimumBookingLeadTime`, `NotificationChannelPreference`, `EnabledProductModules`). Solo los 2 últimos tienen forma de campos realmente decidida en los docs — los otros 7 son reglas de negocio de Rental Operations (Fase 1, no construido todavía), documentados con una sola línea de gloss cada uno, sin unidades, sin cantidad de tramos, sin defaults. `docs/persistence/04-COLUMNAS-CONCEPTUALES.md` prohíbe además JSONB como placeholder para ellos ("cada política como grupo de columnas propio... nunca JSONB de negocio").
+
+**Decisión**: esta tanda construye `CompanySettings` completo como aggregate, pero solo con `EnabledProductModules` y `PaymentMethodsEnabled`. Las otras 7 políticas quedan como gap explícito, mismo criterio que `OutboxRelayWorker` (§16/§19/§23) — se construyen cuando Rental Operations les dé forma real, no antes. Esto no bloquea el criterio de salida de Fase 0 (`docs/01-ROADMAP.md` §2, que no menciona Settings explícitamente) y desbloquea `TenantModuleEnabledGuard`, el motivo original por el que Settings está en el roadmap.
+
+## #31 — `CompanySettings` es el primer aggregate root con identidad prestada, no generada
+
+**Contexto**: `docs/model/03-ENTITIES.md` §2.3 llama a `CompanySettings` "la única entidad... cuya identidad es directamente la de otra entidad" — coincide 1:1 con `CompanyId`, no genera la suya propia.
+
+**Decisión**: `companyId` es un `string` plano (no un `CompanyId` importado de `@platform/companies/domain` — `type:domain` de un módulo no puede depender del `type:domain` de otro, `tooling/eslint/boundaries.mjs`), mismo criterio ya usado para `AuditLogEntry.companyId`/`File.companyId`. En Prisma, `company_id` es literalmente la columna `@id` (sin columna `id` autónoma), sin `@relation`/FK real hacia `companies` — mismo patrón ya usado para `branches.company_id` (verificado: esa migración tampoco tiene `FOREIGN KEY`, la integridad la garantiza RLS + la aplicación). RLS estándar (`company_id = current_setting(...)`), no el caso especial de `companies` (que compara su propio `id` porque es la raíz de tenant) — `company_settings.company_id` es una columna normal, aunque también sea la PK.
+
+## #32 — `EnabledProductModules` se modela `String[]`, no un enum nativo de Postgres
+
+**Contexto**: `docs/persistence/08-PRISMA-CONVENTIONS.md` §7 llama a `EnabledProductModules`/`PaymentMethodsEnabled` "conjunto cerrado de un catálogo" (sugiriendo enum nativo para ambos), mientras que `docs/contracts/08-VERSIONING.md` §5 dice lo opuesto para `EnabledProductModules` específicamente: "un consumidor los trata como conjuntos abiertos por diseño de dominio... nunca como una lista cerrada exhaustiva", y `docs/model/02-AGGREGATES.md` §6 solo compromete `Rental` como valor real hoy ("extensible a `Workshop`, etc.").
+
+**Decisión**: se resuelve a favor de la lectura de `08-VERSIONING.md` — `enabled_product_modules` es `TEXT[]` (validado solo por no-vacío en el dominio, nunca contra un catálogo cerrado), agregar un producto nuevo no requiere migración. `PaymentMethodsEnabled` sí es un enum nativo (`PaymentMethod[]`) — ese catálogo de 4 valores (`docs/model/04-VALUE_OBJECTS.md` §6) no tiene la misma cláusula de "conjunto abierto" en ningún documento.
+
+## #33 — `CompanySettings` se crea junto con `Company`, orquestado sin cruzar el límite de dominio entre módulos
+
+**Contexto**: `docs/persistence/07-MIGRACIONES.md` §5.2 fija que `CompanySettings` con sus defaults se crea "junto con cada `Company` nueva... siempre inserta ambas filas... en la misma transacción" — comportamiento normal del Command Handler de alta, no una reacción a evento. Pero `companies/application` (donde vive `RegisterCompanyHandler`) no puede importar `settings/domain` directamente (eje de módulo de `tooling/eslint/boundaries.mjs`: `type:domain` solo depende de sí mismo/`scope:shared`).
+
+**Decisión**: `CreateDefaultSettingsHandler` vive en `settings/application` (mismo módulo que `CompanySettings`), expone `execute(params, tx)` tomando el `tx` ya abierto por el propio `UnitOfWork.run()` de `RegisterCompanyHandler` — este último orquesta llamándolo, nunca construye `CompanySettings` él mismo. `CompaniesModule` importa `SettingsModule` (no solo el token) para resolverlo, mismo mecanismo ya usado para `UsersModule` → `CompaniesModule`. Sin evento de creación (ver #34) — nada que publicar desde `RegisterCompanyHandler` en nombre de Settings.
+
+## #34 — `CompanySettings.create()` no emite ningún evento
+
+**Contexto**: el catálogo (`docs/model/06-DOMAIN_EVENTS.md` §4) solo lista `CompanySettingsUpdated.v1` — por su propio nombre, reacciona a un cambio real de una política existente, no a la fijación inicial de defaults.
+
+**Decisión**: mismo criterio ya usado para `Company.reactivate()`/`User.reactivate()` — una transición sin evento propio porque no está en el catálogo. Los 2 métodos de actualización (`updateEnabledProductModules`/`updatePaymentMethods`) sí emiten `CompanySettingsUpdated.v1`, con `newValueSummary` como `JSON.stringify` del nuevo valor (formato no especificado en ningún documento, resuelto con la opción más simple).
+
+## #35 — Bug real: `OutboxWriter` tampoco tenía `CompanySettings` en `AGGREGATE_TYPE_TO_SCHEMA`
+
+**Contexto**: mismo patrón exacto que el bug de `File` (#26) — el smoke test manual de `PATCH /company-settings/payment-methods-enabled` (Postgres+Redis reales) devolvió `500` con `OutboxWriter: aggregateType "CompanySettings" no tiene schema mapeado`.
+
+**Decisión**: se agrega `CompanySettings: 'organization'` al mapa. Segunda vez en la misma sesión que este mapa queda desactualizado al agregar un módulo nuevo — confirma el patrón ya anotado en #26: todo módulo que publique eventos de dominio debe agregar su(s) aggregate type(s) aquí, o falla recién en el primer intento real de publicar, nunca en typecheck ni en lint.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
