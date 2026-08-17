@@ -182,6 +182,8 @@ export class Customer {
     const document = IdentityDocument.upload(params);
     this.identityDocuments.push(document);
     this.dirtyDocumentIds.add(document.id.toString());
+    this.props.updatedAt = new Date();
+    this.props.version += 1;
     return document.id;
   }
 
@@ -191,7 +193,11 @@ export class Customer {
   // endpoint ni evento propio, mismo criterio que Company.reactivate().
   verifyIdentityDocument(documentId: string): void {
     const document = this.findDocument(documentId);
+    const wasAlreadyVerified = document.status === 'Verified';
     document.verify();
+    if (wasAlreadyVerified) {
+      return;
+    }
     this.dirtyDocumentIds.add(documentId);
     this.domainEvents.push({
       eventType: 'CustomerDocumentValidated.v1',
@@ -201,8 +207,9 @@ export class Customer {
     });
     if (document.owner.type === 'Customer' && this.props.status === 'Registered') {
       this.props.status = 'Active';
-      this.props.updatedAt = new Date();
     }
+    this.props.updatedAt = new Date();
+    this.props.version += 1;
   }
 
   registerAdditionalDriver(name: string): AdditionalDriver['id'] {
@@ -214,35 +221,45 @@ export class Customer {
       customerId: this.props.id.toString(),
       driverId: driver.id.toString(),
     });
+    this.props.updatedAt = new Date();
+    this.props.version += 1;
     return driver.id;
   }
 
   validateAdditionalDriverLicense(driverId: string): void {
     const driver = this.findDriver(driverId);
+    const wasAlreadyValidated = driver.status === 'Validated';
     const license = this.identityDocuments.find(
       (document) => document.owner.type === 'AdditionalDriver' && document.owner.id === driverId,
     );
     driver.validateLicense(license);
+    if (wasAlreadyValidated) {
+      return;
+    }
     this.dirtyDriverIds.add(driverId);
     this.domainEvents.push({
       eventType: 'AdditionalDriverValidated.v1',
       customerId: this.props.id.toString(),
       driverId,
     });
+    this.props.updatedAt = new Date();
+    this.props.version += 1;
   }
 
   revokeAdditionalDriver(driverId: string): void {
     const driver = this.findDriver(driverId);
-    const wasAlreadyRevoked = driver.status === 'Revoked';
+    if (driver.status === 'Revoked') {
+      return;
+    }
     driver.revoke();
     this.dirtyDriverIds.add(driverId);
-    if (!wasAlreadyRevoked) {
-      this.domainEvents.push({
-        eventType: 'AdditionalDriverRevoked.v1',
-        customerId: this.props.id.toString(),
-        driverId,
-      });
-    }
+    this.domainEvents.push({
+      eventType: 'AdditionalDriverRevoked.v1',
+      customerId: this.props.id.toString(),
+      driverId,
+    });
+    this.props.updatedAt = new Date();
+    this.props.version += 1;
   }
 
   block(reason: string): void {
