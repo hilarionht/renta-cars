@@ -236,12 +236,19 @@ Inválida: `Closed` no admite nuevas asignaciones de `Vehicle` ni `CheckOut` (IN
 
 ### 6.5 `Customer` (Rental Operations)
 
+**Nota de implementación**: el diagrama de un solo tramo de abajo es una simplificación — `Customer` en realidad tiene **dos dimensiones de estado ortogonales**, no una única cadena de 3 (confirmado contra `CustomerBlockStatus`, VO propio documentado aparte, y la columna `block_status` independiente en `docs/persistence/05-INDICES-Y-CONSTRAINTS.md`): `status` (`Registered`/`Active`, ciclo de validación documental) y `blockStatus` (`None`/`Blocked` + motivo opcional, moderación). Un `Customer` puede estar `Active` + `Blocked` simultáneamente. `status` pasa a `Active` como efecto lateral de `verifyIdentityDocument()` (llamada aquí `validateDocumentation()`) solo cuando el documento verificado es del propio `Customer` (no de un `AdditionalDriver`) y `status` seguía en `Registered` — sin endpoint ni evento propio, mismo criterio que `Company.reactivate()`.
+
 ```mermaid
 stateDiagram-v2
     [*] --> Registered: register()
     Registered --> Active: validateDocumentation()
-    Active --> Blocked: block() [automático o manual]
-    Blocked --> Active: unblock() [manual, auditado]
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> None
+    None --> Blocked: block() [manual]
+    Blocked --> None: unblock() [manual, auditado]
 ```
 
 Inválida: `Registered` (sin documentación validada) no puede asociarse a una `Reservation` `Confirmed` (INV-104).
@@ -262,11 +269,13 @@ Inválida: `Revoked` → `Validated` directo (requiere volver a `Registered` y r
 ```mermaid
 stateDiagram-v2
     [*] --> Pending: upload()
-    Pending --> Valid: verify()
-    Valid --> Expired: (automático, por fecha)
+    Pending --> Verified: verify()
+    Verified --> Expired: (automático, por fecha)
 ```
 
-Inválida: `Expired` → `Valid` (una renovación crea un documento nuevo, nunca revive el vencido — mismo patrón append-only).
+`IdentityDocument` usa `Verified` como nombre de estado autoritativo (confirmado contra `docs/model/02-AGGREGATES.md §10`, `03-ENTITIES.md §4.7` y la persistencia — el rótulo `Valid` de una versión anterior de este diagrama era un error de rotulado). Ademas, sin job de expiración implementado todavía: la transición `Verified → Expired` no ocurre automáticamente en runtime — `IdentityDocument.isCurrentlyValid(asOf)` la computa on-demand comparando `status`+`expiryDate`, en lugar de confiar en que `status` ya diga `Expired` (mismo gap ya aceptado que `OutboxRelayWorker`).
+
+Inválida: `Expired` → `Verified` (una renovación crea un documento nuevo, nunca revive el vencido — mismo patrón append-only).
 
 ### 6.8 `AvailabilitySlot` (Scheduling)
 

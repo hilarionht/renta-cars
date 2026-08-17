@@ -270,6 +270,72 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: se agrega `CompanySettings: 'organization'` al mapa. Segunda vez en la misma sesión que este mapa queda desactualizado al agregar un módulo nuevo — confirma el patrón ya anotado en #26: todo módulo que publique eventos de dominio debe agregar su(s) aggregate type(s) aquí, o falla recién en el primer intento real de publicar, nunca en typecheck ni en lint.
 
+## #36 — `Customer`, primer aggregate con entidades internas en tablas propias: persistencia con dirty-tracking
+
+**Contexto**: `IdentityDocument`/`AdditionalDriver` son entidades internas de `Customer` con sus propias tablas Prisma (`identity_documents`, `additional_drivers`) — primera vez en el proyecto que un aggregate tiene hijos persistidos por separado, no embebidos como JSON ni en la misma fila.
+
+**Decisión**: `Customer` trackea qué hijos se tocaron en la operación actual (`dirtyDocumentIds`/`dirtyDriverIds`, `Set<string>`), expuesto vía `pullDirtyIdentityDocuments()`/`pullDirtyAdditionalDrivers()` — mismo idioma que `pullDomainEvents()` (acumular, filtrar-y-limpiar al leer). `PrismaCustomerRepository.save()` solo escribe los hijos dirty, nunca reemplaza la colección completa. Se descartó la API de nested-writes de Prisma (`update: { set: [...] }`) porque implica borrar-y-recrear toda la colección en cada `save()`, lo cual es incorrecto para `identity_documents` (append-only — un documento "borrado y recreado" perdería su historial real de estados).
+
+## #37 — `PhoneNumber` y `CustomerName`: gaps completados
+
+**Contexto**: `PhoneNumber` estaba catalogado en `docs/model/04-VALUE_OBJECTS.md §1.5` como VO "verdaderamente universal" pero nunca se implementó (ningún consumidor hasta Customers). `CustomerName` no estaba catalogado en ningún doc pese a que todo otro aggregate tiene su propio VO de nombre (`User.PersonName`, `Branch.BranchName`, `Company.LegalName`).
+
+**Decisión**: `PhoneNumber` se agrega a `shared-kernel` (formato E.164), `CustomerName` se agrega al módulo `customers/domain` siguiendo el precedente exacto de `BranchName` (2-120 caracteres). `BillingContact` (`Company`) deliberadamente NO se retrofitea a `PhoneNumber` — su teléfono queda como string opcional plano, inconsistencia aceptada.
+
+## #38 — `Customer` tiene dos dimensiones de estado ortogonales, no una cadena de 3
+
+**Contexto**: `docs/model/08-STATE_MACHINES.md §6.5` mostraba `Registered → Active → Blocked` como una sola cadena, pero `CustomerBlockStatus` está documentado aparte como VO propio y la persistencia tiene una columna `block_status` independiente.
+
+**Decisión**: se modela como dos campos independientes — `status` (`Registered`/`Active`, ciclo de validación documental) y `blockStatus` (`None`/`Blocked` + motivo opcional, moderación, ortogonal). Un `Customer` puede estar `Active` + `Blocked` simultáneamente. `status` pasa a `Active` como efecto lateral de `verifyIdentityDocument()` cuando el documento verificado es del propio `Customer` (no de un `AdditionalDriver`) y `status` seguía en `Registered` — sin endpoint ni evento propio, mismo criterio que `Company.reactivate()`. Diagrama corregido en `docs/model/08-STATE_MACHINES.md §6.5`.
+
+## #39 — `IdentityDocument` usa `Verified`, no `Valid`
+
+**Contexto**: `docs/model/02-AGGREGATES.md §10` y `03-ENTITIES.md §4.7` (y la persistencia) coinciden en `Pending`/`Verified`/`Expired`, pero el diagrama de `08-STATE_MACHINES.md §6.7` (compartido con `VehicleDocument`, no construido todavía) usaba `Valid` — error de rotulado en 1 de 3 fuentes.
+
+**Decisión**: se trata `Verified` como autoritativo (2 de 3 docs + persistencia). Diagrama corregido.
+
+## #40 — `AdditionalDriver` SÍ tiene `version` propio — excepción real y deliberada
+
+**Contexto**: `docs/persistence/04-COLUMNAS-CONCEPTUALES.md §6` confirma `additional_drivers | ... | version`, a diferencia de `identity_documents` (append-only, sin `version`).
+
+**Decisión**: se implementa tal cual documentado — excepción real y deliberada a la regla general de "`version` solo en Aggregate Roots", no un error.
+
+## #41 — Propietario polimórfico de `identity_documents`: 2 columnas FK + `CHECK`, no `owner_type`/`owner_id`
+
+**Contexto**: `docs/persistence/03-RELACIONES.md §5` ya evaluó y descartó la alternativa genérica `owner_type`/`owner_id` para preservar integridad referencial real dentro del mismo schema.
+
+**Decisión**: `customer_id`/`additional_driver_id`, ambas nullable, mutuamente excluyentes vía un `CHECK` agregado a mano en la migración 1 (`identity_documents_owner_exclusive_check`) — mismo procedimiento ya usado para `roles_permissions_not_empty`. Probado con un spec de integración dedicado, sin precedente en este codebase (`identity-document-owner-check.integration.spec.ts`), directo contra Postgres real.
+
+## #42 — `FILE_EXISTS_PORT` no se construye — decisión ya tomada, honrada
+
+**Contexto**: `libs/platform/files/infrastructure/src/files.module.ts` ya documentaba que "ningún consumidor síncrono existe todavía (Vehicles/Customers/Invoices reciben un `fileId` por HTTP, no por DI)".
+
+**Decisión**: `uploadIdentityDocument` confía en el `fileId` recibido sin verificarlo contra Files — gap aceptado y ya documentado antes de esta tanda, no revertido.
+
+## #43 — `TenantModuleEnabledGuard`/`@RequiresProductModule()`: primer consumidor real
+
+**Contexto**: el guard se construyó en la tanda de Settings pero ninguna ruta de Fase 0 lo usaba (mecanismo opt-in).
+
+**Decisión**: `@RequiresProductModule('Rental')` a nivel de clase en `CustomersController` — primer ejercicio real del mecanismo. Confirmado con un e2e dedicado que primero desactiva `Rental` (los defaults de `CompanySettings` ya lo traen habilitado) y comprueba el `403 PRODUCT_MODULE_NOT_ENABLED` antes de reactivarlo.
+
+## #44 — `AGGREGATE_TYPE_TO_SCHEMA`: `Customer` agregado proactivamente
+
+**Contexto**: mismo mapa que ya causó bugs reales dos veces (#26 `File`, #35 `CompanySettings`) — un módulo nuevo que publica eventos y no se agrega aquí falla recién en el primer intento real de publicar.
+
+**Decisión**: `Customer: 'rental'` se agrega antes de correr cualquier smoke test esta vez, no después de que fallara.
+
+## #45 — Corrección de INV-P03: `apps/api` eximido de la regla `scope:platform` no depende de `scope:product-rental`
+
+**Contexto**: al componer `CustomersModule` en `AppModule`, `nx lint` falló con `"A project tagged with 'scope:platform' can not depend on libs tagged with 'scope:product-rental'"`. La regla en `tooling/eslint/boundaries.mjs` era un único `{ sourceTag: 'scope:platform', notDependOnLibsWithTags: ['scope:product-rental'] }`, que atrapaba también a `apps/api` (el único host NestJS, tageado `scope:platform` + `type:feature`) — pese a que `docs/technical/02-PROYECTOS.md` línea 9 ya documenta a `apps/api` como el composition root que "compone todos los módulos de `libs/platform` y `libs/products/rental`". `docs/technical/01-MONOREPO.md §5` describe INV-P03 como "la ley estructural más importante de toda la Plataforma... sin excepción", así que se flaggeó explícitamente al usuario en lugar de resolverlo en silencio.
+
+**Decisión** (confirmada con el usuario): se exime a `apps/api` de la regla, preservando la restricción completa para toda librería de negocio real de `scope:platform`. Implementado con el `ComboSourceTagConstraint`/`allSourceTags` de Nx (semántica AND, confirmada leyendo `node_modules/@nx/eslint-plugin/dist/src/utils/runtime-lint-utils.d.ts` en vez de asumir el schema) — 3 reglas `{ allSourceTags: ['scope:platform', 'type:X'], notDependOnLibsWithTags: ['scope:product-rental'] }` para `X = domain/application/infrastructure`. `apps/api` solo lleva `type:feature`, así que ninguna de las 3 combinaciones lo atrapa; toda librería real de negocio de `scope:platform` sigue restringida (siempre lleva uno de esos 3 `type:*`).
+
+## #46 — Bug real: la `version` del aggregate root de `Customer` no se bumpeaba en mutaciones que solo tocaban entidades internas
+
+**Contexto**: el primer smoke test manual con servidor real (`POST /customers/:id/identity-documents` sobre un `Customer` recién creado) devolvió `409 CONCURRENT_MODIFICATION` sin que hubiera ninguna concurrencia real. `PrismaCustomerRepository.save()` hace `updateMany({ where: { version: customer.version - 1 } })` asumiendo que TODA mutación del aggregate incrementa `version`, pero `uploadIdentityDocument`/`verifyIdentityDocument`/`registerAdditionalDriver`/`validateAdditionalDriverLicense`/`revokeAdditionalDriver` nunca lo hacían — solo tocaban entidades internas dirty-tracked, nunca `props` del root.
+
+**Decisión**: las 5 mutaciones ahora bumpean `version`/`updatedAt` del root en todo cambio real, alineado con `updateDetails()`/`block()`/`unblock()`. Aprovechado el mismo cambio para alinear la idempotencia de `verifyIdentityDocument`/`validateAdditionalDriverLicense`/`revokeAdditionalDriver`: una llamada repetida sobre un estado ya alcanzado no vuelve a marcar dirty, no reemite el evento de dominio, ni bumpea `version` — mismo criterio de no-op silencioso que `block()`/`unblock()`. Confirma un patrón a vigilar en cualquier aggregate futuro con entidades internas: **toda** mutación del árbol, incluidas las que solo tocan hijos, debe bumpear la `version` del root, no solo las que cambian sus propios campos.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

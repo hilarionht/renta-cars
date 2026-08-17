@@ -337,9 +337,9 @@ Este documento define los agregados definitivos de la Plataforma: la unidad de c
 - `IdentityDocument` (identidad propia: `documentId`; tipo — identidad, licencia de conducir —, referencia a `File`, fecha de vigencia, estado `Pending`/`Verified`/`Expired`, y si proviene de OCR, un flag `extractedByOcr` hasta su confirmación humana explícita — RN-12). Entidad, no VO, por la misma razón que `VehicleDocument`: tiene ciclo de vida propio de reemplazo/vencimiento asíncrono.
 - `AdditionalDriver` (identidad propia: `driverId`; nombre, licencia de conducir propia como `IdentityDocument` anidado, estado `Registered`/`Validated`/`Revoked`). Es entidad interna de `Customer` — y no de `Reservation` — porque un cliente corporativo registra su roster de conductores autorizados una vez y lo reutiliza across múltiples reservas (ver [domain/01-ACTORES.md §3.2](../domain/01-ACTORES.md)); `Reservation` solo referencia por `driverId` cuáles de ellos están autorizados para ese alquiler puntual (ver §14).
 
-**Value Objects**: `TaxId`/`DocumentId` (identificador fiscal/personal), `ContactInfo` (email, teléfono), `CustomerType` (`Individual` | `Corporate`), `CustomerBlockStatus` (`None`, `Blocked` con motivo — RN de [domain/07-EXCEPCIONES.md §12](../domain/07-EXCEPCIONES.md)).
+**Value Objects**: `CustomerName` (nombre/razón social — mismo gap resuelto que `BranchName`, ver [04-VALUE_OBJECTS.md §5.1](04-VALUE_OBJECTS.md)), `TaxIdOrDocumentId` (identificador fiscal/personal — nombre fijado por la columna persistida `tax_id_or_document_id`), `ContactInfo` (compone `Email` + `PhoneNumber`, ambos requeridos), `CustomerType` (`Individual` | `Corporate`), `CustomerBlockStatus` (`None`, `Blocked` con motivo — RN de [domain/07-EXCEPCIONES.md §12](../domain/07-EXCEPCIONES.md)).
 
-**Eventos**: `CustomerRegistered.v1`, `CustomerDocumentValidated.v1`, `CustomerDocumentExpired.v1`, `AdditionalDriverRegistered.v1`, `CustomerBlocked.v1`, `CustomerUnblocked.v1`.
+**Eventos**: `CustomerRegistered.v1`, `CustomerDocumentValidated.v1`, `CustomerDocumentExpired.v1` (tipado, nunca emitido — no existe job de expiración), `AdditionalDriverRegistered.v1`, `AdditionalDriverValidated.v1`, `AdditionalDriverRevoked.v1`, `CustomerBlocked.v1`, `CustomerUnblocked.v1`.
 
 **Invariantes**:
 
