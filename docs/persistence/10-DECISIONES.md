@@ -204,6 +204,36 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: no se cambia el emit a `emitAsync()` ni se acopla el request de negocio a la escritura de auditoría — eso reintroduciría exactamente el riesgo que el fire-and-forget evita a propósito (un fallo o lentitud de Audit haciendo fallar o demorar una operación de negocio). Se documenta el comportamiento como contrato explícito: cualquier consumidor de `GET /audit-log` (incluidos tests) debe tratarlo como eventual, nunca asumir visibilidad sincrónica inmediatamente después del request que originó el evento. El e2e correspondiente hace polling corto (intervalos de 100ms, tope 5s) en vez de una lectura única.
 
+## #25 — RLS de `support.files` es el grant estándar completo, no el patrón append-only de `audit_log`
+
+**Contexto**: `support.files` es la segunda tabla del schema `support` (junto a `audit_log`) — con la sola precedencia de `audit_log` (append-only por INV-024, §22), había riesgo de copiar por hábito su migración `GRANT SELECT, INSERT` restringido.
+
+**Decisión**: `support.files` recibe `GRANT SELECT, INSERT, UPDATE, DELETE` (mismo patrón que `organization.companies`/`organization.branches`), porque el "delete" de `File` es una actualización lógica real (`UPDATE upload_status`), no un registro inmutable — a diferencia de `AuditLogEntry`, donde nunca hay una segunda escritura legítima sobre la misma fila. El test de integración de RLS confirma explícitamente lo contrario de lo que confirma el de `audit_log`: `app_runtime` **sí** puede `UPDATE` bajo su propio contexto de tenant.
+
+## #26 — Bug real: `OutboxWriter` no tenía `File` en `AGGREGATE_TYPE_TO_SCHEMA`
+
+**Contexto**: el mapeo `aggregateType → sourceSchema` de `OutboxWriter` (§20, agregado al construir Audit) solo cubría los aggregate types que existían en ese momento (`User`/`Role`/`Session` → `identity`, `Company`/`Branch` → `organization`). El smoke test manual de Files (`POST /files/confirm-upload` real, con Postgres+Redis+MinIO reales) devolvió `500` con el error `OutboxWriter: aggregateType "File" no tiene schema mapeado` — nadie había agregado la entrada al construir el módulo.
+
+**Decisión**: se agrega `File: 'support'` al mapa. Encontrado por una corrida real, no por inspección de código — mismo criterio de rigor que el resto de la sesión (correr el código, no solo leerlo). Sirve como recordatorio operativo: todo módulo nuevo que publique eventos de dominio debe agregar su(s) aggregate type(s) a este mapa, o falla en runtime recién en el primer intento real de publicar (no en typecheck ni en lint).
+
+## #27 — Enforcement de `contentType`/tamaño en Files: asimétrico, y el diseño original sobre `contentType` era incorrecto
+
+**Contexto**: el diseño original (plan de implementación) asumía que fijar `ContentType` en el `PutObjectCommand` antes de generar la URL firmada dejaba ese header firmado — un `PUT` con un `Content-Type` distinto habría sido rechazado por storage antes de aceptar ningún byte (enforcement preventivo). El test de integración real contra MinIO refutó esto: un `PUT` con `Content-Type: image/png` contra una URL firmada para `application/pdf` fue aceptado con `200`. Inspeccionando `@aws-sdk/s3-request-presigner` se confirmó la causa: `prepareRequest()` agrega `"content-type"` a `unsignableHeaders` de forma incondicional — es el comportamiento estándar del SDK (las URLs firmadas están pensadas para ser usables sin que el cliente tenga que fijar headers arbitrarios), no un bug de MinIO ni de esta implementación.
+
+**Decisión**: el enforcement real de `contentType` (igual que el de tamaño, que nunca tuvo una vía preventiva disponible dado que el puerto `getUploadUrl` no recibe un tamaño esperado) es **post-hoc, en `ConfirmUploadHandler`**, comparando lo que `verifyUploadedObject` (`HeadObjectCommand`) midió realmente contra el allowlist — nunca lo que el cliente declaró. Ambos casos, si fallan, intentan un `deleteObject` best-effort (mismo criterio ya aceptado en `docs/contracts/05-INTEGRATION-CONTRACTS.md` §3 para cualquier `confirmUpload` fallido: un objeto huérfano no es una obligación de consistencia inmediata). Gap aceptado explícitamente: entre el `PUT` y el `confirmUpload`, un objeto con contentType o tamaño inválido puede existir transitoriamente en el bucket.
+
+## #28 — `GetSignedUrl` es un Command de `application/`, no una Query de `infrastructure/queries/`
+
+**Contexto**: a diferencia de `GetCompanyHandler`/`ListAuditLogHandler` (leen directo de Postgres vía `ReadTransaction`, sin pasar por el modelo de dominio — la definición de "Query" de [ADR-0007]), `GetSignedUrl` necesita cargar el agregado `File` real para exigir el invariante "un `File` `Deleted` no puede generar una nueva URL firmada" ([model/02-AGGREGATES.md §15](../model/02-AGGREGATES.md)) y dispara un efecto externo no-idempotente (una URL firmada nueva en cada llamada).
+
+**Decisión**: vive en `files/application/src/commands/get-signed-url/`, usa `FILE_REPOSITORY` (no `ReadTransaction`), y es el único Command del módulo que no usa `UnitOfWork` (no hay nada que persistir). Documentado con un comentario explícito en el propio handler para que no se "corrija" moviéndolo a `infrastructure/queries/` en el futuro.
+
+## #29 — `FileAlreadyConfirmedError`: doble `confirmUpload` con la misma `storageRef`
+
+**Contexto**: gap encontrado al diseñar `PrismaFileRepository` — nada en el flujo impide que un cliente llame `confirmUpload` dos veces con la misma `storageRef` (p. ej. un retry de red tras un timeout de la primera respuesta, ya exitosa). `storage_ref` es `UNIQUE` a nivel de tabla.
+
+**Decisión**: el segundo `INSERT` dispara `P2002`, atrapado en `PrismaFileRepository.save()` y traducido a `FileAlreadyConfirmedError` (`409 FILE_ALREADY_CONFIRMED`) — mismo patrón exacto que `DuplicateTaxIdError` en `PrismaCompanyRepository` (§18): la unicidad se valida atrapando el constraint de Postgres, no con un pre-check.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
