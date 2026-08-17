@@ -1,0 +1,18 @@
+{
+  "name": "platform-files-infrastructure",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/files/infrastructure/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:infrastructure", "module:files"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/files/infrastructure"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

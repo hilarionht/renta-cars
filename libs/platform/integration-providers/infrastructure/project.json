@@ -1,0 +1,18 @@
+{
+  "name": "platform-integration-providers-infrastructure",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/integration-providers/infrastructure/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:infrastructure", "module:integration-providers"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/integration-providers/infrastructure"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}
