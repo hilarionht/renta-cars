@@ -17,10 +17,7 @@ describe('Vehicles: registro, documentacion, mantenimiento, y auditoria', () => 
     baseUrl = process.env.API_E2E_BASE_URL as string;
   });
 
-  async function uploadAndConfirmFile(
-    accessToken: string,
-    contentBytes: Uint8Array,
-  ): Promise<string> {
+  async function uploadAndConfirmFile(accessToken: string, contentBytes: Buffer): Promise<string> {
     const uploadUrlResponse = await request(baseUrl)
       .post('/api/v1/files/upload-url')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -30,7 +27,7 @@ describe('Vehicles: registro, documentacion, mantenimiento, y auditoria', () => 
 
     const putResponse = await fetch(uploadUrl, {
       method: 'PUT',
-      body: contentBytes,
+      body: new Uint8Array(contentBytes),
       headers: { 'Content-Type': 'image/png' },
     });
     expect(putResponse.ok).toBe(true);
@@ -108,10 +105,7 @@ describe('Vehicles: registro, documentacion, mantenimiento, y auditoria', () => 
       .set('Authorization', `Bearer ${accessToken}`);
     expect(getInitialResponse.body.data.status).toBe('Registered');
 
-    const fileId = await uploadAndConfirmFile(
-      accessToken,
-      new Uint8Array(Buffer.from('documento de prueba')),
-    );
+    const fileId = await uploadAndConfirmFile(accessToken, Buffer.from('documento de prueba'));
 
     const uploadDocumentResponse = await request(baseUrl)
       .post(`/api/v1/vehicles/${vehicleId}/documents`)
