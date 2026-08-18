@@ -35,6 +35,8 @@ const AGGREGATE_TYPE_TO_SCHEMA: Record<string, string> = {
   // Agregado proactivamente esta vez, no descubierto por un smoke test fallando (mismo
   // mapa que ya causo bugs reales dos veces: #26/#35 en docs/persistence/10-DECISIONES.md).
   Customer: 'rental',
+  Vehicle: 'rental',
+  VehicleCategory: 'rental',
 };
 
 function schemaFor(aggregateType: string): string {
