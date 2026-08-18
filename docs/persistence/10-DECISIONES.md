@@ -336,6 +336,54 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: las 5 mutaciones ahora bumpean `version`/`updatedAt` del root en todo cambio real, alineado con `updateDetails()`/`block()`/`unblock()`. Aprovechado el mismo cambio para alinear la idempotencia de `verifyIdentityDocument`/`validateAdditionalDriverLicense`/`revokeAdditionalDriver`: una llamada repetida sobre un estado ya alcanzado no vuelve a marcar dirty, no reemite el evento de dominio, ni bumpea `version` — mismo criterio de no-op silencioso que `block()`/`unblock()`. Confirma un patrón a vigilar en cualquier aggregate futuro con entidades internas: **toda** mutación del árbol, incluidas las que solo tocan hijos, debe bumpear la `version` del root, no solo las que cambian sus propios campos.
 
+## #47 — Vehicles: `license_plate`/`vin` únicos por `company_id` — cierra el punto abierto #6
+
+**Contexto**: `#6` dejaba deliberadamente sin decidir la unicidad de `vehicles.license_plate`, a la espera del equipo de dominio. Al construir Vehicles (Fase 1 item 2) había que tomar una decisión real para poder escribir el schema.
+
+**Decisión**: único por `(company_id, license_plate)` y `(company_id, vin)` — mismo shape que cada otra clave natural del dominio (`Customer.taxIdOrDocumentId`, `VehicleCategory.categoryName`, `Company.taxId`). No intenta resolver el caso de placa reasignada tras baja de flota (`vehicles` no tiene soft delete, "baja de flota fuera de alcance de v1.0" ya documentado en `09-TRAZABILIDAD.md`) — si ese caso se vuelve real, es una migración futura, no algo que este schema deba prever hoy.
+
+## #48 — `Money` agregado a `shared-kernel`; `DateRange` deliberadamente diferido
+
+**Contexto**: ni `Money` ni `DateRange` existían en `shared-kernel` pese a estar catalogados en `docs/model/04-VALUE_OBJECTS.md §1.1/§1.2` como VOs "verdaderamente universales" — mismo tipo de gap que `PhoneNumber` antes de Customers.
+
+**Decisión**: se agrega `Money` (consumidor real: `Rate.amount`). `DateRange` NO se agrega — su contrato fija `endDate` estrictamente no-nulable, pero `Rate.validTo` debe admitir `null` (vigencia abierta). `Rate.validFrom`/`validTo` se modelan como `Date`/`Date | null` planos, con un `overlaps()` propio en la entidad `Rate` — no promovido a `shared-kernel` porque no hay otro consumidor real esta tanda (`MaintenanceRecord.scheduledStart`/`scheduledEnd` no necesita semántica de solapamiento, y `Reservation`/`AvailabilitySlot`, los consumidores naturales de `DateRange`, no están construidos). Se difiere a quien primero lo necesite de verdad.
+
+## #49 — `Vehicle.branchId`: se consulta `BRANCH_LOOKUP_PORT`, resolviendo una contradicción real entre dos docs
+
+**Contexto**: `docs/model/09-DEPENDENCIES.md §2` solo lista `BranchStatusPort` como consumido por `Reservation`; el propio comentario de `libs/platform/branches/application/src/ports/branch-lookup.port.ts` decía "sin consumidor real todavía". Pero `docs/persistence/03-RELACIONES.md` dice explícitamente, para `vehicles.branch_id`: _"la integridad se valida en `application/` al crear el `Vehicle` (el caso de uso consulta `BranchStatusPort`)"_.
+
+**Decisión**: se sigue la instrucción más específica y prescriptiva (`03-RELACIONES.md`) — `RegisterVehicleHandler` consulta `BRANCH_LOOKUP_PORT` (primer consumidor real del puerto) y valida solo existencia (`null` → `VehicleBranchNotFoundError`, 404), no el status `Closed` — esa regla (INV-112) es específica de `Reservation.checkOut()/checkIn()`, no de alta de vehículo.
+
+## #50 — Gap-filling: `VehicleDocumentType`, `RateUnit`, `DamageSeverity`
+
+**Contexto**: ninguno de los tres tiene catálogo cerrado documentado. RN-27 dice explícitamente que el catálogo real de tipos de documento vehicular es "dependiente de país"; "día/semana" para `Rate.unit` solo aparece en prosa (`03-ENTITIES.md §4.2`); la severidad de `reportDamage()` no está enumerada en ningún doc.
+
+**Decisión**: `VehicleDocumentType = PropertyCard | Insurance | CirculationPermit` (los 3 ejemplos que el propio `02-AGGREGATES.md §8` da: tarjeta de propiedad, seguro, permiso de circulación) — mismo criterio que `Customer.DocumentType`. `RateUnit = Day | Week`. `DamageSeverity = Minor | Severe` (`Minor → Maintenance`, `Severe → OutOfService`).
+
+## #51 — INV-007 interpretado como "al menos un documento `Verified`, de cualquier tipo"
+
+**Contexto**: RN-27 exige documentación vigente para `enable()`, pero el conjunto de tipos obligatorios es "dependiente de país" y no hay ninguna política de `CompanySettings` que lo respalde esta tanda (`MaintenanceThresholdPolicy` y sus hermanas siguen deliberadamente diferidas desde la tanda de Settings).
+
+**Decisión**: `Vehicle.enable()` exige al menos un `VehicleDocument` `Verified`, de cualquier tipo — no "los 3 tipos del catálogo". Exigir el conjunto completo inventaría una regla más estricta sin base documental; "al menos uno" replica el criterio ya usado en `Customer.isEligibleForConfirmation()`.
+
+## #52 — `MaintenanceRecord.damageReportId` omitido por completo
+
+**Contexto**: `docs/persistence/03-RELACIONES.md` documenta un FK opcional `maintenance_records.damage_report_id → damage_reports.id` (cross-aggregate, mismo BC) para mantenimiento correctivo originado en un daño detectado durante una `Reservation`. `damage_reports` no existe — es parte de `Reservation`, Fase 1 item 4, no construida.
+
+**Decisión**: se omite la columna por completo esta tanda (ni siquiera nullable sin FK) — agregarla luego es un Expand limpio (`docs/persistence/07-MIGRACIONES.md §2`) cuando `Reservation`/`DamageReport` exista. `Vehicle.reportDamage()` transiciona el status pero no crea un `MaintenanceRecord` por sí mismo — según la máquina de estados, solo `scheduleMaintenance()` lo hace, como paso separado.
+
+## #53 — `AGGREGATE_TYPE_TO_SCHEMA`: `Vehicle`/`VehicleCategory` agregados proactivamente
+
+**Contexto**: mismo mapa que ya causó bugs reales tres veces (`#26` `File`, `#35` `CompanySettings`, y el propio `Customer` se agregó proactivamente en la tanda anterior).
+
+**Decisión**: `Vehicle: 'rental'` y `VehicleCategory: 'rental'` se agregan antes de correr cualquier smoke test.
+
+## #54 — Bug real: `error.meta.target` de Prisma no distingue `license_plate`/`vin` en la arquitectura de driver adapters (Prisma 7.x)
+
+**Contexto**: el smoke manual con servidor real (segundo `POST /vehicles` con la misma placa) devolvió `500` en vez de `409 DUPLICATE_VEHICLE_LICENSE_PLATE`. `PrismaVehicleRepository.mapUniqueConstraintViolation()` asumía que `error.meta.target` llegaba como array de nombres de columna (comportamiento del query engine Rust clásico de Prisma) — en la versión de este proyecto (7.9.1, arquitectura de driver adapters) `target` llega como el string literal `"(not available)"`, nunca poblado. El nombre real del constraint solo está en `error.meta.driverAdapterError.cause.originalMessage` (confirmado inspeccionando el log real del servidor, no asumido de la documentación de Prisma) — el mismo lugar de donde `isRateOverlapViolation()` ya leía el nombre de la exclusion constraint GiST para `RateOverlapError`.
+
+**Decisión**: se agrega `extractDriverErrorMessage()` para leer ese campo anidado con fallback a `error.message`, y se distingue `license_plate`/`vin` por el nombre del constraint (`vehicles_company_id_license_plate_key`/`vehicles_company_id_vin_key`) en vez de por columnas. Patrón a vigilar en cualquier repositorio futuro que necesite distinguir entre múltiples constraints `UNIQUE` sobre la misma tabla: `error.meta.target` no es confiable en esta versión de Prisma, usar el mensaje crudo del driver.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

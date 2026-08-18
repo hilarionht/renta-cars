@@ -262,10 +262,10 @@ Este documento define los agregados definitivos de la Plataforma: la unidad de c
 
 **Entidades internas**:
 
-- `VehicleDocument` (identidad propia: `documentId`; tipo — tarjeta de propiedad, seguro, permiso de circulación —, referencia a `File`, fecha de vigencia, estado `Valid`/`Expired`). Es entidad y no Value Object porque tiene ciclo de vida propio (se carga, se reemplaza al renovarse, puede vencer de forma asíncrona sin que nadie "edite" el vehículo ese día) — ver justificación de VO vs. entidad en [03-ENTITIES.md §2](03-ENTITIES.md).
-- `MaintenanceRecord` (identidad propia: `maintenanceId`; tipo `Preventive`/`Corrective`, ventana programada, proveedor externo si aplica, resultado de verificación de aptitud).
+- `VehicleDocument` (identidad propia: `documentId`; tipo — `PropertyCard`/`Insurance`/`CirculationPermit`, gap-filled en la tanda de Vehicles a partir de los 3 ejemplos que este mismo párrafo ya daba, ver [persistence/10-DECISIONES.md #50](../persistence/10-DECISIONES.md) —, referencia a `File`, fecha de vigencia, estado `Pending`/`Verified`/`Expired` — `Verified`, no `Valid`, ver nota de corrección en [08-STATE_MACHINES.md §6.7](08-STATE_MACHINES.md)). Es entidad y no Value Object porque tiene ciclo de vida propio (se carga, se reemplaza al renovarse, puede vencer de forma asíncrona sin que nadie "edite" el vehículo ese día) — ver justificación de VO vs. entidad en [03-ENTITIES.md §2](03-ENTITIES.md).
+- `MaintenanceRecord` (identidad propia: `maintenanceId`; tipo `Preventive`/`Corrective`, ventana programada, proveedor externo si aplica, resultado de verificación de aptitud). `damageReportId` (origen de un correctivo) deliberadamente no persistido todavía — `DamageReport`/`Reservation` no están construidos, ver [persistence/10-DECISIONES.md #52](../persistence/10-DECISIONES.md).
 
-**Value Objects**: `LicensePlate`, `VIN`, `Odometer`, `VehicleStatus` (`Available`, `Reserved`, `CheckedOut`, `Maintenance`, `OutOfService` — nota: `Reserved`/`CheckedOut` son un reflejo informativo del compromiso vigente, la fuente de verdad transaccional de la ocupación temporal sigue siendo `AvailabilitySlot` vía Scheduling, ver §14 sobre `Reservation`).
+**Value Objects**: `LicensePlate`, `VIN`, `VehicleStatus` (`Available`, `Reserved`, `CheckedOut`, `Maintenance`, `OutOfService` — nota: `Reserved`/`CheckedOut` son un reflejo informativo del compromiso vigente, la fuente de verdad transaccional de la ocupación temporal sigue siendo `AvailabilitySlot` vía Scheduling, ver §14 sobre `Reservation`; ninguno de los dos es alcanzable por comando alguno hasta que `Reservation` exista). `Odometer` no implementado esta tanda — pertenece a `Inspection`, parte de `Reservation`, no construida. Severidad de `reportDamage()` (`DamageSeverity`, `Minor`/`Severe`) gap-filled, sin catálogo previo en los docs.
 
 **Eventos**: `VehicleRegistered.v1`, `VehicleDocumentationLoaded.v1`, `VehicleEnabled.v1`, `VehicleStatusChanged.v1` (contrato v1 ya fijado en [03-DOMINIO.md §4](../03-DOMINIO.md)), `MaintenanceScheduled.v1`, `MaintenanceCompleted.v1`.
 
@@ -299,7 +299,7 @@ Este documento define los agregados definitivos de la Plataforma: la unidad de c
 
 **Root**: `VehicleCategory` (`VehicleCategoryId`).
 
-**Entidades internas**: `Rate` (identidad propia: `rateId`; `amount: Money`, `unit` — día/semana —, `validFrom`, `validTo` opcional). Es entidad porque cada `Rate` histórico debe conservar su propia identidad y vigencia para poder recalcular el precio de una reserva pasada con la tarifa que estaba vigente en ese momento (RN-20: "la Rate vigente al momento de la confirmación, no de la consulta inicial").
+**Entidades internas**: `Rate` (identidad propia: `rateId`; `amount: Money` — implementado en `shared-kernel` en la tanda de Vehicles, primer consumidor real, ver [persistence/10-DECISIONES.md #48](../persistence/10-DECISIONES.md) —, `unit: RateUnit` (`Day`/`Week`, gap-filled — solo mencionado en prosa antes), `validFrom`, `validTo` opcional — `Date` planos, no `DateRange` de `shared-kernel`, cuyo contrato exige `endDate` no-nulable). Es entidad porque cada `Rate` histórico debe conservar su propia identidad y vigencia para poder recalcular el precio de una reserva pasada con la tarifa que estaba vigente en ese momento (RN-20: "la Rate vigente al momento de la confirmación, no de la consulta inicial").
 
 **Value Objects**: `CategoryName`, `CategoryDescription`.
 
