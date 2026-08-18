@@ -134,15 +134,35 @@ export class PrismaVehicleRepository implements VehicleRepository {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === UNIQUE_CONSTRAINT_VIOLATION
     ) {
-      const target = (error.meta?.target as string[] | undefined) ?? [];
-      if (target.some((column) => column.includes('license_plate'))) {
+      // `error.meta.target` no viene poblado como array de columnas en esta version de
+      // Prisma (7.x, arquitectura de driver adapters) - llega "(not available)". El nombre
+      // real del constraint solo esta en el mensaje crudo del driver subyacente
+      // (error.meta.driverAdapterError.cause.originalMessage), mismo lugar que
+      // isRateOverlapViolation ya usa para distinguir la exclusion constraint. Verificado
+      // empiricamente contra un servidor real (no asumido de la documentacion de Prisma).
+      const driverMessage = this.extractDriverErrorMessage(error);
+      if (driverMessage.includes('vehicles_company_id_license_plate_key')) {
         return new DuplicateVehicleLicensePlateError(vehicle.licensePlate.toString());
       }
-      if (target.some((column) => column.includes('vin'))) {
+      if (driverMessage.includes('vehicles_company_id_vin_key')) {
         return new DuplicateVehicleVinError(vehicle.vin.toString());
       }
     }
     return error instanceof Error ? error : new Error(String(error));
+  }
+
+  private extractDriverErrorMessage(error: Prisma.PrismaClientKnownRequestError): string {
+    const driverAdapterError = error.meta?.['driverAdapterError'];
+    if (driverAdapterError && typeof driverAdapterError === 'object') {
+      const cause = (driverAdapterError as { cause?: unknown }).cause;
+      if (cause && typeof cause === 'object') {
+        const originalMessage = (cause as { originalMessage?: unknown }).originalMessage;
+        if (typeof originalMessage === 'string') {
+          return originalMessage;
+        }
+      }
+    }
+    return error.message;
   }
 
   private toDomain(record: VehicleWithChildren): Vehicle {
