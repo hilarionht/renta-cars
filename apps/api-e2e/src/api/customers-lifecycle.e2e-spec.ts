@@ -28,7 +28,7 @@ describe('Customers: registro, documentacion, conductor adicional, bloqueo, y au
 
     const putResponse = await fetch(uploadUrl, {
       method: 'PUT',
-      body: contentBytes,
+      body: new Uint8Array(contentBytes),
       headers: { 'Content-Type': 'image/png' },
     });
     expect(putResponse.ok).toBe(true);
