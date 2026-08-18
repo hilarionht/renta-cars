@@ -51,6 +51,11 @@
       ],
       "@rental/customers/infrastructure": [
         "./libs/products/rental/customers/infrastructure/src/index.ts"
+      ],
+      "@rental/vehicles/domain": ["./libs/products/rental/vehicles/domain/src/index.ts"],
+      "@rental/vehicles/application": ["./libs/products/rental/vehicles/application/src/index.ts"],
+      "@rental/vehicles/infrastructure": [
+        "./libs/products/rental/vehicles/infrastructure/src/index.ts"
       ]
     },
     "target": "es2022",
