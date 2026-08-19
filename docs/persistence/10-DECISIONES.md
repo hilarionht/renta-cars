@@ -384,6 +384,30 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: se agrega `extractDriverErrorMessage()` para leer ese campo anidado con fallback a `error.message`, y se distingue `license_plate`/`vin` por el nombre del constraint (`vehicles_company_id_license_plate_key`/`vehicles_company_id_vin_key`) en vez de por columnas. Patrón a vigilar en cualquier repositorio futuro que necesite distinguir entre múltiples constraints `UNIQUE` sobre la misma tabla: `error.meta.target` no es confiable en esta versión de Prisma, usar el mensaje crudo del driver.
 
+## #55 — Calendar: `DateRange` finalmente implementado, primer consumidor real
+
+**Contexto**: catalogado en `docs/model/04-VALUE_OBJECTS.md §1.2` como VO "verdaderamente universal" desde el principio, pero diferido en la tanda de Vehicles porque `Rate.validTo` necesitaba vigencia abierta (nulable), incompatible con el contrato de `endDate` estrictamente no-nulable de este VO (`#48`).
+
+**Decisión**: `AvailabilitySlot.dateRange` (Calendar, Fase 1 item 3) sí encaja en el contrato original — se implementa en `shared-kernel` tal como estaba especificado, sin ninguna adaptación. Cierra la nota "Estado: NO implementado" agregada a `04-VALUE_OBJECTS.md §1.2` en la tanda de Vehicles.
+
+## #56 — Bug real: `save()` lanzaba `409 CONCURRENT_MODIFICATION` espurio en mutaciones idempotentes que no cambian nada
+
+**Contexto**: descubierto al escribir `ReleaseSlotHandler` para Calendar. `PrismaXxxRepository.save()` para un aggregate existente siempre hace `updateMany({ where: { version: aggregate.version - 1 } })`, asumiendo que toda llamada a `save()` sigue a una mutación que bumpeó `version`. Pero varios métodos de dominio son idempotentes por diseño (no bumpean `version` en una segunda llamada sobre un estado ya alcanzado: `Customer.block()`/`unblock()`, `IdentityDocument.verify()`, `AdditionalDriver.validateLicense()`/`revoke()`, `Vehicle.verifyDocument()`, `AvailabilitySlot.release()`). En ese caso `aggregate.version` sigue igual al valor ya guardado en la base, así que el `updateMany` busca `version - 1` (que no existe) y devuelve 0 filas, lanzando un `ConcurrentModificationError` sin que haya habido ninguna concurrencia real. Nunca se detectó antes porque ningún smoke test ni e2e llamó la misma acción idempotente dos veces seguidas contra Postgres real — los tests de dominio solo verificaban la idempotencia a nivel de entidad (`version` no cambia), sin llegar a ejercitar `save()` después.
+
+**Decisión**: se corrige en los 6 handlers ya afectados (`VerifyIdentityDocumentHandler`, `ValidateAdditionalDriverLicenseHandler`, `RevokeAdditionalDriverHandler`, `BlockCustomerHandler`, `UnblockCustomerHandler` en Customers; `VerifyVehicleDocumentHandler` en Vehicles) capturando la versión antes de la mutación y saltando la persistencia por completo si no cambió. `ReleaseSlotHandler` (Calendar) se escribe con este patrón desde el inicio. Confirmado contra Postgres real (bloquear un `Customer` ya `Blocked` dos veces seguidas vía HTTP, antes devolvía `409`, ahora `201` sin efecto). Patrón a aplicar en todo handler futuro cuya mutación de dominio tenga una rama idempotente de no-op.
+
+## #57 — `AGGREGATE_TYPE_TO_SCHEMA`: `AvailabilitySlot` agregado proactivamente
+
+**Contexto**: mismo mapa que ya causó bugs reales cuatro veces (`#26` `File`, `#35` `CompanySettings`, y `Customer`/`Vehicle` agregados proactivamente en tandas anteriores).
+
+**Decisión**: `AvailabilitySlot: 'scheduling'` se agrega antes de correr cualquier smoke test.
+
+## #58 — Calendar no tiene ningún event listener — decisión de alcance, no un gap
+
+**Contexto**: `VehicleStatusChanged.v1`/`MaintenanceScheduled.v1` (Vehicle) están documentados como traducibles a un `Blackout` en Scheduling. Podría parecer que esta tanda debía agregar un listener dentro de `platform/calendar` que escuche esos eventos.
+
+**Decisión**: no se agrega ningún listener — `docs/model/01-BOUNDED_CONTEXTS.md §4.2` fija explícitamente que la traducción vive en `AvailabilityService` (`application/` del futuro módulo `reservations`, `scope:product-rental`), nunca dentro de Scheduling. Agregar el listener aquí violaría INV-P03 en la dirección exactamente opuesta a la que Customers/Vehicles ya corrigieron (`#45`): `platform/calendar` importando conocimiento del shape de eventos de `Vehicle` (`scope:product-rental`). Este trabajo queda explícitamente pendiente para la futura tanda de Reservations.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
