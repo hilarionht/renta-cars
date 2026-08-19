@@ -59,7 +59,14 @@
       ],
       "@platform/calendar/domain": ["./libs/platform/calendar/domain/src/index.ts"],
       "@platform/calendar/application": ["./libs/platform/calendar/application/src/index.ts"],
-      "@platform/calendar/infrastructure": ["./libs/platform/calendar/infrastructure/src/index.ts"]
+      "@platform/calendar/infrastructure": ["./libs/platform/calendar/infrastructure/src/index.ts"],
+      "@rental/reservations/domain": ["./libs/products/rental/reservations/domain/src/index.ts"],
+      "@rental/reservations/application": [
+        "./libs/products/rental/reservations/application/src/index.ts"
+      ],
+      "@rental/reservations/infrastructure": [
+        "./libs/products/rental/reservations/infrastructure/src/index.ts"
+      ]
     },
     "target": "es2022",
     "module": "esnext",
