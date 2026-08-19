@@ -25,10 +25,17 @@ describe('Aislamiento de tenant via RLS (organization.company_settings)', () => 
     companyB = randomUUID();
 
     await migratorClient.query(
-      `INSERT INTO organization.company_settings (company_id, enabled_product_modules, payment_methods_enabled, updated_at, version)
+      `INSERT INTO organization.company_settings (
+         company_id, enabled_product_modules, payment_methods_enabled,
+         cancellation_policy_tiers, late_return_grace_minutes, late_return_penalty_pct_per_hour,
+         deposit_applies, deposit_percentage_of_total, draft_expiration_minutes,
+         minimum_booking_lead_time_minutes, updated_at, version
+       )
        VALUES
-         ($1, ARRAY['Rental'], ARRAY['Card','Cash','Transfer','DigitalWallet']::"organization"."PaymentMethod"[], now(), 1),
-         ($2, ARRAY['Rental'], ARRAY['Card','Cash','Transfer','DigitalWallet']::"organization"."PaymentMethod"[], now(), 1)`,
+         ($1, ARRAY['Rental'], ARRAY['Card','Cash','Transfer','DigitalWallet']::"organization"."PaymentMethod"[],
+          '[{"minHoursBeforeStart":0,"penaltyPercentage":0}]'::jsonb, 30, 10, false, 0, 1440, 0, now(), 1),
+         ($2, ARRAY['Rental'], ARRAY['Card','Cash','Transfer','DigitalWallet']::"organization"."PaymentMethod"[],
+          '[{"minHoursBeforeStart":0,"penaltyPercentage":0}]'::jsonb, 30, 10, false, 0, 1440, 0, now(), 1)`,
       [companyA, companyB],
     );
   });

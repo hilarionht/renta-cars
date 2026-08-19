@@ -16,8 +16,8 @@ model User {
   updatedAt    DateTime   @updatedAt @map("updated_at")
   version      Int        @default(1)
 
-  roles        UserRole[]
-  sessions     Session[]
+  roles    UserRole[]
+  sessions Session[]
 
   @@unique([companyId, email], map: "users_company_id_email_key")
   @@map("users")
@@ -43,7 +43,7 @@ model Role {
   updatedAt   DateTime   @updatedAt @map("updated_at")
   version     Int        @default(1)
 
-  userRoles   UserRole[]
+  userRoles UserRole[]
 
   // Los partial unique indexes reales (role_name unico solo si scope=System,
   // (company_id, role_name) unico solo si scope=Custom) no son expresables en el DSL de
@@ -80,8 +80,8 @@ model UserRole {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "user_roles_user_id_fkey")
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "user_roles_role_id_fkey")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "user_roles_user_id_fkey")
+  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "user_roles_role_id_fkey")
 
   @@id([userId, roleId])
   @@map("user_roles")
@@ -102,7 +102,7 @@ model Session {
   updatedAt        DateTime      @updatedAt @map("updated_at")
   version          Int           @default(1)
 
-  user             User          @relation(fields: [userId], references: [id], onDelete: Restrict, map: "sessions_user_id_fkey")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, map: "sessions_user_id_fkey")
 
   @@map("sessions")
   @@schema("identity")

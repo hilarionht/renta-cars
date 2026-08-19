@@ -1,8 +1,9 @@
 // @@schema("organization") — Company, Branch, CompanySettings (docs/technical/02-PROYECTOS.md §2.2).
-// CompanySettings (mas abajo) cubre solo 2 de sus 9 politicas documentadas
-// (EnabledProductModules, PaymentMethodsEnabled) - las otras 7 referencian reglas de negocio
-// de Rental Operations que todavia no existen (Fase 1), gap explicito documentado en
-// docs/persistence/10-DECISIONES.md.
+// CompanySettings (mas abajo) cubre 7 de sus 9 politicas documentadas
+// (EnabledProductModules, PaymentMethodsEnabled desde Fase 0; CancellationPolicy,
+// LateReturnPolicy, DepositPolicy, DraftExpirationPolicy, MinimumBookingLeadTime agregadas
+// en Reservations, docs/persistence/10-DECISIONES.md #59) - MaintenanceThresholdPolicy
+// (Vehicles) y NotificationChannelPreference (Support) siguen sin consumidor real.
 
 model Company {
   // Raiz de tenant (docs/persistence/06-RLS.md §4.1) - no tiene su propio companyId, su
@@ -83,6 +84,20 @@ model CompanySettings {
   // Enum nativo - catalogo verdaderamente cerrado de 4 valores (docs/model/
   // 04-VALUE_OBJECTS.md SS6).
   paymentMethodsEnabled PaymentMethod[] @map("payment_methods_enabled")
+
+  // Reservations, docs/persistence/10-DECISIONES.md #59 - 5 politicas gap-filled
+  // (docs/model/04-VALUE_OBJECTS.md SS7 CancellationPolicy/LateReturnPolicy/DepositPolicy
+  // son porcentuales, no Money - una politica a nivel de Company no fija una moneda
+  // concreta). cancellationPolicyTiers: Json en vez de tabla propia - lista corta,
+  // reemplazada como unidad completa en cada update, sin historial propio (a diferencia de
+  // price_adjustments) - mismo criterio que operating_hours de Branch.
+  cancellationPolicyTiers       Json    @map("cancellation_policy_tiers")
+  lateReturnGraceMinutes        Int     @map("late_return_grace_minutes")
+  lateReturnPenaltyPctPerHour   Float   @map("late_return_penalty_pct_per_hour")
+  depositApplies                Boolean @map("deposit_applies")
+  depositPercentageOfTotal      Float   @map("deposit_percentage_of_total")
+  draftExpirationMinutes        Int     @map("draft_expiration_minutes")
+  minimumBookingLeadTimeMinutes Int     @map("minimum_booking_lead_time_minutes")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

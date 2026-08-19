@@ -189,8 +189,8 @@ enum VehicleStatus {
 
 model Vehicle {
   // Raiz de este aggregate - docs/model/02-AGGREGATES.md §8.
-  id        String @id @db.Uuid
-  companyId String @map("company_id") @db.Uuid
+  id                String        @id @db.Uuid
+  companyId         String        @map("company_id") @db.Uuid
   // Opaco, sin FK real - organization.branches.id, cross-schema. La integridad se valida en
   // application/ consultando BRANCH_LOOKUP_PORT al crear el Vehicle (docs/persistence/
   // 03-RELACIONES.md), no via constraint de Postgres.

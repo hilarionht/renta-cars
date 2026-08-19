@@ -1,5 +1,10 @@
 import { EnabledProductModulesEmptyError } from '../errors/enabled-product-modules-empty.error';
 import { PaymentMethodsEmptyError } from '../errors/payment-methods-empty.error';
+import { CancellationPolicy } from '../value-objects/cancellation-policy';
+import { DepositPolicy } from '../value-objects/deposit-policy';
+import { DraftExpirationPolicy } from '../value-objects/draft-expiration-policy';
+import { LateReturnPolicy } from '../value-objects/late-return-policy';
+import { MinimumBookingLeadTime } from '../value-objects/minimum-booking-lead-time';
 import { PaymentMethod } from '../value-objects/payment-method';
 import { CompanySettings } from './company-settings';
 
@@ -20,6 +25,45 @@ describe('CompanySettings', () => {
       // create() no emite evento - solo los metodos de update lo hacen (mismo criterio que
       // Company.reactivate()).
       expect(settings.pullDomainEvents()).toHaveLength(0);
+    });
+
+    it('fija los defaults neutrales de las 5 politicas de Reservation', () => {
+      const settings = createSettings();
+
+      expect(settings.cancellationPolicy.tiers).toEqual([
+        { minHoursBeforeStart: 0, penaltyPercentage: 0 },
+      ]);
+      expect(settings.lateReturnPolicy.graceMinutes).toBe(30);
+      expect(settings.lateReturnPolicy.penaltyPercentagePerHour).toBe(10);
+      expect(settings.depositPolicy.applies).toBe(false);
+      expect(settings.draftExpirationPolicy.expirationMinutes).toBe(1440);
+      expect(settings.minimumBookingLeadTime.leadTimeMinutes).toBe(0);
+    });
+  });
+
+  describe('updateCancellationPolicy/updateLateReturnPolicy/updateDepositPolicy/updateDraftExpirationPolicy/updateMinimumBookingLeadTime', () => {
+    it('reemplazan la politica, bumpean version y emiten CompanySettingsUpdated.v1 con su policyName', () => {
+      const settings = createSettings();
+
+      settings.updateCancellationPolicy(
+        CancellationPolicy.from([{ minHoursBeforeStart: 48, penaltyPercentage: 50 }]),
+      );
+      settings.updateLateReturnPolicy(
+        LateReturnPolicy.from({ graceMinutes: 15, penaltyPercentagePerHour: 20 }),
+      );
+      settings.updateDepositPolicy(DepositPolicy.from({ applies: true, percentageOfTotal: 30 }));
+      settings.updateDraftExpirationPolicy(DraftExpirationPolicy.from(60));
+      settings.updateMinimumBookingLeadTime(MinimumBookingLeadTime.from(30));
+
+      const events = settings.pullDomainEvents();
+      expect(events.map((event) => event.policyName)).toEqual([
+        'cancellation-policy',
+        'late-return-policy',
+        'deposit-policy',
+        'draft-expiration-policy',
+        'minimum-booking-lead-time',
+      ]);
+      expect(settings.version).toBe(6);
     });
   });
 

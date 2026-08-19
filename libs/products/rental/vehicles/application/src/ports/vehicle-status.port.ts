@@ -1,10 +1,15 @@
-// Puerto publico forward-looking - Reservation (Fase 1 item 4, no construido todavia) lo
-// consumira para INV-103 ("un Vehicle en Maintenance/OutOfService no puede ofrecerse
-// disponible ni completar CheckOut", docs/model/09-DEPENDENCIES.md SS2). Superficie minima
-// de solo lectura, mismo patron que CUSTOMER_LOOKUP_PORT.
+// Puerto publico consumido por Reservation - INV-103 ("un Vehicle en Maintenance/
+// OutOfService no puede ofrecerse disponible ni completar CheckOut", docs/model/
+// 09-DEPENDENCIES.md SS2). Superficie minima de solo lectura, mismo patron que
+// CUSTOMER_LOOKUP_PORT. getBranchId agregado (docs/persistence/10-DECISIONES.md #59) -
+// Reservation no contiene branchId (docs/model/02-AGGREGATES.md SS11: "solo CustomerId/
+// VehicleId"), asi que Reservation.checkOut() encadena getBranchId() -> BranchLookupPort
+// (INV-112) en su propia capa de aplicacion.
 export const VEHICLE_STATUS_PORT = Symbol('VehicleStatusPort');
 
 export interface VehicleStatusPort {
   // null = el vehicle no existe. false si status es Maintenance/OutOfService.
   isOperational(vehicleId: string): Promise<boolean | null>;
+  // null = el vehicle no existe.
+  getBranchId(vehicleId: string): Promise<string | null>;
 }

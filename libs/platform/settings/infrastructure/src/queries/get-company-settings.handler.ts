@@ -23,6 +23,14 @@ export class GetCompanySettingsHandler {
         companyId: record.companyId,
         enabledProductModules: record.enabledProductModules,
         paymentMethodsEnabled: record.paymentMethodsEnabled,
+        cancellationPolicyTiers:
+          record.cancellationPolicyTiers as CompanySettingsSummary['cancellationPolicyTiers'],
+        lateReturnGraceMinutes: record.lateReturnGraceMinutes,
+        lateReturnPenaltyPercentagePerHour: record.lateReturnPenaltyPctPerHour,
+        depositApplies: record.depositApplies,
+        depositPercentageOfTotal: record.depositPercentageOfTotal,
+        draftExpirationMinutes: record.draftExpirationMinutes,
+        minimumBookingLeadTimeMinutes: record.minimumBookingLeadTimeMinutes,
       };
     });
   }

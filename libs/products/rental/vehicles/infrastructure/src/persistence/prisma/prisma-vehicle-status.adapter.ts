@@ -18,4 +18,11 @@ export class PrismaVehicleStatusAdapter implements VehicleStatusPort {
     }
     return record.status !== 'Maintenance' && record.status !== 'OutOfService';
   }
+
+  async getBranchId(vehicleId: string): Promise<string | null> {
+    const record = await this.readTransaction.run((tx) =>
+      tx.vehicle.findFirst({ where: { id: vehicleId }, select: { branchId: true } }),
+    );
+    return record?.branchId ?? null;
+  }
 }

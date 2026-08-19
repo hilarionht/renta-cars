@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type {
   CompanySettings as PrismaCompanySettings,
   PaymentMethod as PrismaPaymentMethod,
@@ -6,7 +7,16 @@ import type {
 
 import { ConcurrentModificationError, type UnitOfWorkTransaction } from '@platform/shared-kernel';
 import { asPrismaTransaction, ReadTransaction } from '@platform/persistence-kernel';
-import { CompanySettings, PaymentMethod } from '@platform/settings/domain';
+import {
+  CancellationPolicy,
+  type CancellationPolicyTier,
+  CompanySettings,
+  DepositPolicy,
+  DraftExpirationPolicy,
+  LateReturnPolicy,
+  MinimumBookingLeadTime,
+  PaymentMethod,
+} from '@platform/settings/domain';
 import type { SettingsRepository } from '@platform/settings/application';
 
 @Injectable()
@@ -30,6 +40,17 @@ export class PrismaSettingsRepository implements SettingsRepository {
       paymentMethodsEnabled: settings.paymentMethodsEnabled.map(
         (method) => method.toString() as PrismaPaymentMethod,
       ),
+      // Cast puntual - CancellationPolicyTier[] es un array de objetos planos, compatible
+      // en runtime con Prisma.InputJsonValue pero TS no lo infiere automaticamente para un
+      // tipo nominal con index signature ausente.
+      cancellationPolicyTiers: settings.cancellationPolicy
+        .tiers as unknown as Prisma.InputJsonValue,
+      lateReturnGraceMinutes: settings.lateReturnPolicy.graceMinutes,
+      lateReturnPenaltyPctPerHour: settings.lateReturnPolicy.penaltyPercentagePerHour,
+      depositApplies: settings.depositPolicy.applies,
+      depositPercentageOfTotal: settings.depositPolicy.percentageOfTotal,
+      draftExpirationMinutes: settings.draftExpirationPolicy.expirationMinutes,
+      minimumBookingLeadTimeMinutes: settings.minimumBookingLeadTime.leadTimeMinutes,
     };
 
     if (settings.isNew) {
@@ -57,6 +78,19 @@ export class PrismaSettingsRepository implements SettingsRepository {
       paymentMethodsEnabled: record.paymentMethodsEnabled.map((method) =>
         PaymentMethod.from(method),
       ),
+      cancellationPolicy: CancellationPolicy.from(
+        record.cancellationPolicyTiers as unknown as CancellationPolicyTier[],
+      ),
+      lateReturnPolicy: LateReturnPolicy.from({
+        graceMinutes: record.lateReturnGraceMinutes,
+        penaltyPercentagePerHour: record.lateReturnPenaltyPctPerHour,
+      }),
+      depositPolicy: DepositPolicy.from({
+        applies: record.depositApplies,
+        percentageOfTotal: record.depositPercentageOfTotal,
+      }),
+      draftExpirationPolicy: DraftExpirationPolicy.from(record.draftExpirationMinutes),
+      minimumBookingLeadTime: MinimumBookingLeadTime.from(record.minimumBookingLeadTimeMinutes),
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       version: record.version,

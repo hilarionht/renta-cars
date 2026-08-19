@@ -36,4 +36,20 @@ export class PrismaCustomerLookupAdapter implements CustomerLookupPort {
       (document) => document.status === 'Verified' && document.expiryDate > now,
     );
   }
+
+  async areAdditionalDriversValidated(driverIds: string[]): Promise<boolean> {
+    if (driverIds.length === 0) {
+      return true;
+    }
+    const records = await this.readTransaction.run((tx) =>
+      tx.additionalDriver.findMany({
+        where: { id: { in: driverIds } },
+        select: { id: true, status: true },
+      }),
+    );
+    if (records.length !== driverIds.length) {
+      return false;
+    }
+    return records.every((record) => record.status === 'Validated');
+  }
 }
