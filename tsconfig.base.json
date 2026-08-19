@@ -56,7 +56,10 @@
       "@rental/vehicles/application": ["./libs/products/rental/vehicles/application/src/index.ts"],
       "@rental/vehicles/infrastructure": [
         "./libs/products/rental/vehicles/infrastructure/src/index.ts"
-      ]
+      ],
+      "@platform/calendar/domain": ["./libs/platform/calendar/domain/src/index.ts"],
+      "@platform/calendar/application": ["./libs/platform/calendar/application/src/index.ts"],
+      "@platform/calendar/infrastructure": ["./libs/platform/calendar/infrastructure/src/index.ts"]
     },
     "target": "es2022",
     "module": "esnext",
