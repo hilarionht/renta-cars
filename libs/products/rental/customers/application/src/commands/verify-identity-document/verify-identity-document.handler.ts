@@ -27,7 +27,14 @@ export class VerifyIdentityDocumentHandler {
       throw new CustomerNotFoundError(command.customerId);
     }
 
+    const versionBeforeVerify = customer.version;
     customer.verifyIdentityDocument(command.documentId);
+    if (customer.version === versionBeforeVerify) {
+      // No-op idempotente (documento ya Verified) - nada que persistir. Llamar a save()
+      // igual lanzaria un ConcurrentModificationError espurio (PrismaCustomerRepository.
+      // save() asume que version ya se bumpeo, ver docs/persistence/10-DECISIONES.md #56).
+      return;
+    }
 
     await this.unitOfWork.run(async (tx) => {
       await this.customerRepository.save(customer, tx);

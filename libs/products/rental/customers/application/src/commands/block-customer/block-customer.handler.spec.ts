@@ -64,4 +64,24 @@ describe('BlockCustomerHandler', () => {
       expect.objectContaining({ eventType: 'CustomerBlocked.v1' }),
     );
   });
+
+  // Regresion del bug real documentado en docs/persistence/10-DECISIONES.md #56: block()
+  // es idempotente y no bumpea version en un segundo llamado sobre un customer ya Blocked -
+  // llamar a save() en ese caso lanzaria un ConcurrentModificationError espurio
+  // (updateMany con version-1 nunca matchea si version no cambio). El handler debe saltear
+  // la persistencia por completo cuando la mutacion fue un no-op.
+  it('segunda llamada sobre un customer ya Blocked es idempotente: no llama a save() ni publica evento', async () => {
+    const customer = createCustomer();
+    customer.block('primera razon');
+    const { handler, customerRepository, eventPublisher } = buildHandler(customer);
+
+    await handler.execute({
+      customerId: customer.id.toString(),
+      companyId: 'company-1',
+      reason: 'segunda razon',
+    });
+
+    expect(customerRepository.save).not.toHaveBeenCalled();
+    expect(eventPublisher.publish).not.toHaveBeenCalled();
+  });
 });

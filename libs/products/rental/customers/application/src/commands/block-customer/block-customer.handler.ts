@@ -27,7 +27,12 @@ export class BlockCustomerHandler {
       throw new CustomerNotFoundError(command.customerId);
     }
 
+    const versionBeforeBlock = customer.version;
     customer.block(command.reason);
+    if (customer.version === versionBeforeBlock) {
+      // No-op idempotente (ya Blocked) - ver docs/persistence/10-DECISIONES.md #56.
+      return;
+    }
 
     await this.unitOfWork.run(async (tx) => {
       await this.customerRepository.save(customer, tx);

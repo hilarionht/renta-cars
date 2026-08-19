@@ -27,7 +27,12 @@ export class UnblockCustomerHandler {
       throw new CustomerNotFoundError(command.customerId);
     }
 
+    const versionBeforeUnblock = customer.version;
     customer.unblock(command.unblockedBy);
+    if (customer.version === versionBeforeUnblock) {
+      // No-op idempotente (ya None) - ver docs/persistence/10-DECISIONES.md #56.
+      return;
+    }
 
     await this.unitOfWork.run(async (tx) => {
       await this.customerRepository.save(customer, tx);

@@ -27,7 +27,12 @@ export class ValidateAdditionalDriverLicenseHandler {
       throw new CustomerNotFoundError(command.customerId);
     }
 
+    const versionBeforeValidate = customer.version;
     customer.validateAdditionalDriverLicense(command.driverId);
+    if (customer.version === versionBeforeValidate) {
+      // No-op idempotente (driver ya Validated) - ver docs/persistence/10-DECISIONES.md #56.
+      return;
+    }
 
     await this.unitOfWork.run(async (tx) => {
       await this.customerRepository.save(customer, tx);

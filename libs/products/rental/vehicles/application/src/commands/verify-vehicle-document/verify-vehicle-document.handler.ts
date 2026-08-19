@@ -22,7 +22,14 @@ export class VerifyVehicleDocumentHandler {
       throw new VehicleNotFoundError(command.vehicleId);
     }
 
+    const versionBeforeVerify = vehicle.version;
     vehicle.verifyDocument(command.documentId);
+    if (vehicle.version === versionBeforeVerify) {
+      // No-op idempotente (documento ya Verified) - nada que persistir. Llamar a save()
+      // igual lanzaria un ConcurrentModificationError espurio (PrismaVehicleRepository.
+      // save() asume que version ya se bumpeo, ver docs/persistence/10-DECISIONES.md #56).
+      return;
+    }
 
     await this.unitOfWork.run(async (tx) => {
       await this.vehicleRepository.save(vehicle, tx);

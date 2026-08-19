@@ -27,7 +27,12 @@ export class RevokeAdditionalDriverHandler {
       throw new CustomerNotFoundError(command.customerId);
     }
 
+    const versionBeforeRevoke = customer.version;
     customer.revokeAdditionalDriver(command.driverId);
+    if (customer.version === versionBeforeRevoke) {
+      // No-op idempotente (driver ya Revoked) - ver docs/persistence/10-DECISIONES.md #56.
+      return;
+    }
 
     await this.unitOfWork.run(async (tx) => {
       await this.customerRepository.save(customer, tx);

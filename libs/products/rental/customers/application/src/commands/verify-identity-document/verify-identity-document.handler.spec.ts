@@ -72,4 +72,21 @@ describe('VerifyIdentityDocumentHandler', () => {
       expect.objectContaining({ eventType: 'CustomerDocumentValidated.v1' }),
     );
   });
+
+  // Regresion del bug real docs/persistence/10-DECISIONES.md #56: verificar un documento ya
+  // Verified es idempotente y no bumpea version - save() debe saltearse por completo.
+  it('segunda llamada sobre un documento ya Verified es idempotente: no llama a save()', async () => {
+    const { customer, documentId } = createCustomerWithDocument();
+    customer.verifyIdentityDocument(documentId);
+    const { handler, customerRepository, eventPublisher } = buildHandler(customer);
+
+    await handler.execute({
+      customerId: customer.id.toString(),
+      companyId: 'company-1',
+      documentId,
+    });
+
+    expect(customerRepository.save).not.toHaveBeenCalled();
+    expect(eventPublisher.publish).not.toHaveBeenCalled();
+  });
 });

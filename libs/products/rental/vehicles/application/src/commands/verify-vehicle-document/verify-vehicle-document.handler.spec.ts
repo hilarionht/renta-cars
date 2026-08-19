@@ -54,4 +54,16 @@ describe('VerifyVehicleDocumentHandler', () => {
     expect(vehicle.allVehicleDocuments[0].status).toBe('Verified');
     expect(vehicleRepository.save).toHaveBeenCalledTimes(1);
   });
+
+  // Regresion del bug real docs/persistence/10-DECISIONES.md #56: verificar un documento ya
+  // Verified es idempotente y no bumpea version - save() debe saltearse por completo.
+  it('segunda llamada sobre un documento ya Verified es idempotente: no llama a save()', async () => {
+    const { vehicle, documentId } = createVehicleWithDocument();
+    vehicle.verifyDocument(documentId);
+    const { handler, vehicleRepository } = buildHandler(vehicle);
+
+    await handler.execute({ vehicleId: vehicle.id.toString(), companyId: 'company-1', documentId });
+
+    expect(vehicleRepository.save).not.toHaveBeenCalled();
+  });
 });
