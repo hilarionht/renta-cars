@@ -19,6 +19,7 @@ import {
 import { BranchesModule, BRANCHES_DOMAIN_ERROR_ENTRIES } from '@platform/branches/infrastructure';
 import { AuditModule, AUDIT_DOMAIN_ERROR_ENTRIES } from '@platform/audit/infrastructure';
 import { FilesModule, FILES_DOMAIN_ERROR_ENTRIES } from '@platform/files/infrastructure';
+import { CalendarModule, CALENDAR_DOMAIN_ERROR_ENTRIES } from '@platform/calendar/infrastructure';
 import { SettingsModule, SETTINGS_DOMAIN_ERROR_ENTRIES } from '@platform/settings/infrastructure';
 import { CustomersModule, CUSTOMERS_DOMAIN_ERROR_ENTRIES } from '@rental/customers/infrastructure';
 import { VehiclesModule, VEHICLES_DOMAIN_ERROR_ENTRIES } from '@rental/vehicles/infrastructure';
@@ -47,10 +48,11 @@ import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 import { PrismaModule } from './persistence/prisma.module';
 
 // Composicion completa de Fase 0 (docs/01-ROADMAP.md SS2 - los 9 items, aunque Settings/#8
-// cubre solo 2 de sus 9 politicas, ver docs/persistence/10-DECISIONES.md) + Fase 1 items 1-2
-// (Customers, Vehicles), ambos scope:product-rental (ver tooling/eslint/boundaries.mjs sobre
-// la correccion de INV-P03 que Customers exigio). Orden de import: RolesPermissions -> Users
-// -> Identity -> Settings -> Companies -> Branches -> Audit -> Files -> Customers -> Vehicles,
+// cubre solo 2 de sus 9 politicas, ver docs/persistence/10-DECISIONES.md) + Fase 1 items 1-3
+// (Customers, Vehicles: scope:product-rental, ver tooling/eslint/boundaries.mjs sobre la
+// correccion de INV-P03 que Customers exigio; Calendar: scope:platform, deliberadamente
+// ciego a Rental Operations). Orden de import: RolesPermissions -> Users -> Identity ->
+// Settings -> Companies -> Branches -> Audit -> Files -> Calendar -> Customers -> Vehicles,
 // mismo orden de dependencia real y de composicion documentada (docs/technical/
 // 03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del anterior via su puerto publico
 // (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Settings no depende de ningun otro modulo de negocio,
@@ -58,8 +60,10 @@ import { PrismaModule } from './persistence/prisma.module';
 // importa antes; Audit no depende de ninguno - escucha eventos de todos via EventEmitter2,
 // nunca importa su codigo; Files tampoco depende de ningun otro modulo de negocio, solo de
 // IntegrationProvidersModule, importado dentro de FilesModule mismo - apps/api nunca ve
-// STORAGE_PROVIDER_PORT; Vehicles SI depende de Branches - BranchesModule se importa dentro
-// de VehiclesModule mismo, apps/api no lo ve directo, mismo patron que Files).
+// STORAGE_PROVIDER_PORT; Calendar tampoco depende de ningun otro modulo - CALENDAR_PORT
+// queda sin consumidor real hasta que exista Reservations; Vehicles SI depende de Branches -
+// BranchesModule se importa dentro de VehiclesModule mismo, apps/api no lo ve directo, mismo
+// patron que Files).
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -135,6 +139,7 @@ import { PrismaModule } from './persistence/prisma.module';
     BranchesModule,
     AuditModule,
     FilesModule,
+    CalendarModule,
     CustomersModule,
     VehiclesModule,
   ],
@@ -148,6 +153,7 @@ import { PrismaModule } from './persistence/prisma.module';
       BRANCHES_DOMAIN_ERROR_ENTRIES,
       AUDIT_DOMAIN_ERROR_ENTRIES,
       FILES_DOMAIN_ERROR_ENTRIES,
+      CALENDAR_DOMAIN_ERROR_ENTRIES,
       CUSTOMERS_DOMAIN_ERROR_ENTRIES,
       VEHICLES_DOMAIN_ERROR_ENTRIES,
     ),
