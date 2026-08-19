@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { RequestContext } from '@platform/persistence-kernel';
+import { ReadTransaction, RequestContext } from '@platform/persistence-kernel';
 import {
   OccupySlotHandler,
   ReleaseSlotHandler,
@@ -20,6 +20,7 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
     private readonly releaseSlot: ReleaseSlotHandler,
     private readonly checkAvailability: CheckAvailabilityHandler,
     private readonly requestContext: RequestContext,
+    private readonly readTransaction: ReadTransaction,
   ) {}
 
   async isAvailable(
@@ -53,5 +54,18 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
 
   async release(slotId: string): Promise<void> {
     await this.releaseSlot.execute({ slotId });
+  }
+
+  async findActiveSlotId(resourceType: string, resourceId: string): Promise<string | null> {
+    const { companyId } = this.requestContext.get();
+    const record = await this.readTransaction.run(
+      (tx) =>
+        tx.availabilitySlot.findFirst({
+          where: { resourceType, resourceId, status: 'Active' },
+          select: { id: true },
+        }),
+      companyId,
+    );
+    return record?.id ?? null;
   }
 }

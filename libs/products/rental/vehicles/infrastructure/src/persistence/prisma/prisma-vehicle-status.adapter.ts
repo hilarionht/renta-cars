@@ -25,4 +25,11 @@ export class PrismaVehicleStatusAdapter implements VehicleStatusPort {
     );
     return record?.branchId ?? null;
   }
+
+  async getCategoryId(vehicleId: string): Promise<string | null> {
+    const record = await this.readTransaction.run((tx) =>
+      tx.vehicle.findFirst({ where: { id: vehicleId }, select: { vehicleCategoryId: true } }),
+    );
+    return record?.vehicleCategoryId ?? null;
+  }
 }

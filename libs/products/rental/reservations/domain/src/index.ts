@@ -32,6 +32,7 @@ export { InspectionRequiredError } from './errors/inspection-required.error';
 export { InvoiceNotYetIssuedError } from './errors/invoice-not-yet-issued.error';
 export { ExtensionCollidesError } from './errors/extension-collides.error';
 export { BranchClosedError } from './errors/branch-closed.error';
+export { NoActiveRateError } from './errors/no-active-rate.error';
 
 export type { ReservationCreatedEvent } from './events/reservation-created.event';
 export type { ReservationConfirmedEvent } from './events/reservation-confirmed.event';

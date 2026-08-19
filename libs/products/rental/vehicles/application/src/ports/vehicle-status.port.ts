@@ -12,4 +12,7 @@ export interface VehicleStatusPort {
   isOperational(vehicleId: string): Promise<boolean | null>;
   // null = el vehicle no existe.
   getBranchId(vehicleId: string): Promise<string | null>;
+  // null = el vehicle no existe. Necesario para que PricingService resuelva la Rate
+  // vigente (VEHICLE_CATEGORY_LOOKUP_PORT.getCurrentRate toma categoryId, no vehicleId).
+  getCategoryId(vehicleId: string): Promise<string | null>;
 }

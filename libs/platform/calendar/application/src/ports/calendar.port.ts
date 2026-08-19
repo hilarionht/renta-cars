@@ -27,4 +27,9 @@ export interface CalendarPort {
   // command handler subyacente) si el rango se solapa con un slot Active existente.
   occupy(params: OccupySlotParams): Promise<string>;
   release(slotId: string): Promise<void>;
+  // Agregado para AvailabilityService.release() (docs/persistence/10-DECISIONES.md #59) -
+  // Reservation no contiene el AvailabilitySlot ("no se persiste ni cachea", docs/model/
+  // 02-AGGREGATES.md SS11), asi que necesita resolver el slotId activo antes de poder
+  // llamar release(slotId). null = no hay slot Active para ese recurso.
+  findActiveSlotId(resourceType: string, resourceId: string): Promise<string | null>;
 }
