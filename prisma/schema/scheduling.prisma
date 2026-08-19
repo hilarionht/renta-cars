@@ -1,2 +1,44 @@
 // @@schema("scheduling") — AvailabilitySlot (docs/technical/02-PROYECTOS.md §2.3).
-// Vacio a proposito: Fase 0 de docs/01-ROADMAP.md §2 agrega los primeros modelos.
+// Fase 1 item 3 (docs/01-ROADMAP.md §3) - primer modelo real de este schema.
+
+enum SlotStatus {
+  Active
+  Released
+
+  @@schema("scheduling")
+}
+
+enum SlotType {
+  Booking
+  Blackout
+
+  @@schema("scheduling")
+}
+
+model AvailabilitySlot {
+  // Raiz de este aggregate - docs/model/02-AGGREGATES.md §7. Sin entidades internas.
+  id        String @id @db.Uuid
+  // Infraestructura de aislamiento multi-tenant (RLS) - nunca leido por el domain/ de
+  // Scheduling (docs/persistence/01-SCHEMAS.md §4.3, 10-DECISIONES.md #1).
+  companyId String @map("company_id") @db.Uuid
+  // ResourceRef (docs/model/04-VALUE_OBJECTS.md §4) - deliberadamente opaco, sin FK real ni
+  // siquiera conceptual (docs/persistence/03-RELACIONES.md: "Scheduling no sabe que ese
+  // string es, en la practica, un VehicleId").
+  resourceType String @map("resource_type")
+  resourceId   String @map("resource_id")
+  startDate    DateTime @map("start_date")
+  endDate      DateTime @map("end_date")
+  slotType     SlotType @map("slot_type")
+  // Booking: referenceId opaco (en la practica un ReservationId, nunca tipado como tal).
+  // Blackout: sin referenceId, motivo libre de texto.
+  referenceId  String?  @map("reference_id")
+  reason       String?
+  status       SlotStatus
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  version      Int      @default(1)
+
+  @@index([companyId, resourceType, resourceId])
+  @@map("availability_slots")
+  @@schema("scheduling")
+}
