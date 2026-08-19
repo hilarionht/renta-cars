@@ -11,6 +11,7 @@ export { EntityId } from './value-objects/entity-id';
 export { Email } from './value-objects/email';
 export { PhoneNumber } from './value-objects/phone-number';
 export { Money } from './value-objects/money';
+export { DateRange } from './value-objects/date-range';
 export { UNIT_OF_WORK } from './ports/unit-of-work';
 export type { UnitOfWork, UnitOfWorkTransaction } from './ports/unit-of-work';
 export { DOMAIN_EVENT_PUBLISHER } from './ports/domain-event-publisher';
