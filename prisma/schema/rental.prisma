@@ -1,8 +1,9 @@
 // @@schema("rental") — Customer, Vehicle, VehicleCategory, Reservation, Invoice/Charge
 // (empaquetado fisico, docs/technical/04-PERSISTENCE.md §1). docs/technical/02-PROYECTOS.md §3.
 // Customer/IdentityDocument/AdditionalDriver: Fase 1 item 1 (docs/01-ROADMAP.md §3).
-// Vehicle/VehicleCategory/VehicleDocument/MaintenanceRecord/Rate: Fase 1 item 2. Reservation/
-// Invoice/Charge siguen vacios a proposito.
+// Vehicle/VehicleCategory/VehicleDocument/MaintenanceRecord/Rate: Fase 1 item 2.
+// Reservation/Inspection/DamageReport/PriceAdjustment/ReservationAuthorizedDriver: Fase 1
+// item 4. Invoice/Charge (Commerce) siguen vacios a proposito, Fase 2.
 
 model Customer {
   // Raiz de este aggregate - generado en domain/ (EntityId.generate<'Customer'>()), mismo
@@ -25,6 +26,7 @@ model Customer {
 
   identityDocuments IdentityDocument[]
   additionalDrivers AdditionalDriver[]
+  reservations      Reservation[]
 
   // Clave natural (docs/persistence/04-COLUMNAS-CONCEPTUALES.md §6).
   @@unique([companyId, taxIdOrDocumentId])
@@ -117,8 +119,9 @@ model AdditionalDriver {
   // 04-COLUMNAS-CONCEPTUALES.md §6), ver docs/persistence/10-DECISIONES.md.
   version    Int                    @default(1)
 
-  customer          Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  identityDocuments IdentityDocument[]
+  customer               Customer                      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  identityDocuments      IdentityDocument[]
+  authorizedReservations ReservationAuthorizedDriver[]
 
   @@map("additional_drivers")
   @@schema("rental")
@@ -206,6 +209,7 @@ model Vehicle {
   vehicleCategory    VehicleCategory     @relation(fields: [vehicleCategoryId], references: [id], onDelete: Restrict)
   vehicleDocuments   VehicleDocument[]
   maintenanceRecords MaintenanceRecord[]
+  reservations       Reservation[]
 
   // Claves naturales - docs/persistence/10-DECISIONES.md #6 dejaba license_plate como punto
   // abierto; resuelto en esta tanda como unico por company_id, mismo shape que toda otra
@@ -271,9 +275,13 @@ enum MaintenanceStatus {
 }
 
 model MaintenanceRecord {
-  // Entidad interna de Vehicle - append-only, sin version propia. damage_report_id
-  // deliberadamente omitido - damage_reports no existe (Reservation, no construida); se
-  // agrega despues via Expand/Contract cuando exista (docs/persistence/07-MIGRACIONES.md §2).
+  // Entidad interna de Vehicle - append-only, sin version propia. damage_report_id cierra
+  // el Expand dejado abierto por docs/persistence/10-DECISIONES.md #52 (DamageReport no
+  // existia todavia) - FK cross-aggregate opcional hacia el mantenimiento correctivo
+  // originado por un dano detectado en un checkIn (docs/persistence/03-RELACIONES.md).
+  // Ningun comando la puebla todavia (Vehicle.reportDamage() no crea un MaintenanceRecord
+  // por si mismo, solo scheduleMaintenance() lo hace, paso separado) - se cierra solo el
+  // gap de esquema.
   id                String            @id @db.Uuid
   companyId         String            @map("company_id") @db.Uuid
   vehicleId         String            @map("vehicle_id") @db.Uuid
@@ -284,11 +292,208 @@ model MaintenanceRecord {
   fitForService     Boolean?          @map("fit_for_service")
   // Opaco, sin FK real - identity.users.id, cross-schema.
   responsibleUserId String?           @map("responsible_user_id")
+  damageReportId    String?           @map("damage_report_id") @db.Uuid
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
 
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicle      Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  damageReport DamageReport? @relation(fields: [damageReportId], references: [id], onDelete: Restrict)
 
   @@map("maintenance_records")
+  @@schema("rental")
+}
+
+enum ReservationStatus {
+  Draft
+  Confirmed
+  CheckedOut
+  CheckedIn
+  Closed
+  Cancelled
+
+  @@schema("rental")
+}
+
+enum InspectionType {
+  CheckOut
+  CheckIn
+
+  @@schema("rental")
+}
+
+enum DamageSeverity {
+  Minor
+  Severe
+
+  @@schema("rental")
+}
+
+// Extension/LateReturnPenalty/DamagePenalty/FuelDifference documentados (docs/model/
+// 02-AGGREGATES.md §11); CancellationPenalty gap-filled (docs/persistence/
+// 10-DECISIONES.md #59) - cancel()/markNoShow() (RN-26/RN-19) pueden generar una
+// penalidad sin que ningun kind documentado encaje.
+enum PriceAdjustmentKind {
+  Extension
+  LateReturnPenalty
+  DamagePenalty
+  FuelDifference
+  CancellationPenalty
+
+  @@schema("rental")
+}
+
+model Reservation {
+  // Raiz de este aggregate - docs/model/02-AGGREGATES.md §11, el corazon transaccional del
+  // producto. customerId/vehicleId: FK real intra-schema (RESTRICT - docs/persistence/
+  // 03-RELACIONES.md). Sin exclusion constraint propia (Decision #8 ya tomada en
+  // Calendar/Vehicles: la defensa en profundidad de INV-102 es AvailabilityService +
+  // exclusion constraint de scheduling.availability_slots, nunca una tercera capa aca).
+  id                   String            @id @db.Uuid
+  companyId            String            @map("company_id") @db.Uuid
+  customerId           String            @map("customer_id") @db.Uuid
+  vehicleId            String            @map("vehicle_id") @db.Uuid
+  status               ReservationStatus
+  startDate            DateTime          @map("start_date")
+  endDate              DateTime          @map("end_date")
+  baseAmountMinorUnits Int               @map("base_amount_minor_units")
+  baseAmountCurrency   String            @map("base_amount_currency")
+  // Unica tabla de negocio junto con invoices con soft delete (docs/persistence/
+  // 04-MODELO-DATOS.md §5) - sin comando que la use todavia (Fase 1 no la necesita), se
+  // deja la columna por completitud del contrato ya documentado.
+  deletedAt            DateTime?         @map("deleted_at")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+  version              Int               @default(1)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  vehicle  Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+
+  inspections       Inspection[]
+  damageReports     DamageReport[]
+  priceAdjustments  PriceAdjustment[]
+  authorizedDrivers ReservationAuthorizedDriver[]
+
+  // Indice compuesto adicional parcial (company_id, status) WHERE status='Draft' para el
+  // futuro job de expiracion de Draft (RN-05) - no expresable en el DSL de Prisma, se
+  // agrega a mano en la migracion (docs/persistence/05-INDICES-Y-CONSTRAINTS.md §2).
+  @@index([companyId, vehicleId, status])
+  @@index([companyId, customerId, status])
+  @@map("reservations")
+  @@schema("rental")
+}
+
+model Inspection {
+  // Entidad interna de Reservation (docs/model/02-AGGREGATES.md §11) - registro fisico
+  // inmutable, append-only, sin version propia (protegida por la de Reservation).
+  // inspectedBy: opaco, sin FK real - identity.users.id, cross-schema.
+  id            String         @id @db.Uuid
+  companyId     String         @map("company_id") @db.Uuid
+  reservationId String         @map("reservation_id") @db.Uuid
+  type          InspectionType
+  odometer      Int
+  fuelLevel     Int            @map("fuel_level")
+  inspectedAt   DateTime       @map("inspected_at")
+  inspectedBy   String         @map("inspected_by")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  reservation   Reservation       @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  photos        InspectionPhoto[]
+  damageReports DamageReport[]
+
+  // A lo sumo una CheckOut y una CheckIn por Reservation (docs/persistence/
+  // 05-INDICES-Y-CONSTRAINTS.md §3).
+  @@unique([reservationId, type])
+  @@map("inspections")
+  @@schema("rental")
+}
+
+model InspectionPhoto {
+  // Tabla de union, append-only - mismo patron que vehicle_documents con file_id opaco
+  // hacia support.files, cross-schema, sin FK real.
+  id           String   @id @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  inspectionId String   @map("inspection_id") @db.Uuid
+  fileId       String   @map("file_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@unique([inspectionId, fileId])
+  @@map("inspection_photos")
+  @@schema("rental")
+}
+
+model DamageReport {
+  // Entidad interna de Reservation - evidencia inmutable para cualquier disputa futura
+  // (docs/domain/07-EXCEPCIONES.md §9). inspectionId: FK RESTRICT hacia la Inspection que
+  // lo detecto - "la inspeccion que detecto un dano no se elimina mientras el dano exista"
+  // (docs/persistence/03-RELACIONES.md).
+  id                  String         @id @db.Uuid
+  companyId           String         @map("company_id") @db.Uuid
+  reservationId       String         @map("reservation_id") @db.Uuid
+  inspectionId        String         @map("inspection_id") @db.Uuid
+  description         String
+  severity            DamageSeverity
+  imputableToCustomer Boolean        @map("imputable_to_customer")
+  createdAt           DateTime       @default(now()) @map("created_at")
+
+  reservation        Reservation         @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  inspection         Inspection          @relation(fields: [inspectionId], references: [id], onDelete: Restrict)
+  photos             DamageReportPhoto[]
+  maintenanceRecords MaintenanceRecord[]
+
+  @@map("damage_reports")
+  @@schema("rental")
+}
+
+model DamageReportPhoto {
+  id             String   @id @db.Uuid
+  companyId      String   @map("company_id") @db.Uuid
+  damageReportId String   @map("damage_report_id") @db.Uuid
+  fileId         String   @map("file_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  damageReport DamageReport @relation(fields: [damageReportId], references: [id], onDelete: Cascade)
+
+  @@unique([damageReportId, fileId])
+  @@map("damage_report_photos")
+  @@schema("rental")
+}
+
+model PriceAdjustment {
+  // Entidad de persistencia interna de Reservation, sin reclasificarse como entidad de
+  // dominio (docs/persistence/10-DECISIONES.md #7) - PriceAdjustment sigue siendo VO en
+  // domain/, pero necesita tabla propia append-only, mismo tratamiento que charges de
+  // Invoice.
+  id               String              @id @db.Uuid
+  companyId        String              @map("company_id") @db.Uuid
+  reservationId    String              @map("reservation_id") @db.Uuid
+  kind             PriceAdjustmentKind
+  amountMinorUnits Int                 @map("amount_minor_units")
+  currency         String
+  reason           String?
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@map("price_adjustments")
+  @@schema("rental")
+}
+
+model ReservationAuthorizedDriver {
+  // Tabla de union, insert-only - se fija integramente en create() y nunca se modifica
+  // despues (docs/persistence/10-DECISIONES.md #59, sin operacion "declare-driver" propia
+  // en docs/contracts/02-RESOURCE-CATALOG.md §4).
+  id                 String   @id @db.Uuid
+  companyId          String   @map("company_id") @db.Uuid
+  reservationId      String   @map("reservation_id") @db.Uuid
+  additionalDriverId String   @map("additional_driver_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  reservation      Reservation      @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  additionalDriver AdditionalDriver @relation(fields: [additionalDriverId], references: [id], onDelete: Restrict)
+
+  @@unique([reservationId, additionalDriverId])
+  @@map("reservation_authorized_drivers")
   @@schema("rental")
 }

@@ -90,14 +90,18 @@ model CompanySettings {
   // son porcentuales, no Money - una politica a nivel de Company no fija una moneda
   // concreta). cancellationPolicyTiers: Json en vez de tabla propia - lista corta,
   // reemplazada como unidad completa en cada update, sin historial propio (a diferencia de
-  // price_adjustments) - mismo criterio que operating_hours de Branch.
-  cancellationPolicyTiers       Json    @map("cancellation_policy_tiers")
-  lateReturnGraceMinutes        Int     @map("late_return_grace_minutes")
-  lateReturnPenaltyPctPerHour   Float   @map("late_return_penalty_pct_per_hour")
-  depositApplies                Boolean @map("deposit_applies")
-  depositPercentageOfTotal      Float   @map("deposit_percentage_of_total")
-  draftExpirationMinutes        Int     @map("draft_expiration_minutes")
-  minimumBookingLeadTimeMinutes Int     @map("minimum_booking_lead_time_minutes")
+  // price_adjustments) - mismo criterio que operating_hours de Branch. Los @default aca
+  // coinciden con los defaults de columna SQL fijados en la migracion
+  // 20260819124604 (red de seguridad para cualquier INSERT que no pase por
+  // CompanySettings.create(), no un valor de negocio) - declararlos aca tambien evita que
+  // `prisma migrate dev` detecte drift permanente entre schema.prisma y la columna real.
+  cancellationPolicyTiers       Json    @default("[{\"minHoursBeforeStart\":0,\"penaltyPercentage\":0}]") @map("cancellation_policy_tiers")
+  lateReturnGraceMinutes        Int     @default(30) @map("late_return_grace_minutes")
+  lateReturnPenaltyPctPerHour   Float   @default(10) @map("late_return_penalty_pct_per_hour")
+  depositApplies                Boolean @default(false) @map("deposit_applies")
+  depositPercentageOfTotal      Float   @default(0) @map("deposit_percentage_of_total")
+  draftExpirationMinutes        Int     @default(1440) @map("draft_expiration_minutes")
+  minimumBookingLeadTimeMinutes Int     @default(0) @map("minimum_booking_lead_time_minutes")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
