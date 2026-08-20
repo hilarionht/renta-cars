@@ -23,6 +23,10 @@ import { CalendarModule, CALENDAR_DOMAIN_ERROR_ENTRIES } from '@platform/calenda
 import { SettingsModule, SETTINGS_DOMAIN_ERROR_ENTRIES } from '@platform/settings/infrastructure';
 import { CustomersModule, CUSTOMERS_DOMAIN_ERROR_ENTRIES } from '@rental/customers/infrastructure';
 import { VehiclesModule, VEHICLES_DOMAIN_ERROR_ENTRIES } from '@rental/vehicles/infrastructure';
+import {
+  ReservationsModule,
+  RESERVATIONS_DOMAIN_ERROR_ENTRIES,
+} from '@rental/reservations/infrastructure';
 
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
@@ -47,23 +51,23 @@ import { ResponseEnvelopeInterceptor } from './interceptors/response-envelope.in
 import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 import { PrismaModule } from './persistence/prisma.module';
 
-// Composicion completa de Fase 0 (docs/01-ROADMAP.md SS2 - los 9 items, aunque Settings/#8
-// cubre solo 2 de sus 9 politicas, ver docs/persistence/10-DECISIONES.md) + Fase 1 items 1-3
-// (Customers, Vehicles: scope:product-rental, ver tooling/eslint/boundaries.mjs sobre la
-// correccion de INV-P03 que Customers exigio; Calendar: scope:platform, deliberadamente
-// ciego a Rental Operations). Orden de import: RolesPermissions -> Users -> Identity ->
-// Settings -> Companies -> Branches -> Audit -> Files -> Calendar -> Customers -> Vehicles,
-// mismo orden de dependencia real y de composicion documentada (docs/technical/
-// 03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del anterior via su puerto publico
-// (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Settings no depende de ningun otro modulo de negocio,
-// pero Companies SI depende de Settings ahora - ver CompaniesModule - asi que Settings se
-// importa antes; Audit no depende de ninguno - escucha eventos de todos via EventEmitter2,
-// nunca importa su codigo; Files tampoco depende de ningun otro modulo de negocio, solo de
+// Composicion completa de Fase 0 (docs/01-ROADMAP.md SS2 - los 9 items) + Fase 1 completa
+// (docs/01-ROADMAP.md SS3: Customers, Vehicles, Calendar, Reservations). Orden de import:
+// RolesPermissions -> Users -> Identity -> Settings -> Companies -> Branches -> Audit ->
+// Files -> Calendar -> Customers -> Vehicles -> Reservations, mismo orden de dependencia
+// real y de composicion documentada (docs/technical/03-BACKEND-ARCHITECTURE.md SS1) - cada
+// uno depende del anterior via su puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT;
+// Settings no depende de ningun otro modulo de negocio, pero Companies SI depende de
+// Settings ahora - ver CompaniesModule - asi que Settings se importa antes; Audit no
+// depende de ninguno - escucha eventos de todos via EventEmitter2, nunca importa su codigo;
+// Files tampoco depende de ningun otro modulo de negocio, solo de
 // IntegrationProvidersModule, importado dentro de FilesModule mismo - apps/api nunca ve
-// STORAGE_PROVIDER_PORT; Calendar tampoco depende de ningun otro modulo - CALENDAR_PORT
-// queda sin consumidor real hasta que exista Reservations; Vehicles SI depende de Branches -
-// BranchesModule se importa dentro de VehiclesModule mismo, apps/api no lo ve directo, mismo
-// patron que Files).
+// STORAGE_PROVIDER_PORT; Calendar tampoco depende de ningun otro modulo; Vehicles SI depende
+// de Branches - BranchesModule se importa dentro de VehiclesModule mismo, apps/api no lo ve
+// directo, mismo patron que Files. Reservations, ultimo, es el primer consumidor real de
+// los 5 puertos forward-looking de Customers/Vehicles/Calendar/Branches mas Settings
+// extendido - importa esos 5 modulos dentro de ReservationsModule mismo, no visibles aca
+// directamente (mismo patron que Vehicles->Branches).
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -142,6 +146,7 @@ import { PrismaModule } from './persistence/prisma.module';
     CalendarModule,
     CustomersModule,
     VehiclesModule,
+    ReservationsModule,
   ],
   providers: [
     domainErrorRegistryProvider(
@@ -156,6 +161,7 @@ import { PrismaModule } from './persistence/prisma.module';
       CALENDAR_DOMAIN_ERROR_ENTRIES,
       CUSTOMERS_DOMAIN_ERROR_ENTRIES,
       VEHICLES_DOMAIN_ERROR_ENTRIES,
+      RESERVATIONS_DOMAIN_ERROR_ENTRIES,
     ),
     // Orden importa, e Nest lo evalua al REVES del orden de registro (el ultimo
     // registrado se prueba primero) - verificado a mano lanzando un DomainError real y

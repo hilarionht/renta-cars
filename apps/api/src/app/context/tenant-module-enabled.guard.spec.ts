@@ -38,6 +38,11 @@ async function buildApp(params: {
   } as unknown as RequestContext;
   const settingsLookup: SettingsLookupPort = {
     getEnabledProductModules: jest.fn().mockResolvedValue(params.enabledModules),
+    getCancellationPolicy: jest.fn(),
+    getLateReturnPolicy: jest.fn(),
+    getDraftExpirationPolicyMinutes: jest.fn(),
+    getMinimumBookingLeadTimeMinutes: jest.fn(),
+    getDepositPolicy: jest.fn(),
   };
 
   const moduleRef = await Test.createTestingModule({

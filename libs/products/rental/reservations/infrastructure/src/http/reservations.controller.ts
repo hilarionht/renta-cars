@@ -1,0 +1,221 @@
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+
+import { RequestContext, RequiresProductModule } from '@platform/persistence-kernel';
+import {
+  ApproveExtensionHandler,
+  CancelReservationHandler,
+  CheckInReservationHandler,
+  CheckOutReservationHandler,
+  CloseReservationHandler,
+  ConfirmReservationHandler,
+  CreateReservationHandler,
+  MarkNoShowHandler,
+  RequestExtensionHandler,
+  RescheduleReservationHandler,
+  SwapVehicleHandler,
+  type ReservationSummary,
+} from '@rental/reservations/application';
+
+import { GetReservationHandler } from '../queries/get-reservation.handler';
+import { ListReservationsHandler } from '../queries/list-reservations.handler';
+import { ApproveExtensionRequestDto } from './dto/approve-extension-request.dto';
+import { CancelReservationRequestDto } from './dto/cancel-reservation-request.dto';
+import { CheckInReservationRequestDto } from './dto/check-in-reservation-request.dto';
+import { CheckOutReservationRequestDto } from './dto/check-out-reservation-request.dto';
+import { CloseReservationRequestDto } from './dto/close-reservation-request.dto';
+import { CreateReservationRequestDto } from './dto/create-reservation-request.dto';
+import { RequestExtensionRequestDto } from './dto/request-extension-request.dto';
+import { RescheduleReservationRequestDto } from './dto/reschedule-reservation-request.dto';
+import { SwapVehicleRequestDto } from './dto/swap-vehicle-request.dto';
+
+// docs/contracts/02-RESOURCE-CATALOG.md SS4: "reservations" escopeado por la company del
+// token (Company-level, no Branch - "un Customer alquila en cualquier Branch de su
+// Company"). Operaciones expuestas como POST sobre sub-rutas de accion, mismo criterio ya
+// establecido en VehiclesController (:id/enable, :id/report-damage, etc.), no PATCH.
+@RequiresProductModule('Rental')
+@Controller('reservations')
+export class ReservationsController {
+  constructor(
+    private readonly createReservation: CreateReservationHandler,
+    private readonly confirmReservation: ConfirmReservationHandler,
+    private readonly cancelReservation: CancelReservationHandler,
+    private readonly markNoShow: MarkNoShowHandler,
+    private readonly checkOutReservation: CheckOutReservationHandler,
+    private readonly checkInReservation: CheckInReservationHandler,
+    private readonly rescheduleReservation: RescheduleReservationHandler,
+    private readonly requestExtension: RequestExtensionHandler,
+    private readonly approveExtension: ApproveExtensionHandler,
+    private readonly swapVehicle: SwapVehicleHandler,
+    private readonly closeReservation: CloseReservationHandler,
+    private readonly getReservation: GetReservationHandler,
+    private readonly listReservations: ListReservationsHandler,
+    private readonly requestContext: RequestContext,
+  ) {}
+
+  @Post()
+  async create(@Body() dto: CreateReservationRequestDto): Promise<{ id: string }> {
+    const { companyId } = this.requestContext.get();
+    const id = await this.createReservation.execute({
+      companyId,
+      customerId: dto.customerId,
+      vehicleId: dto.vehicleId,
+      startDate: new Date(dto.startDate),
+      endDate: new Date(dto.endDate),
+      authorizedDriverIds: dto.authorizedDriverIds,
+    });
+    return { id: id.toString() };
+  }
+
+  @Get()
+  async list(
+    @Query('customerId') customerId?: string,
+    @Query('vehicleId') vehicleId?: string,
+    @Query('status') status?: string,
+  ): Promise<ReservationSummary[]> {
+    const { companyId } = this.requestContext.get();
+    const result = await this.listReservations.execute({
+      companyId,
+      customerId,
+      vehicleId,
+      status,
+    });
+    return result.items;
+  }
+
+  @Get(':id')
+  async get(@Param('id', ParseUUIDPipe) id: string): Promise<ReservationSummary> {
+    const { companyId } = this.requestContext.get();
+    return this.getReservation.execute({ companyId, reservationId: id });
+  }
+
+  @Post(':id/confirm')
+  async confirm(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.confirmReservation.execute({ companyId, reservationId: id });
+  }
+
+  @Post(':id/cancel')
+  async cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CancelReservationRequestDto,
+  ): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.cancelReservation.execute({
+      companyId,
+      reservationId: id,
+      cancelledBy: dto.cancelledBy,
+    });
+  }
+
+  @Post(':id/mark-no-show')
+  async markReservationNoShow(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.markNoShow.execute({ companyId, reservationId: id });
+  }
+
+  @Post(':id/check-out')
+  async checkOut(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CheckOutReservationRequestDto,
+  ): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.checkOutReservation.execute({
+      companyId,
+      reservationId: id,
+      odometer: dto.odometer,
+      fuelLevelPercentage: dto.fuelLevelPercentage,
+      photoFileIds: dto.photoFileIds,
+      inspectedBy: dto.inspectedBy,
+    });
+  }
+
+  @Post(':id/check-in')
+  async checkIn(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CheckInReservationRequestDto,
+  ): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.checkInReservation.execute({
+      companyId,
+      reservationId: id,
+      odometer: dto.odometer,
+      fuelLevelPercentage: dto.fuelLevelPercentage,
+      photoFileIds: dto.photoFileIds,
+      inspectedBy: dto.inspectedBy,
+      damages: dto.damages?.map((damage) => ({
+        description: damage.description,
+        severity: damage.severity as 'Minor' | 'Severe',
+        imputableToCustomer: damage.imputableToCustomer,
+        photoFileIds: damage.photoFileIds,
+        penaltyAmountMinorUnits: damage.penaltyAmountMinorUnits,
+      })),
+    });
+  }
+
+  @Post(':id/reschedule')
+  async reschedule(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RescheduleReservationRequestDto,
+  ): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.rescheduleReservation.execute({
+      companyId,
+      reservationId: id,
+      newStartDate: new Date(dto.newStartDate),
+      newEndDate: new Date(dto.newEndDate),
+    });
+  }
+
+  @Post(':id/request-extension')
+  async requestReservationExtension(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RequestExtensionRequestDto,
+  ): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.requestExtension.execute({
+      companyId,
+      reservationId: id,
+      requestedNewEndDate: new Date(dto.requestedNewEndDate),
+    });
+  }
+
+  @Post(':id/approve-extension')
+  async approveReservationExtension(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApproveExtensionRequestDto,
+  ): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.approveExtension.execute({
+      companyId,
+      reservationId: id,
+      newEndDate: new Date(dto.newEndDate),
+    });
+  }
+
+  @Post(':id/swap-vehicle')
+  async swap(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SwapVehicleRequestDto,
+  ): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.swapVehicle.execute({
+      companyId,
+      reservationId: id,
+      newVehicleId: dto.newVehicleId,
+      reason: dto.reason,
+    });
+  }
+
+  @Post(':id/close')
+  async close(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CloseReservationRequestDto,
+  ): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.closeReservation.execute({
+      companyId,
+      reservationId: id,
+      hasInvoiceIssued: dto.hasInvoiceIssued,
+    });
+  }
+}
