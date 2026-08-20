@@ -5,6 +5,7 @@ import {
   CustomerNotEligibleError,
   DriverNotValidatedError,
   Reservation,
+  ReservationInvalidStateTransitionError,
   ReservationNotFoundError,
   VehicleNotAvailableError,
 } from '@rental/reservations/domain';
@@ -103,6 +104,22 @@ describe('ConfirmReservationHandler', () => {
     await expect(
       handler.execute({ companyId: 'other-company', reservationId: reservation.id.toString() }),
     ).rejects.toThrow(ReservationNotFoundError);
+  });
+
+  it('lanza ReservationInvalidStateTransitionError (no VehicleNotAvailableError) al confirmar una reservation ya Confirmed, sin tocar CalendarPort (bug real encontrado via smoke test)', async () => {
+    const { handler, reservation, availabilityService } = buildHandler();
+    reservation.confirm({
+      baseAmount: Money.from(10000, 'USD'),
+      isCustomerEligible: true,
+      areDriversValidated: true,
+    });
+    reservation.pullDomainEvents();
+
+    await expect(
+      handler.execute({ companyId: 'company-1', reservationId: reservation.id.toString() }),
+    ).rejects.toThrow(ReservationInvalidStateTransitionError);
+    expect(availabilityService.isAvailable).not.toHaveBeenCalled();
+    expect(availabilityService.reserve).not.toHaveBeenCalled();
   });
 
   it('lanza CustomerNotEligibleError sin tocar CalendarPort si el customer no es elegible', async () => {

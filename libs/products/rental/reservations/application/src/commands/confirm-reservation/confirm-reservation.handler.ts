@@ -12,6 +12,7 @@ import { VEHICLE_STATUS_PORT, type VehicleStatusPort } from '@rental/vehicles/ap
 import {
   CustomerNotEligibleError,
   DriverNotValidatedError,
+  ReservationInvalidStateTransitionError,
   ReservationNotFoundError,
   ReservationOverlapError,
   VehicleNotAvailableError,
@@ -47,6 +48,20 @@ export class ConfirmReservationHandler {
 
   async execute(command: ConfirmReservationCommand): Promise<void> {
     const reservation = await this.loadReservation(command);
+
+    // Guarda de estado temprana, antes de cualquier I/O de disponibilidad - encontrado via
+    // smoke test real: sin esto, un segundo confirm() sobre una Reservation ya Confirmed
+    // devolvia VEHICLE_NOT_AVAILABLE (el pre-check de isAvailable() ve el propio slot ya
+    // ocupado por esta misma reservation y lo interpreta como "no disponible") en vez de
+    // INVALID_STATE_TRANSITION - engañoso para el caller, que no confirmo nada raro sobre
+    // el vehicle, sino que la reservation ya no esta en Draft.
+    if (reservation.status !== 'Draft') {
+      throw new ReservationInvalidStateTransitionError(
+        reservation.id.toString(),
+        reservation.status,
+        'confirm',
+      );
+    }
 
     const isCustomerEligible =
       (await this.customerLookupPort.isEligibleForConfirmation(reservation.customerId)) ?? false;
