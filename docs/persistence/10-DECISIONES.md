@@ -408,6 +408,78 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: no se agrega ningún listener — `docs/model/01-BOUNDED_CONTEXTS.md §4.2` fija explícitamente que la traducción vive en `AvailabilityService` (`application/` del futuro módulo `reservations`, `scope:product-rental`), nunca dentro de Scheduling. Agregar el listener aquí violaría INV-P03 en la dirección exactamente opuesta a la que Customers/Vehicles ya corrigieron (`#45`): `platform/calendar` importando conocimiento del shape de eventos de `Vehicle` (`scope:product-rental`). Este trabajo queda explícitamente pendiente para la futura tanda de Reservations.
 
+## #59 — `CompanySettings` extendido con las 5 políticas que `Reservation` necesita
+
+**Contexto**: `docs/model/02-AGGREGATES.md §6` ya lista las 9 políticas de `CompanySettings`, pero la Fase 0/Settings solo construyó 2 (`EnabledProductModules`, `PaymentMethodsEnabled`) — decisión #30 declaró explícitamente que las 7 restantes "se construyen cuando Rental Operations les dé forma real". `docs/model/09-DEPENDENCIES.md §2` lista textualmente 5 políticas que `Reservation` consume vía el puerto: `CancellationPolicy` (RN-26), `LateReturnPolicy` (RN-15/RN-16), `DepositPolicy` (RN-21), `DraftExpirationPolicy` (RN-05), `MinimumBookingLeadTime` (RN-06).
+
+**Decisión**: se agregan las 5 al aggregate `CompanySettings` y al puerto existente `SETTINGS_LOOKUP_PORT`/`SettingsLookupPort` (no se crea un `CompanySettingsPort` nuevo — el nombre en `09-DEPENDENCIES.md` es conceptual, el puerto real ya construido en Fase 0 es este). `CancellationPolicy`/`LateReturnPolicy`/`DepositPolicy` se modelan porcentuales (tramos de antelación + porcentaje de penalidad; tolerancia de gracia + porcentaje por hora; aplica/no + porcentaje del total), nunca `Money` fijo — una política a nivel de `Company` no puede fijar un monto en una moneda concreta, el monto real se resuelve contra el `PriceBreakdown` de cada `Reservation`. `DepositPolicy` se agrega por completitud del contrato documentado pero **sin consumidor real** esta tanda (`SecurityDeposit` es Commerce/Fase 2) — mismo patrón "forward-looking sin consumidor" ya usado para los puertos de Customers/Vehicles/Calendar antes de que `Reservation` existiera. Defaults neutrales documentados en cada VO (`*.default()`): sin penalidad de cancelación en ningún tramo, 30 min de gracia + 10%/hora de exceso, sin depósito, 24h de expiración de `Draft`, sin antelación mínima.
+
+## #60 — Extensión de `VehicleStatusPort`/`CustomerLookupPort` — cierran su propósito forward-looking
+
+**Contexto**: `checkOut()` necesita INV-112 (¿la `Branch` del `Vehicle` está `Active`?) pero `Reservation` no contiene `branchId` (`docs/model/02-AGGREGATES.md §11`: "solo `CustomerId`/`VehicleId`"). `create()`/`confirm()` necesitan resolver la `Rate` vigente de un `Vehicle` (`VEHICLE_CATEGORY_LOOKUP_PORT.getCurrentRate` toma `categoryId`, no `vehicleId`). `checkOut()` necesita INV-105 (¿cada `AdditionalDriver` autorizado está `Validated`?).
+
+**Decisión**: `VehicleStatusPort` gana `getBranchId(vehicleId)` y `getCategoryId(vehicleId)`; `CustomerLookupPort` gana `areAdditionalDriversValidated(driverIds)`. Los 3 métodos son consumidos de inmediato — a diferencia de `DepositPolicy` (#59), estos cierran por completo el propósito "forward-looking sin consumidor" con el que ambos puertos fueron publicados en las tandas de Vehicles/Customers.
+
+## #61 — Orden de ocupación/liberación del `AvailabilitySlot`: nunca "ambos libres"
+
+**Contexto**: `docs/domain/07-EXCEPCIONES.md §7` (Vehicle Swap) exige explícitamente "nunca queda un estado intermedio donde ambos aparecen ocupados o ambos libres". El mismo riesgo aplica a `reschedule()`/`approveExtension()` (mueven la ventana ocupada del _mismo_ `vehicleId`) y a `swapVehicle()` (ocupa un `vehicleId` _distinto_).
+
+**Decisión**: toda operación que mueve ocupación siempre ocupa el destino antes de liberar el origen — "ambos ocupados" transitorio es aceptable, "ambos libres" nunca. Para `swapVehicle()` (resourceId distinto), `AvailabilityService.reserve(nuevo)` + `release(viejo)` alcanza sin ambigüedad, porque cada `vehicleId` tiene a lo sumo un slot `Active` propio. Para `reschedule()`/`approveExtension()` (mismo `vehicleId`), ocupar el nuevo rango _antes_ de liberar el viejo crearía momentáneamente **dos** `AvailabilitySlot` `Active` para el mismo `resourceId` — ambiguo para cualquier búsqueda "el slot activo de este vehicle". Se resuelve con `AvailabilityService.moveOccupancy()`: captura el id del slot viejo _antes_ de ocupar el nuevo (momento en que la búsqueda todavía es inequívoca), ocupa el nuevo, y recién entonces libera el viejo por id explícito — nunca por una segunda búsqueda "el slot activo". `CalendarPort` gana `findActiveSlotId(resourceType, resourceId)` para soportar esto (`Reservation` no persiste el `AvailabilitySlot`, "no se persiste ni cachea", `docs/model/02-AGGREGATES.md §11`).
+
+## #62 — `confirm()`: transacción separada del `AvailabilitySlot`, nunca distribuida — confirmado textualmente, no inventado
+
+**Contexto**: `docs/model/02-AGGREGATES.md §11` ("Transacciones") y `09-DEPENDENCIES.md §2` (nota de lectura) fijan textualmente que la ocupación/liberación del `AvailabilitySlot` correlacionado "ocurre en una transacción separada... pero como una llamada síncrona al puerto de Scheduling — no como una transacción distribuida (INV-P04)". Esto coincide exactamente con cómo `CalendarPort`/`OccupySlotHandler`/`ReleaseSlotHandler` ya estaban construidos desde Calendar (cada uno abre su propio `unitOfWork.run()`) — no fue necesario inventar ningún mecanismo nuevo de transacción compartida.
+
+**Decisión operativa** (esta sí de implementación, no textual): `ConfirmReservationHandler` ocupa el slot **antes** de persistir `Reservation → Confirmed`. Si `AvailabilityService.isAvailable()` (pre-check) devuelve `false`, o si `CalendarPort.occupy()` pierde la carrera contra la exclusion constraint (`AvailabilitySlotOverlapError`, traducido a `ReservationOverlapError` — ver #63), se publica `ReservationRejectedByAvailability.v1` en su propia transacción (el agregado permanece `Draft`, no existe un estado "Rejected" en la máquina de estados) — `OutboxWriter.publish()` no exige que la fila del agregado cambie en el mismo `tx`, así que esto no requiere ninguna mutación artificial de `Reservation`. Si el `occupy()` tiene éxito pero la persistencia subsiguiente de `Reservation` falla (p. ej. `ConcurrentModificationError`), se compensa liberando el slot recién ocupado (best-effort — un fallo de la compensación misma es un gap de reconciliación conocido, no bloqueante para Fase 1).
+
+## #63 — Traducción de errores cross-módulo por `.name`, no `instanceof` — restricción real de `tooling/eslint/boundaries.mjs`
+
+**Contexto**: `AvailabilityService.reserve()` necesita distinguir `AvailabilitySlotOverlapError` (Scheduling) de cualquier otro error para decidir si publica `ReservationRejectedByAvailability.v1`. El intento inicial de `catch (error) { if (error instanceof AvailabilitySlotOverlapError) ... }` requiere `import { AvailabilitySlotOverlapError } from '@platform/calendar/domain'` dentro de `reservations/application` — bloqueado por el linter: la regla de `module:reservations` solo permite depender de `type:application`/`type:infrastructure` de otros módulos, nunca de su `type:domain`, sin importar el `scope`.
+
+**Decisión**: se distingue por `error.name === 'AvailabilitySlotOverlapError'` (`DomainError` fija `this.name = new.target.name` en su constructor, confirmado en `libs/platform/shared-kernel/src/errors/domain-error.ts`) — patrón de traducción de error legítimo para una Anti-Corruption Layer que no puede tipar la excepción de origen. Mismo criterio aplicado a `resolve-cancellation-penalty.ts` (reimplementación local de `CancellationPolicy.penaltyPercentageFor()`, ya que `reservations/application` tampoco puede importar el VO de `platform-settings-domain`) y a `PricingService.calculateFuelDifferenceCharge()` (ver #66).
+
+## #64 — `checkIn()` también libera el `AvailabilitySlot` — decisión propia, no textual
+
+**Contexto**: ningún documento dice explícitamente que `checkIn()` deba liberar el slot — solo `cancel()`/`markNoShow()` (desde `Confirmed`) lo hacen textualmente en la tabla de transiciones.
+
+**Decisión**: `checkIn()` también libera. Razonamiento: el propósito de `AvailabilitySlot` es prevenir doble-booking durante la ventana reservada; `AvailabilitySlot` no tiene ningún mecanismo de expiración automática (sin job), así que si el cliente devuelve antes de `endDate` y no se libera explícitamente, el `Vehicle` queda bloqueado hasta la fecha original aunque ya esté físicamente disponible. Documentado explícitamente para que un futuro desarrollador no lo interprete como un olvido.
+
+## #65 — Gap-fill: `PriceAdjustmentKind` gana un 5to valor, `CancellationPenalty`
+
+**Contexto**: `docs/model/02-AGGREGATES.md §11` documenta el catálogo de `PriceAdjustment.kind` como `Extension | LateReturnPenalty | DamagePenalty | FuelDifference` (4 valores). Pero `docs/model/08-STATE_MACHINES.md §1.1` dice explícitamente que `cancel()` (RN-26) y `markNoShow()` (RN-19, "misma política de cancelación tardía") "pueden generar `PriceAdjustment` de penalidad" — ningún valor documentado encaja: `LateReturnPenalty` es semánticamente distinto (se genera en `checkIn()`, por una devolución tardía de un alquiler _ya entregado_, no por una cancelación _antes_ de la entrega).
+
+**Decisión**: se agrega `CancellationPenalty` al enum (dominio y Prisma), mismo criterio de gap-fill ya usado para `DamageSeverity`/`VehicleDocumentType`/`RateUnit` en Vehicles — un valor nuevo en un catálogo ya documentado, nunca una reinterpretación de una regla de negocio.
+
+## #66 — `RN-18` (diferencia de combustible): sin `FuelPolicy` en el catálogo de `CompanySettings`, modelado proporcional
+
+**Contexto**: `docs/model/05-DOMAIN_SERVICES.md §2` menciona una "`FuelPolicy`-equivalente desde `CompanySettings`" como entrada de `PricingService`, pero el catálogo real de 9 políticas de `CompanySettings` (`docs/model/02-AGGREGATES.md §6`) no incluye ninguna política de combustible — inconsistencia entre dos documentos, no un gap silencioso.
+
+**Decisión**: `PricingService.calculateFuelDifferenceCharge()` cobra proporcional al déficit porcentual de combustible sobre un monto de referencia (la tarifa diaria vigente) — un tanque completo faltante cuesta el equivalente a esa tarifa diaria completa. Pragmático, sin política configurable, documentado como gap-fill explícito para que un futuro desarrollador no asuma que existe una `FuelPolicy` real en `CompanySettings`.
+
+## #67 — Cierre de la decisión #52: `maintenance_records.damage_report_id`
+
+**Contexto**: la decisión #52 (Vehicles) omitió deliberadamente la columna `damage_report_id` de `maintenance_records` porque `damage_reports` no existía todavía.
+
+**Decisión**: se agrega `damage_report_id` (nullable, FK `RESTRICT` hacia `rental.damage_reports.id`) ahora que la tabla existe — Expand limpio, sin ningún comando que la use todavía (`Vehicle.reportDamage()` transiciona el status pero no crea un `MaintenanceRecord` por sí mismo, solo `scheduleMaintenance()` lo hace, paso separado, sin cambios en esta tanda).
+
+## #68 — `AGGREGATE_TYPE_TO_SCHEMA`: `Reservation` agregado proactivamente
+
+**Contexto**: mismo mapa que ya causó bugs reales cuatro veces (`#26` `File`, `#35` `CompanySettings`, `Customer`/`Vehicle`, `#57` `AvailabilitySlot`).
+
+**Decisión**: `Reservation: 'rental'` se agrega antes de correr cualquier smoke test. Los hijos (`Inspection`/`DamageReport`/`PriceAdjustment`) no publican eventos propios — van embebidos en los eventos del root, mismo criterio que `VehicleDocument`/`MaintenanceRecord`.
+
+## #69 — `close()` sin listener real esta tanda — decisión de alcance, no un gap
+
+**Contexto**: `close()` reacciona conceptualmente a `InvoiceIssued.v1` (INV-108/RN-22), pero `Invoice`/Commerce es Fase 2 — ese evento nunca se publica todavía.
+
+**Decisión**: se implementa el método de dominio `Reservation.close()` y `CloseReservationHandler` completos (invocables, con tests) — la máquina de estados completa se construye esta tanda, no solo el camino Draft→Confirmed→CheckedOut→CheckedIn que exige el exit-criterion literal. Pero **no se registra ningún listener NestJS** suscrito a `InvoiceIssued.v1` — no hay nada que lo dispare todavía. Mismo criterio ya usado en Calendar (#58: ningún listener sin consumidor real). Consecuencia directa: el smoke test/e2e de esta tanda llega hasta `CheckedIn`, no hasta `Closed`.
+
+## #70 — Bug real: `confirm()` sobre una `Reservation` ya `Confirmed` devolvía `409 VEHICLE_NOT_AVAILABLE` en vez de `409 INVALID_STATE_TRANSITION`
+
+**Contexto**: encontrado con el mismo smoke test manual contra servidor real ya usado en toda la sesión (no un test automatizado). `ConfirmReservationHandler` corría el pre-check `AvailabilityService.isAvailable()` _antes_ de cualquier guarda de estado — para una `Reservation` ya `Confirmed`, el propio slot que ella misma ocupó hace que `isAvailable()` devuelva `false`, y el handler lo interpretaba como "el vehicle no está disponible" en vez de "esta reservation ya no está en `Draft`". Técnicamente el rechazo con 409 era correcto, pero el código/mensaje era engañoso para el caller — no hay nada raro con el `Vehicle`.
+
+**Decisión**: se agrega una guarda de estado temprana (`reservation.status !== 'Draft'` → `ReservationInvalidStateTransitionError`) al inicio del handler, antes de cualquier I/O de disponibilidad. Patrón a vigilar en cualquier handler futuro que combine una guarda de estado del propio agregado con un pre-check de un recurso externo cuyo resultado _depende_ del propio estado del agregado que se está guardando — la guarda de estado propia siempre va primero.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
