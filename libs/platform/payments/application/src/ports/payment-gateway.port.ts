@@ -14,6 +14,12 @@ export interface AuthorizePaymentInput {
   idempotencyKey: string;
   amount: AmountInput;
   method: string;
+  // Adjuntado como metadata en la pasarela (Stripe PaymentIntent.metadata,
+  // MercadoPago Payment.metadata) - unica forma de que HandleGatewayWebhookHandler
+  // resuelva el tenant de un Payment cuando una notificacion de webhook llega sin
+  // RequestContext (ruta @Public(), RLS fail-closed exige un company_id explicito -
+  // docs/persistence/06-RLS.md SS6).
+  companyId: string;
 }
 
 export interface CapturePaymentInput {

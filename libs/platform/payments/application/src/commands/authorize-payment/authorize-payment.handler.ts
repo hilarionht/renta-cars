@@ -35,6 +35,7 @@ export class AuthorizePaymentHandler {
         idempotencyKey: payment.idempotencyKey,
         amount: { minorUnits: payment.amount.minorUnits, currency: payment.amount.currencyCode },
         method: payment.method.toString(),
+        companyId: payment.companyId,
       });
       payment.authorize(result.gatewayReference);
     } catch (error) {

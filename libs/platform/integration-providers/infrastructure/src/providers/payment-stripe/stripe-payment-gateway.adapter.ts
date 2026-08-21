@@ -45,6 +45,9 @@ export class StripePaymentGatewayAdapter implements PaymentGatewayPort {
           currency: input.amount.currency.toLowerCase(),
           capture_method: 'manual',
           automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+          // Unica forma de que verifyAndTranslateWebhook() resuelva el tenant de un webhook
+          // entrante sin RequestContext (ruta @Public(), RLS fail-closed).
+          metadata: { companyId: input.companyId },
         },
         { idempotencyKey: input.idempotencyKey },
       );
@@ -108,10 +111,19 @@ export class StripePaymentGatewayAdapter implements PaymentGatewayPort {
 
     const intent = event.data.object as Stripe.PaymentIntent;
     if (event.type === 'payment_intent.succeeded') {
-      return { gatewayReference: intent.id, result: 'captured' };
+      const companyId = intent.metadata?.companyId;
+      if (!companyId) {
+        return null;
+      }
+      return { companyId, gatewayReference: intent.id, result: 'captured' };
     }
     if (event.type === 'payment_intent.payment_failed') {
+      const companyId = intent.metadata?.companyId;
+      if (!companyId) {
+        return null;
+      }
       return {
+        companyId,
         gatewayReference: intent.id,
         result: 'failed',
         reason: intent.last_payment_error?.message,
@@ -123,10 +135,11 @@ export class StripePaymentGatewayAdapter implements PaymentGatewayPort {
         typeof charge.payment_intent === 'string'
           ? charge.payment_intent
           : charge.payment_intent?.id;
-      if (!paymentIntentId) {
+      const companyId = charge.metadata?.companyId;
+      if (!paymentIntentId || !companyId) {
         return null;
       }
-      return { gatewayReference: paymentIntentId, result: 'refunded' };
+      return { companyId, gatewayReference: paymentIntentId, result: 'refunded' };
     }
     return null;
   }

@@ -24,7 +24,10 @@ export class HandleGatewayWebhookHandler {
   ) {}
 
   async execute(command: HandleGatewayWebhookCommand): Promise<void> {
-    const payment = await this.paymentRepository.findByGatewayReference(command.gatewayReference);
+    const payment = await this.paymentRepository.findByGatewayReference(
+      command.gatewayReference,
+      command.companyId,
+    );
     if (!payment) {
       throw new PaymentNotFoundError(command.gatewayReference);
     }
@@ -57,6 +60,6 @@ export class HandleGatewayWebhookHandler {
           payload: { ...event },
         });
       }
-    });
+    }, command.companyId);
   }
 }

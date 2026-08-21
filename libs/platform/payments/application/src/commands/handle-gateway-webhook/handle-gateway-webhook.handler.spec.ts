@@ -37,7 +37,11 @@ describe('HandleGatewayWebhookHandler', () => {
     const payment = authorizedPayment();
     const { handler } = buildHandler(payment);
 
-    await handler.execute({ gatewayReference: 'gw-ref-1', result: 'captured' });
+    await handler.execute({
+      companyId: 'company-1',
+      gatewayReference: 'gw-ref-1',
+      result: 'captured',
+    });
 
     expect(payment.status).toBe('Captured');
   });
@@ -48,7 +52,11 @@ describe('HandleGatewayWebhookHandler', () => {
     payment.pullDomainEvents();
     const { handler, paymentRepository } = buildHandler(payment);
 
-    await handler.execute({ gatewayReference: 'gw-ref-1', result: 'captured' });
+    await handler.execute({
+      companyId: 'company-1',
+      gatewayReference: 'gw-ref-1',
+      result: 'captured',
+    });
 
     expect(paymentRepository.save).not.toHaveBeenCalled();
   });
@@ -57,7 +65,12 @@ describe('HandleGatewayWebhookHandler', () => {
     const payment = authorizedPayment();
     const { handler } = buildHandler(payment);
 
-    await handler.execute({ gatewayReference: 'gw-ref-1', result: 'failed', reason: 'declinada' });
+    await handler.execute({
+      companyId: 'company-1',
+      gatewayReference: 'gw-ref-1',
+      result: 'failed',
+      reason: 'declinada',
+    });
 
     expect(payment.status).toBe('Failed');
     expect(payment.failureReason).toBe('declinada');
@@ -67,7 +80,11 @@ describe('HandleGatewayWebhookHandler', () => {
     const { handler } = buildHandler(null);
 
     await expect(
-      handler.execute({ gatewayReference: 'gw-ref-inexistente', result: 'captured' }),
+      handler.execute({
+        companyId: 'company-1',
+        gatewayReference: 'gw-ref-inexistente',
+        result: 'captured',
+      }),
     ).rejects.toThrow(PaymentNotFoundError);
   });
 });

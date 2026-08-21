@@ -57,6 +57,9 @@ export class MercadoPagoPaymentGatewayAdapter implements PaymentGatewayPort {
           transaction_amount: input.amount.minorUnits / 100,
           capture: false,
           description: `Payment ${input.idempotencyKey}`,
+          // Unica forma de que verifyAndTranslateWebhook() resuelva el tenant de un webhook
+          // entrante sin RequestContext (ruta @Public(), RLS fail-closed).
+          metadata: { companyId: input.companyId },
         },
         requestOptions: { idempotencyKey: input.idempotencyKey },
       });
@@ -135,14 +138,23 @@ export class MercadoPagoPaymentGatewayAdapter implements PaymentGatewayPort {
     }
 
     const payment = await this.paymentClient.get({ id: dataId });
+    const companyId = (payment.metadata as { companyId?: string } | undefined)?.companyId;
+    if (!companyId) {
+      return null;
+    }
     if (payment.status === 'approved') {
-      return { gatewayReference: dataId, result: 'captured' };
+      return { companyId, gatewayReference: dataId, result: 'captured' };
     }
     if (payment.status === 'refunded') {
-      return { gatewayReference: dataId, result: 'refunded' };
+      return { companyId, gatewayReference: dataId, result: 'refunded' };
     }
     if (payment.status === 'rejected' || payment.status === 'cancelled') {
-      return { gatewayReference: dataId, result: 'failed', reason: payment.status_detail };
+      return {
+        companyId,
+        gatewayReference: dataId,
+        result: 'failed',
+        reason: payment.status_detail,
+      };
     }
     return null;
   }
