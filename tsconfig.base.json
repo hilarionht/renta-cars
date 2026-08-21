@@ -66,7 +66,10 @@
       ],
       "@rental/reservations/infrastructure": [
         "./libs/products/rental/reservations/infrastructure/src/index.ts"
-      ]
+      ],
+      "@platform/payments/domain": ["./libs/platform/payments/domain/src/index.ts"],
+      "@platform/payments/application": ["./libs/platform/payments/application/src/index.ts"],
+      "@platform/payments/infrastructure": ["./libs/platform/payments/infrastructure/src/index.ts"]
     },
     "target": "es2022",
     "module": "esnext",
