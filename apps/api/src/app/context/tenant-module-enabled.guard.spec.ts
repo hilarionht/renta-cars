@@ -43,6 +43,7 @@ async function buildApp(params: {
     getDraftExpirationPolicyMinutes: jest.fn(),
     getMinimumBookingLeadTimeMinutes: jest.fn(),
     getDepositPolicy: jest.fn(),
+    getPaymentMethodsEnabled: jest.fn(),
   };
 
   const moduleRef = await Test.createTestingModule({

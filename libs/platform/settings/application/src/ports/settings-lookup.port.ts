@@ -28,4 +28,7 @@ export interface SettingsLookupPort {
   getDraftExpirationPolicyMinutes(companyId: string): Promise<number | null>;
   getMinimumBookingLeadTimeMinutes(companyId: string): Promise<number | null>;
   getDepositPolicy(companyId: string): Promise<DepositPolicyView | null>;
+  // Agregado para Payments (Fase 2, docs/model/04-VALUE_OBJECTS.md SS6: "PaymentMethod
+  // debe pertenecer al PaymentMethodsEnabled vigente de la Company").
+  getPaymentMethodsEnabled(companyId: string): Promise<string[] | null>;
 }

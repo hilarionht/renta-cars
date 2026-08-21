@@ -93,4 +93,14 @@ export class PrismaSettingsLookupAdapter implements SettingsLookupPort {
       percentageOfTotal: record.depositPercentageOfTotal,
     };
   }
+
+  async getPaymentMethodsEnabled(companyId: string): Promise<string[] | null> {
+    const record = await this.readTransaction.run((tx) =>
+      tx.companySettings.findFirst({
+        where: { companyId },
+        select: { paymentMethodsEnabled: true },
+      }),
+    );
+    return record?.paymentMethodsEnabled ?? null;
+  }
 }
