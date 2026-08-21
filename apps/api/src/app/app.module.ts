@@ -33,6 +33,7 @@ import databaseConfig from '../config/database.config';
 import { validate } from '../config/env.validation';
 import jwtConfig from '../config/jwt.config';
 import observabilityConfig from '../config/observability.config';
+import paymentsConfig from '../config/payments.config';
 import redisConfig from '../config/redis.config';
 import securityConfig from '../config/security.config';
 import storageConfig from '../config/storage.config';
@@ -81,6 +82,7 @@ import { PrismaModule } from './persistence/prisma.module';
         jwtConfig,
         securityConfig,
         observabilityConfig,
+        paymentsConfig,
       ],
     }),
     // ClsModule (AsyncLocalStorage) antes que PrismaModule - RequestContext (poblado por

@@ -89,6 +89,29 @@ class EnvironmentVariables {
   @Min(1)
   JWT_REFRESH_TTL?: number;
 
+  // --- payments (PaymentGatewayPort, docs/11-INTEGRACIONES.md SS6) ---
+  // Todas opcionales: "fake" (default en payments.config.ts) no requiere credenciales -
+  // Stripe/MercadoPago sin credenciales reales en este entorno de desarrollo.
+  @IsOptional()
+  @IsIn(['fake', 'stripe', 'mercadopago'])
+  PAYMENT_GATEWAY_PROVIDER?: 'fake' | 'stripe' | 'mercadopago';
+
+  @IsOptional()
+  @IsString()
+  STRIPE_SECRET_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  STRIPE_WEBHOOK_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  MERCADOPAGO_ACCESS_TOKEN?: string;
+
+  @IsOptional()
+  @IsString()
+  MERCADOPAGO_WEBHOOK_SECRET?: string;
+
   // --- observability (docs/engineering/08-OBSERVABILITY-BOOTSTRAP.md §1) ---
   // Ambas con default seguro (namespace observability.config.ts) - el SDK de OpenTelemetry
   // no bloquea el arranque si el collector no esta disponible, por diseño de la libreria.
