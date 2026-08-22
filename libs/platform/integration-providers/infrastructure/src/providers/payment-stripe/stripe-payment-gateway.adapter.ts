@@ -31,13 +31,31 @@ interface StripeGatewayConfig {
 export class StripePaymentGatewayAdapter
   implements PaymentGatewayPort, StripeWebhookTranslatorPort
 {
-  private readonly client: Stripe;
-  private readonly webhookSecret: string;
+  private readonly stripeConfig: StripeGatewayConfig;
+  private lazyClient?: Stripe;
 
   constructor(configService: ConfigService) {
-    const stripeConfig = configService.getOrThrow<StripeGatewayConfig>('payments.stripe');
-    this.client = new Stripe(stripeConfig.secretKey);
-    this.webhookSecret = stripeConfig.webhookSecret;
+    // El SDK de Stripe lanza en su propio constructor si apiKey es vacio/undefined - este
+    // adaptador se instancia siempre (STRIPE_WEBHOOK_TRANSLATOR_PORT lo referencia via
+    // useExisting, Nest lo resuelve de forma eager sin importar que PAYMENT_GATEWAY_PROVIDER
+    // este activo), asi que construir `Stripe` aca abajo tumbaria el boot completo de la app
+    // en cualquier entorno sin STRIPE_SECRET_KEY real (el caso de desarrollo por defecto,
+    // docs/persistence/10-DECISIONES.md Fase 2). Se difiere la construccion a `client`.
+    this.stripeConfig = configService.getOrThrow<StripeGatewayConfig>('payments.stripe');
+  }
+
+  private get client(): Stripe {
+    if (!this.stripeConfig.secretKey) {
+      throw new PaymentGatewayUnavailableError('stripe', 'STRIPE_SECRET_KEY no esta configurada.');
+    }
+    if (!this.lazyClient) {
+      this.lazyClient = new Stripe(this.stripeConfig.secretKey);
+    }
+    return this.lazyClient;
+  }
+
+  private get webhookSecret(): string {
+    return this.stripeConfig.webhookSecret;
   }
 
   async authorize(input: AuthorizePaymentInput): Promise<PaymentGatewayResult> {
