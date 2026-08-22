@@ -27,6 +27,7 @@ model Customer {
   identityDocuments IdentityDocument[]
   additionalDrivers AdditionalDriver[]
   reservations      Reservation[]
+  invoices          Invoice[]
 
   // Clave natural (docs/persistence/04-COLUMNAS-CONCEPTUALES.md §6).
   @@unique([companyId, taxIdOrDocumentId])
@@ -372,6 +373,7 @@ model Reservation {
   damageReports     DamageReport[]
   priceAdjustments  PriceAdjustment[]
   authorizedDrivers ReservationAuthorizedDriver[]
+  invoices          Invoice[]
 
   // Indice compuesto adicional parcial (company_id, status) WHERE status='Draft' para el
   // futuro job de expiracion de Draft (RN-05) - no expresable en el DSL de Prisma, se
@@ -495,5 +497,94 @@ model ReservationAuthorizedDriver {
 
   @@unique([reservationId, additionalDriverId])
   @@map("reservation_authorized_drivers")
+  @@schema("rental")
+}
+
+// Fase 2 item 2 (docs/01-ROADMAP.md §4) - primer contenido real de Invoice/Charge. Bounded
+// Context Commerce (mismo lenguaje que Payment/SecurityDeposit de commerce.*), pero
+// empaquetado fisico en rental (docs/model/01-BOUNDED_CONTEXTS.md §3.5, docs/persistence/
+// 01-SCHEMAS.md §3.1): el motor de emision fiscal es especifico de Rental hoy, no se
+// extrajo a Plataforma porque no existe un segundo producto que lo demande.
+enum ChargeKind {
+  RentalFee
+  Extension
+  Penalty
+  Damage
+  Fuel
+
+  @@schema("rental")
+}
+
+enum InvoiceStatus {
+  Issued
+  Voided
+
+  @@schema("rental")
+}
+
+model Invoice {
+  // Raiz de este aggregate - docs/model/02-AGGREGATES.md §14. reservationId/customerId: FK
+  // reales (RESTRICT, mismo schema fisico) - a diferencia de Payment.target, que es opaco
+  // incluso hacia security_deposits pese a compartir schema (docs/persistence/
+  // 03-RELACIONES.md §2/§3).
+  id                  String        @id @db.Uuid
+  companyId           String        @map("company_id") @db.Uuid
+  reservationId       String        @map("reservation_id") @db.Uuid
+  customerId          String        @map("customer_id") @db.Uuid
+  invoiceNumber       String        @map("invoice_number")
+  status              InvoiceStatus
+  // Sin motor de calculo real (RN-23 dependiente de pais, sin pais modelado todavia) -
+  // siempre 0 esta tanda, columna presente para que una futura tanda pais-especifica la
+  // pueble (docs/domain/03-PROCESOS.md linea 217).
+  taxAmountMinorUnits Int           @default(0) @map("tax_amount_minor_units")
+  voidReason          String?       @map("void_reason")
+  // Unica tabla de negocio junto con reservations con soft delete (docs/persistence/
+  // 04-COLUMNAS-CONCEPTUALES.md §6) - sin comando que la use todavia, se deja por
+  // completitud del contrato ya documentado, mismo criterio que Reservation.deletedAt.
+  deletedAt           DateTime?     @map("deleted_at")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+  version             Int           @default(1)
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  customer    Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  charges     Charge[]
+
+  // Correlativo unico por Company (RN-23). El indice unico parcial de INV-023
+  // (reservation_id UNIQUE WHERE status != 'Voided') no es expresable en el DSL de Prisma -
+  // se agrega a mano en la migracion, mismo patron que el CHECK de INV-019 en Payments.
+  @@unique([companyId, invoiceNumber])
+  @@index([companyId, reservationId])
+  @@map("invoices")
+  @@schema("rental")
+}
+
+model Charge {
+  // Entidad interna de Invoice (docs/model/02-AGGREGATES.md §14) - append-only, sin version
+  // propia (protegida por la de Invoice, mismo patron que PriceAdjustment/Inspection de
+  // Reservation) - INV-022, sin ningun comando de edicion.
+  id               String     @id @db.Uuid
+  companyId        String     @map("company_id") @db.Uuid
+  invoiceId        String     @map("invoice_id") @db.Uuid
+  kind             ChargeKind
+  amountMinorUnits Int        @map("amount_minor_units")
+  currency         String
+  description      String
+  createdAt        DateTime   @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("charges")
+  @@schema("rental")
+}
+
+model InvoiceNumberSequence {
+  // Contador atomico por Company para el correlativo sin huecos de InvoiceNumber (RN-23) -
+  // incrementado con UPSERT dentro de la misma transaccion que el insert de Invoice
+  // (InvoiceNumberGeneratorPort). Sin company_id como columna separada - es la propia PK.
+  companyId  String @id @map("company_id") @db.Uuid
+  nextNumber Int    @default(1) @map("next_number")
+
+  @@map("invoice_number_sequences")
   @@schema("rental")
 }
