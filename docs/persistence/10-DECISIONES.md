@@ -528,6 +528,54 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: se difiere la construcción del cliente `Stripe` a un getter perezoso, invocado solo cuando algún método del adaptador se llama de verdad — si en ese momento `STRIPE_SECRET_KEY` sigue vacía, lanza `PaymentGatewayUnavailableError` (un error de negocio esperable, `503`), no una excepción no controlada en el boot. Patrón a vigilar en cualquier adaptador futuro que envuelva una SDK con validación estricta en su constructor y que, por el patrón de `#75` (`useExisting` para un puerto secundario), termine instanciándose siempre independientemente de si está activo.
 
+## #79 — `Invoice`/`Charge` en `libs/products/rental/invoices`, schema `rental` — no `commerce`
+
+**Contexto**: `Invoice`/`Charge` pertenecen al mismo Bounded Context Commerce que `Payment`/`SecurityDeposit` (Fase 2 item 1, ya empaquetado en `libs/platform/payments`, schema `commerce`). Podría asumirse que Invoices sigue el mismo empaquetado físico.
+
+**Decisión**: no lo sigue — `docs/model/01-BOUNDED_CONTEXTS.md §3.5` ya fija explícitamente que `Invoice` vive en `products/rental/` (su motor de emisión fiscal, numeración e impuestos dependientes de país, "no se ha extraído todavía a Plataforma porque no existe aún un segundo producto que lo demande") y `docs/persistence/01-SCHEMAS.md §3.1` confirma el schema físico `rental`. No es una decisión nueva de esta tanda — es la aplicación mecánica de una decisión ya tomada en el modelo — pero se deja constancia aquí porque invierte varios patrones ya asumidos por costumbre en Payments: `Invoice.reservationId`/`customerId` son FK reales (`RESTRICT`, mismo schema físico, `docs/persistence/03-RELACIONES.md §2`) en vez de opacas, y no hay ningún adaptador de proveedor externo (`integration-providers`) involucrado.
+
+## #80 — Gap-fill: `customerId` agregado al payload de `ReservationCheckedIn.v1`
+
+**Contexto**: `docs/model/06-DOMAIN_EVENTS.md §6.3` nunca documentó `customerId` en el payload de `ReservationCheckedIn.v1` (solo `reservationId`, `vehicleId`, `inspectionId`, `priceBreakdown`) — gap ya anticipado, sin resolver, desde la tanda de Payments (`#69` solo trata la ausencia del listener, no de este campo). `InvoiceIssued.v1`/`invoices.customer_id` (FK `NOT NULL` real) sí lo necesitan.
+
+**Decisión**: se agrega `customerId` al payload — campo puramente aditivo (`Reservation.props.customerId` ya existe, se emite igual en `ReservationConfirmed.v1`), sin romper ningún test existente. El evento sigue siendo la única superficie de datos que `Invoices` consume de `Reservation` (`docs/model/09-DEPENDENCIES.md §4`) — nunca se agregó un puerto síncrono ni una lectura cross-schema.
+
+## #81 — Bug real: `close()` confiaba en `hasInvoiceIssued` autodeclarado por el cliente
+
+**Contexto**: `docs/contracts/02-RESOURCE-CATALOG.md §4` nunca documentó `close` como operación de `reservations` (solo `confirm, cancel, check-out, check-in, reschedule, request-extension, approve-extension, swap-vehicle, mark-no-show`). Pese a eso, `ReservationsController` exponía `POST /reservations/:id/close` con `hasInvoiceIssued` tomado directo del body — un placeholder de Fase 1 (`#69`, sin `Invoice` real para verificar nada todavía) que, con `Invoice` ya construido esta tanda, dejaba a cualquier usuario autenticado cerrar una `Reservation` sin factura real (INV-108/RN-22, 🔴 crítica).
+
+**Decisión**: se elimina el endpoint (nunca documentado) y su DTO. `InvoiceIssuedListener` (`@OnEvent('InvoiceIssued.v1')`, `reservations/infrastructure`) es ahora el único disparador real de `CloseReservationHandler` — mismo patrón fire-and-forget que `SecurityDepositHoldListener`. `Reservation.close()`/`CloseReservationHandler` no cambiaron (siguen aceptando `hasInvoiceIssued`, ahora siempre `true` porque solo el listener los invoca, que por construcción solo corre tras recibir el evento real).
+
+## #82 — Sin generación de PDF esta tanda — decisión de alcance explícita del usuario
+
+**Contexto**: `docs/model/09-DEPENDENCIES.md §2` documenta `StorageProviderPort` como dependencia forward-looking de `Invoice` para "generar/almacenar PDF". Pero ningún documento especifica el formato real del comprobante (RN-23 lo deja "dependiente de la normativa del país", sin ningún país modelado en `Company`/`Branch` más allá de `address.country`) y no había ninguna librería de generación de PDF en el repo.
+
+**Decisión** (confirmada explícitamente vía `AskUserQuestion`): `Invoice` queda como registro fiscal de datos puro esta tanda — sin campo `pdfFileId` (no documentado en `docs/model/02-AGGREGATES.md §14`, no se inventa) ni dependencia de `FilesModule`/`StorageProviderPort`. Gap de alcance explícito, mismo criterio que `#69` — se resuelve en una tanda futura cuando exista una especificación real de formato por país.
+
+## #83 — `InvoiceNumber`: correlativo atómico por `Company`, no por `Branch`/país
+
+**Contexto**: RN-23 exige un correlativo "sin huecos dentro de su serie", con formato "dependiente de país" — sin ninguna especificación real de cuántas series existen ni cómo se particionan por país/Branch.
+
+**Decisión**: una única serie por `Company` (simplificación pragmática documentada, mismo criterio que la simplificación de `RN-18`/combustible en Fase 1), formato `INV-` + 8 dígitos con ceros a la izquierda. Mecanismo: tabla `rental.invoice_number_sequences` (`company_id` PK, `next_number`), incrementada con `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` (`PrismaInvoiceNumberGeneratorAdapter`) **dentro de la misma transacción** que el insert de `Invoice` — atomicidad sin una segunda transacción distribuida, mismo mecanismo que cualquier otro repositorio recibiendo el `tx` opaco de `UnitOfWork.run()`. Sin huecos bajo operación normal; el único caso de hueco (rollback de la transacción tras incrementar el contador) es el mismo comportamiento que tendría una `SEQUENCE` nativa de Postgres.
+
+## #84 — `TaxDetails` sin motor de cálculo — siempre cero esta tanda
+
+**Contexto**: `docs/domain/03-PROCESOS.md` línea 217 confirma explícitamente que el cálculo real de impuestos de una `Invoice` es "dependiente de país", sin ninguna regla concreta documentada.
+
+**Decisión**: `TaxDetails` se modela como VO mínimo (`taxAmountMinorUnits: number`), siempre `TaxDetails.zero()` en `IssueInvoiceHandler`. Columna presente en `invoices.tax_amount_minor_units` (default `0`) para que una futura tanda país-específica la pueble, sin inventar ningún motor de cálculo ahora.
+
+## #85 — Traducción ACL `PriceAdjustment.kind` (Rental) → `ChargeKind` (Commerce)
+
+**Contexto**: `docs/model/01-BOUNDED_CONTEXTS.md §4.3` fija que la traducción vive en el Listener de `Invoices`, "nunca al revés, y `Reservation` nunca conoce la existencia de `Invoice`". Los catálogos de ambos lados no son 1:1 en nombre: `PriceAdjustment.kind` tiene 5 valores (`Extension`, `LateReturnPenalty`, `DamagePenalty`, `FuelDifference`, `CancellationPenalty`) y `ChargeKind` tiene otros 5 (`RentalFee`, `Extension`, `Penalty`, `Damage`, `Fuel`).
+
+**Decisión**: `priceBreakdown.baseAmountMinorUnits` siempre genera un `Charge` propio `RentalFee` (no viene de ningún `PriceAdjustment`). El resto se mapea: `Extension→Extension`, `LateReturnPenalty→Penalty`, `DamagePenalty→Damage`, `FuelDifference→Fuel`, `CancellationPenalty→Penalty`. Los montos se copian literalmente (INV-110) — la traducción es pura reetiquetación, nunca aritmética. `CancellationPenalty→Penalty` es defensiva: en la práctica inalcanzable vía este listener (una `Reservation` cancelada nunca llega a `checkIn()`), pero se mapea igual por completitud, comentada en el código.
+
+## #86 — `AGGREGATE_TYPE_TO_SCHEMA`: `Invoice` agregado proactivamente
+
+**Contexto**: mismo mapa que ya causó bugs reales varias veces en la sesión (`#26` `File`, `#35` `CompanySettings`, `Customer`/`Vehicle`, `#57` `AvailabilitySlot`, `#68` `Reservation`).
+
+**Decisión**: `Invoice: 'rental'` se agrega antes de correr cualquier smoke test. `Charge` no necesita entrada propia — entidad interna, nunca publica eventos por sí misma, mismo criterio que `PriceAdjustment`/`Inspection`.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
