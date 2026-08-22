@@ -28,6 +28,7 @@ import {
   RESERVATIONS_DOMAIN_ERROR_ENTRIES,
 } from '@rental/reservations/infrastructure';
 import { PaymentsModule, PAYMENTS_DOMAIN_ERROR_ENTRIES } from '@platform/payments/infrastructure';
+import { InvoicesModule, INVOICES_DOMAIN_ERROR_ENTRIES } from '@rental/invoices/infrastructure';
 
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
@@ -54,26 +55,29 @@ import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 import { PrismaModule } from './persistence/prisma.module';
 
 // Composicion completa de Fase 0 (docs/01-ROADMAP.md SS2 - los 9 items) + Fase 1 completa
-// (docs/01-ROADMAP.md SS3: Customers, Vehicles, Calendar, Reservations) + Fase 2 item 1
-// (Payments). Orden de import: RolesPermissions -> Users -> Identity -> Settings ->
+// (docs/01-ROADMAP.md SS3: Customers, Vehicles, Calendar, Reservations) + Fase 2 completa
+// (Payments, Invoices). Orden de import: RolesPermissions -> Users -> Identity -> Settings ->
 // Companies -> Branches -> Audit -> Files -> Calendar -> Customers -> Vehicles ->
-// Reservations -> Payments, mismo orden de dependencia real y de composicion documentada
-// (docs/technical/03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del anterior via su
-// puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Settings no depende de ningun otro
-// modulo de negocio, pero Companies SI depende de Settings ahora - ver CompaniesModule - asi
-// que Settings se importa antes; Audit no depende de ninguno - escucha eventos de todos via
-// EventEmitter2, nunca importa su codigo; Files tampoco depende de ningun otro modulo de
-// negocio, solo de IntegrationProvidersModule, importado dentro de FilesModule mismo -
-// apps/api nunca ve STORAGE_PROVIDER_PORT; Calendar tampoco depende de ningun otro modulo;
-// Vehicles SI depende de Branches - BranchesModule se importa dentro de VehiclesModule
-// mismo, apps/api no lo ve directo, mismo patron que Files. Reservations es el primer
-// consumidor real de los 5 puertos forward-looking de Customers/Vehicles/Calendar/Branches
-// mas Settings extendido - importa esos 5 modulos dentro de ReservationsModule mismo, no
-// visibles aca directamente (mismo patron que Vehicles->Branches). Payments, ultimo, NO
+// Reservations -> Payments -> Invoices, mismo orden de dependencia real y de composicion
+// documentada (docs/technical/03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del
+// anterior via su puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Settings no depende de
+// ningun otro modulo de negocio, pero Companies SI depende de Settings ahora - ver
+// CompaniesModule - asi que Settings se importa antes; Audit no depende de ninguno - escucha
+// eventos de todos via EventEmitter2, nunca importa su codigo; Files tampoco depende de
+// ningun otro modulo de negocio, solo de IntegrationProvidersModule, importado dentro de
+// FilesModule mismo - apps/api nunca ve STORAGE_PROVIDER_PORT; Calendar tampoco depende de
+// ningun otro modulo; Vehicles SI depende de Branches - BranchesModule se importa dentro de
+// VehiclesModule mismo, apps/api no lo ve directo, mismo patron que Files. Reservations es
+// el primer consumidor real de los 5 puertos forward-looking de Customers/Vehicles/Calendar/
+// Branches mas Settings extendido - importa esos 5 modulos dentro de ReservationsModule
+// mismo, no visibles aca directamente (mismo patron que Vehicles->Branches). Payments NO
 // depende de Reservations directamente (Commerce es 100% event-driven respecto de Rental
 // Operations, docs/model/09-DEPENDENCIES.md SS2/SS3 - la coordinacion es via
 // EventEmitter2/@OnEvent, nunca un import de modulo) - solo importa SettingsModule +
-// IntegrationProvidersModule dentro de PaymentsModule mismo.
+// IntegrationProvidersModule dentro de PaymentsModule mismo. Invoices, ultimo, tampoco
+// importa Reservations ni Payments directo - mismo mecanismo 100% por evento
+// (ReservationCheckedIn.v1 entrante, InvoiceIssued.v1 saliente, consumido por el nuevo
+// InvoiceIssuedListener DENTRO de ReservationsModule, no visible aca).
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -155,6 +159,7 @@ import { PrismaModule } from './persistence/prisma.module';
     VehiclesModule,
     ReservationsModule,
     PaymentsModule,
+    InvoicesModule,
   ],
   providers: [
     domainErrorRegistryProvider(
@@ -171,6 +176,7 @@ import { PrismaModule } from './persistence/prisma.module';
       VEHICLES_DOMAIN_ERROR_ENTRIES,
       RESERVATIONS_DOMAIN_ERROR_ENTRIES,
       PAYMENTS_DOMAIN_ERROR_ENTRIES,
+      INVOICES_DOMAIN_ERROR_ENTRIES,
     ),
     // Orden importa, e Nest lo evalua al REVES del orden de registro (el ultimo
     // registrado se prueba primero) - verificado a mano lanzando un DomainError real y

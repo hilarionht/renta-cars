@@ -41,6 +41,7 @@ const AGGREGATE_TYPE_TO_SCHEMA: Record<string, string> = {
   Reservation: 'rental',
   Payment: 'commerce',
   SecurityDeposit: 'commerce',
+  Invoice: 'rental',
 };
 
 function schemaFor(aggregateType: string): string {
