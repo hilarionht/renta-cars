@@ -18,6 +18,17 @@ export {
   type PaymentGatewayPort,
 } from './ports/payment-gateway.port';
 
+export {
+  STRIPE_WEBHOOK_TRANSLATOR_PORT,
+  type StripeWebhookTranslatorPort,
+} from './ports/stripe-webhook-translator.port';
+export {
+  MERCADOPAGO_WEBHOOK_TRANSLATOR_PORT,
+  type MercadoPagoWebhookBody,
+  type MercadoPagoWebhookHeaders,
+  type MercadoPagoWebhookTranslatorPort,
+} from './ports/mercadopago-webhook-translator.port';
+
 export { PaymentGatewayDeclinedError } from './errors/payment-gateway-declined.error';
 export { PaymentGatewayUnavailableError } from './errors/payment-gateway-unavailable.error';
 

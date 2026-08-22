@@ -10,6 +10,7 @@ import type {
   PaymentGatewayResult,
   PaymentGatewayStatus,
   RefundPaymentInput,
+  StripeWebhookTranslatorPort,
 } from '@platform/payments/application';
 import {
   PaymentGatewayDeclinedError,
@@ -27,7 +28,9 @@ interface StripeGatewayConfig {
 // la API viva en el smoke test de esta tanda (ese rol lo cumple FakePaymentGatewayAdapter,
 // seleccionado por PAYMENT_GATEWAY_PROVIDER=fake).
 @Injectable()
-export class StripePaymentGatewayAdapter implements PaymentGatewayPort {
+export class StripePaymentGatewayAdapter
+  implements PaymentGatewayPort, StripeWebhookTranslatorPort
+{
   private readonly client: Stripe;
   private readonly webhookSecret: string;
 

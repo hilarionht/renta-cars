@@ -31,6 +31,7 @@ export class RetainSecurityDepositHandler {
   async execute(command: RetainSecurityDepositCommand): Promise<void> {
     const deposit = await this.securityDepositRepository.findById(
       EntityId.from(command.securityDepositId),
+      command.companyId,
     );
     if (!deposit || deposit.companyId !== command.companyId) {
       throw new SecurityDepositNotFoundError(command.securityDepositId);
@@ -49,6 +50,6 @@ export class RetainSecurityDepositHandler {
           payload: { ...event },
         });
       }
-    });
+    }, command.companyId);
   }
 }

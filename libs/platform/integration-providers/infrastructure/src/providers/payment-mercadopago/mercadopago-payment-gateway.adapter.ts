@@ -15,6 +15,9 @@ import type {
   AuthorizePaymentInput,
   CapturePaymentInput,
   HandleGatewayWebhookCommand,
+  MercadoPagoWebhookBody,
+  MercadoPagoWebhookHeaders,
+  MercadoPagoWebhookTranslatorPort,
   PaymentGatewayPort,
   PaymentGatewayResult,
   PaymentGatewayStatus,
@@ -35,7 +38,9 @@ interface MercadoPagoGatewayConfig {
 // usuario, docs/persistence/10-DECISIONES.md Fase 2): codigo completo y listo, pero NO
 // ejercido contra la API viva en el smoke test de esta tanda.
 @Injectable()
-export class MercadoPagoPaymentGatewayAdapter implements PaymentGatewayPort {
+export class MercadoPagoPaymentGatewayAdapter
+  implements PaymentGatewayPort, MercadoPagoWebhookTranslatorPort
+{
   private readonly paymentClient: MercadoPagoPayment;
   private readonly refundClient: PaymentRefund;
   private readonly webhookSecret: string;
@@ -113,8 +118,8 @@ export class MercadoPagoPaymentGatewayAdapter implements PaymentGatewayPort {
   // expone). La notificacion solo trae data.id - el status real se resuelve con un GET
   // adicional (nunca se infiere del nombre de la accion, que no distingue aprobado/rechazado).
   async verifyAndTranslateWebhook(
-    body: { data?: { id?: string } },
-    headers: { xSignature: string; xRequestId: string; dataId: string },
+    body: MercadoPagoWebhookBody,
+    headers: MercadoPagoWebhookHeaders,
   ): Promise<HandleGatewayWebhookCommand | null> {
     try {
       WebhookSignatureValidator.validate({
