@@ -351,6 +351,7 @@ export class Reservation {
     this.domainEvents.push({
       eventType: 'ReservationCheckedIn.v1',
       reservationId: this.props.id.toString(),
+      customerId: this.props.customerId,
       vehicleId: this.props.vehicleId,
       inspectionId: inspection.id.toString(),
       priceBreakdown: this.priceBreakdownPayload(),

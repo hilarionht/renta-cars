@@ -6,7 +6,6 @@ import {
   CancelReservationHandler,
   CheckInReservationHandler,
   CheckOutReservationHandler,
-  CloseReservationHandler,
   ConfirmReservationHandler,
   CreateReservationHandler,
   MarkNoShowHandler,
@@ -22,7 +21,6 @@ import { ApproveExtensionRequestDto } from './dto/approve-extension-request.dto'
 import { CancelReservationRequestDto } from './dto/cancel-reservation-request.dto';
 import { CheckInReservationRequestDto } from './dto/check-in-reservation-request.dto';
 import { CheckOutReservationRequestDto } from './dto/check-out-reservation-request.dto';
-import { CloseReservationRequestDto } from './dto/close-reservation-request.dto';
 import { CreateReservationRequestDto } from './dto/create-reservation-request.dto';
 import { RequestExtensionRequestDto } from './dto/request-extension-request.dto';
 import { RescheduleReservationRequestDto } from './dto/reschedule-reservation-request.dto';
@@ -46,7 +44,6 @@ export class ReservationsController {
     private readonly requestExtension: RequestExtensionHandler,
     private readonly approveExtension: ApproveExtensionHandler,
     private readonly swapVehicle: SwapVehicleHandler,
-    private readonly closeReservation: CloseReservationHandler,
     private readonly getReservation: GetReservationHandler,
     private readonly listReservations: ListReservationsHandler,
     private readonly requestContext: RequestContext,
@@ -203,19 +200,6 @@ export class ReservationsController {
       reservationId: id,
       newVehicleId: dto.newVehicleId,
       reason: dto.reason,
-    });
-  }
-
-  @Post(':id/close')
-  async close(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: CloseReservationRequestDto,
-  ): Promise<void> {
-    const { companyId } = this.requestContext.get();
-    await this.closeReservation.execute({
-      companyId,
-      reservationId: id,
-      hasInvoiceIssued: dto.hasInvoiceIssued,
     });
   }
 }

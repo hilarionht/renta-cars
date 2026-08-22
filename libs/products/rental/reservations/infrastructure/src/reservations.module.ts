@@ -22,6 +22,7 @@ import {
 } from '@rental/reservations/application';
 import { VehiclesModule } from '@rental/vehicles/infrastructure';
 
+import { InvoiceIssuedListener } from './events/invoice-issued.listener';
 import { ReservationsController } from './http/reservations.controller';
 import { PrismaReservationRepository } from './persistence/prisma/prisma-reservation.repository';
 import { GetReservationHandler } from './queries/get-reservation.handler';
@@ -33,6 +34,10 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
 // BRANCH_LOOKUP_PORT) mas SETTINGS_LOOKUP_PORT extendido. Mismo patron que VehiclesModule
 // importando BranchesModule - Nest reutiliza el mismo singleton aunque apps/api tambien
 // importe estos modulos de forma independiente para sus propios controllers.
+// CloseReservationHandler ya no esta atado a ningun endpoint HTTP (docs/persistence/
+// 10-DECISIONES.md #79) - InvoiceIssuedListener (@OnEvent('InvoiceIssued.v1')) es su unico
+// disparador real ahora que Invoices existe, mismo criterio que SecurityDepositHoldListener
+// en Payments.
 @Module({
   imports: [CustomersModule, VehiclesModule, CalendarModule, SettingsModule, BranchesModule],
   controllers: [ReservationsController],
@@ -53,6 +58,7 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
     CloseReservationHandler,
     GetReservationHandler,
     ListReservationsHandler,
+    InvoiceIssuedListener,
   ],
 })
 export class ReservationsModule {}
