@@ -16,7 +16,11 @@ import { AppModule } from './app/app.module';
 import { validationExceptionFactory } from './app/errors/validation-exception-factory';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // rawBody:true - StripeWebhookController necesita el Buffer sin parsear de
+  // POST /webhooks/v1/stripe para verificar la firma nativa del SDK
+  // (stripe.webhooks.constructEvent, docs/contracts/06-WEBHOOKS.md) - Nest lo expone en
+  // req.rawBody ademas del body ya parseado, sin desactivar el body-parser global.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
   app.useLogger(app.get(Logger));
 
   // Necesario para leer la cookie httpOnly refresh_token en refresh/logout de clientes web
@@ -64,9 +68,13 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // docs/08-API-CONTRACTS.md SS1: recursos de negocio bajo /api/v1 - /health/* queda fuera
-  // (docs/technical/03-BACKEND-ARCHITECTURE.md SS10, rutas exactas sin prefijo).
-  app.setGlobalPrefix('api/v1', { exclude: ['health/live', 'health/ready'] });
+  // docs/08-API-CONTRACTS.md SS1: recursos de negocio bajo /api/v1 - /health/* y
+  // /webhooks/v1/* quedan fuera (docs/technical/03-BACKEND-ARCHITECTURE.md SS10,
+  // docs/contracts/06-WEBHOOKS.md: rutas de webhook entrante, @Public(), nunca
+  // Bearer-autenticadas, nunca bajo el namespace de recursos de tenant).
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['health/live', 'health/ready', 'webhooks/v1/stripe', 'webhooks/v1/mercadopago'],
+  });
 
   const port = configService.getOrThrow<number>('app.port');
   await app.listen(port);
