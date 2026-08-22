@@ -1,0 +1,18 @@
+{
+  "name": "rental-invoices-application",
+  "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/products/rental/invoices/application/src",
+  "projectType": "library",
+  "tags": ["scope:product-rental", "type:application", "module:invoices"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/products/rental/invoices/application"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

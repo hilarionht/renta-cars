@@ -69,7 +69,12 @@
       ],
       "@platform/payments/domain": ["./libs/platform/payments/domain/src/index.ts"],
       "@platform/payments/application": ["./libs/platform/payments/application/src/index.ts"],
-      "@platform/payments/infrastructure": ["./libs/platform/payments/infrastructure/src/index.ts"]
+      "@platform/payments/infrastructure": ["./libs/platform/payments/infrastructure/src/index.ts"],
+      "@rental/invoices/domain": ["./libs/products/rental/invoices/domain/src/index.ts"],
+      "@rental/invoices/application": ["./libs/products/rental/invoices/application/src/index.ts"],
+      "@rental/invoices/infrastructure": [
+        "./libs/products/rental/invoices/infrastructure/src/index.ts"
+      ]
     },
     "target": "es2022",
     "module": "esnext",
