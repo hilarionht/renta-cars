@@ -45,6 +45,7 @@ async function buildApp(params: {
     getDepositPolicy: jest.fn(),
     getPaymentMethodsEnabled: jest.fn(),
     getNotificationChannelPreference: jest.fn(),
+    getMaintenanceThresholdPolicy: jest.fn(),
   };
 
   const moduleRef = await Test.createTestingModule({

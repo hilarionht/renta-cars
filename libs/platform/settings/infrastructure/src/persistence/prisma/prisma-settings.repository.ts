@@ -15,6 +15,7 @@ import {
   DepositPolicy,
   DraftExpirationPolicy,
   LateReturnPolicy,
+  MaintenanceThresholdPolicy,
   MinimumBookingLeadTime,
   NotificationChannelPreference,
   PaymentMethod,
@@ -58,6 +59,10 @@ export class PrismaSettingsRepository implements SettingsRepository {
       // literales que aplican aca.
       notificationChannelPreference:
         settings.notificationChannelPreference.toString() as PrismaNotificationChannelDefault,
+      maintenanceThresholdApplies: settings.maintenanceThresholdPolicy.applies,
+      maintenanceThresholdOdometerKm:
+        settings.maintenanceThresholdPolicy.odometerThresholdKm ?? null,
+      maintenanceThresholdDays: settings.maintenanceThresholdPolicy.daysThreshold ?? null,
     };
 
     if (settings.isNew) {
@@ -101,6 +106,11 @@ export class PrismaSettingsRepository implements SettingsRepository {
       notificationChannelPreference: NotificationChannelPreference.from(
         record.notificationChannelPreference,
       ),
+      maintenanceThresholdPolicy: MaintenanceThresholdPolicy.from({
+        applies: record.maintenanceThresholdApplies,
+        odometerThresholdKm: record.maintenanceThresholdOdometerKm ?? undefined,
+        daysThreshold: record.maintenanceThresholdDays ?? undefined,
+      }),
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       version: record.version,

@@ -32,6 +32,9 @@ export class GetCompanySettingsHandler {
         draftExpirationMinutes: record.draftExpirationMinutes,
         minimumBookingLeadTimeMinutes: record.minimumBookingLeadTimeMinutes,
         notificationChannelPreference: record.notificationChannelPreference,
+        maintenanceThresholdApplies: record.maintenanceThresholdApplies,
+        maintenanceThresholdOdometerKm: record.maintenanceThresholdOdometerKm ?? undefined,
+        maintenanceThresholdDays: record.maintenanceThresholdDays ?? undefined,
       };
     });
   }

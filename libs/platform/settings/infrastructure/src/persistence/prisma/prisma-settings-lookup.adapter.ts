@@ -5,6 +5,7 @@ import type {
   CancellationPolicyView,
   DepositPolicyView,
   LateReturnPolicyView,
+  MaintenanceThresholdPolicyView,
   SettingsLookupPort,
 } from '@platform/settings/application';
 
@@ -112,5 +113,28 @@ export class PrismaSettingsLookupAdapter implements SettingsLookupPort {
       }),
     );
     return record?.notificationChannelPreference ?? null;
+  }
+
+  async getMaintenanceThresholdPolicy(
+    companyId: string,
+  ): Promise<MaintenanceThresholdPolicyView | null> {
+    const record = await this.readTransaction.run((tx) =>
+      tx.companySettings.findFirst({
+        where: { companyId },
+        select: {
+          maintenanceThresholdApplies: true,
+          maintenanceThresholdOdometerKm: true,
+          maintenanceThresholdDays: true,
+        },
+      }),
+    );
+    if (!record) {
+      return null;
+    }
+    return {
+      applies: record.maintenanceThresholdApplies,
+      odometerThresholdKm: record.maintenanceThresholdOdometerKm ?? undefined,
+      daysThreshold: record.maintenanceThresholdDays ?? undefined,
+    };
   }
 }
