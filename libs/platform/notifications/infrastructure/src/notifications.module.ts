@@ -17,9 +17,14 @@ import { ListNotificationsHandler } from './queries/list-notifications.handler';
 
 // Importa SettingsModule (SETTINGS_LOOKUP_PORT, notification channel preference) e
 // IntegrationProvidersModule (NOTIFICATION_SENDER_PORT/PUSH_NOTIFICATION_SENDER_PORT) - mismo
-// patron que PaymentsModule. Sin exports: Notifications no publica ningun puerto sincrono
-// cross-modulo (Hallazgo #5 del plan - el destinatario llega ya resuelto en el payload del
-// evento que dispara la notificacion).
+// patron que PaymentsModule. Exporta SendNotificationHandler (Fase 3 item 3,
+// docs/persistence/10-DECISIONES.md #98) - Notifications no puede alcanzar Reservations/
+// Invoices/Customers (boundaries.mjs bloquea scope:platform -> scope:product-rental en
+// cualquier capa), asi que sus listeners viven DENTRO de reservations/infrastructure e
+// invoices/infrastructure, importando este modulo directo para llamar el handler - mismo
+// patron ya usado para SettingsModule. Las otras 4 dependencias de SendNotificationHandler
+// (NOTIFICATION_REPOSITORY, NOTIFICATION_SENDER_PORT, SETTINGS_LOOKUP_PORT, UNIT_OF_WORK/
+// DOMAIN_EVENT_PUBLISHER via @Global() PrismaModule) ya resuelven completas sin exportarlas.
 @Module({
   imports: [SettingsModule, IntegrationProvidersModule],
   controllers: [NotificationsController, WhatsAppWebhookController],
@@ -31,5 +36,6 @@ import { ListNotificationsHandler } from './queries/list-notifications.handler';
     ListNotificationsHandler,
     UserWelcomeNotificationListener,
   ],
+  exports: [SendNotificationHandler],
 })
 export class NotificationsModule {}
