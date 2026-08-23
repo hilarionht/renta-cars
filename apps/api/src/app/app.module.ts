@@ -33,6 +33,7 @@ import {
   NotificationsModule,
   NOTIFICATIONS_DOMAIN_ERROR_ENTRIES,
 } from '@platform/notifications/infrastructure';
+import { ReportsModule, REPORTS_DOMAIN_ERROR_ENTRIES } from '@rental/reports/infrastructure';
 
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
@@ -61,10 +62,10 @@ import { PrismaModule } from './persistence/prisma.module';
 
 // Composicion completa de Fase 0 (docs/01-ROADMAP.md SS2 - los 9 items) + Fase 1 completa
 // (docs/01-ROADMAP.md SS3: Customers, Vehicles, Calendar, Reservations) + Fase 2 completa
-// (Payments, Invoices) + Fase 3 item 1 (Notifications). Orden de import: RolesPermissions ->
-// Users -> Identity -> Settings -> Companies -> Branches -> Audit -> Files -> Calendar ->
-// Customers -> Vehicles -> Reservations -> Payments -> Invoices -> Notifications, mismo
-// orden de dependencia real y de composicion
+// (Payments, Invoices) + Fase 3 completa (Notifications) + Fase 4 item 1 (Reports). Orden de
+// import: RolesPermissions -> Users -> Identity -> Settings -> Companies -> Branches ->
+// Audit -> Files -> Calendar -> Customers -> Vehicles -> Reservations -> Payments ->
+// Invoices -> Notifications -> Reports, mismo orden de dependencia real y de composicion
 // documentada (docs/technical/03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del
 // anterior via su puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Settings no depende de
 // ningun otro modulo de negocio, pero Companies SI depende de Settings ahora - ver
@@ -94,6 +95,9 @@ import { PrismaModule } from './persistence/prisma.module';
 // un modulo de producto usando un servicio de plataforma (mismo patron ya aceptado para
 // SettingsModule), forzado ademas porque boundaries.mjs bloquea a Notifications de alcanzar
 // Customers en cualquier capa - Notifications no puede hospedar ese listener por si sola.
+// Reports (Fase 4 item 1), ultimo, tampoco importa ningun otro modulo de negocio - lee
+// Prisma directo via ReadTransaction (ADR-0007, CQRS selectivo), sin domain propio
+// (docs/technical/01-MONOREPO.md SS3.1, unica excepcion al trio estandar).
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -178,6 +182,7 @@ import { PrismaModule } from './persistence/prisma.module';
     PaymentsModule,
     InvoicesModule,
     NotificationsModule,
+    ReportsModule,
   ],
   providers: [
     domainErrorRegistryProvider(
@@ -196,6 +201,7 @@ import { PrismaModule } from './persistence/prisma.module';
       PAYMENTS_DOMAIN_ERROR_ENTRIES,
       INVOICES_DOMAIN_ERROR_ENTRIES,
       NOTIFICATIONS_DOMAIN_ERROR_ENTRIES,
+      REPORTS_DOMAIN_ERROR_ENTRIES,
     ),
     // Orden importa, e Nest lo evalua al REVES del orden de registro (el ultimo
     // registrado se prueba primero) - verificado a mano lanzando un DomainError real y
