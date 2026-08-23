@@ -4,7 +4,8 @@
 // getCancellationPolicy/getLateReturnPolicy/getDraftExpirationPolicy/
 // getMinimumBookingLeadTime/getDepositPolicy agregados para Reservations (docs/model/
 // 09-DEPENDENCIES.md SS2, "CompanySettingsPort") - docs/persistence/10-DECISIONES.md #59.
-// getDepositPolicy no tiene consumidor real todavia (SecurityDeposit es Commerce/Fase 2).
+// getDepositPolicy consumido desde Fase 2 por SecurityDepositHoldListener
+// (platform-payments-infrastructure).
 export const SETTINGS_LOOKUP_PORT = Symbol('SettingsLookupPort');
 
 export interface CancellationPolicyView {

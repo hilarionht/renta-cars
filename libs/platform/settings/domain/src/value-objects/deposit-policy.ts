@@ -1,8 +1,8 @@
 // Gap-fill (Reservations, docs/persistence/10-DECISIONES.md #30/#59) - RN-21 ("si aplica,
 // monto/mecanismo"). Porcentual sobre el PriceBreakdown de la Reservation, no Money fijo -
-// consistente con CancellationPolicy/LateReturnPolicy. Publicada por completitud del
-// contrato documentado (09-DEPENDENCIES.md SS2) pero SIN consumidor real esta tanda -
-// SecurityDeposit es Commerce/Fase 2, no construido todavia.
+// consistente con CancellationPolicy/LateReturnPolicy. Consumidor real desde Fase 2:
+// SecurityDepositHoldListener (platform-payments-infrastructure) lo lee al reaccionar a
+// ReservationConfirmed.v1.
 export interface DepositPolicyProps {
   applies: boolean;
   percentageOfTotal: number;
