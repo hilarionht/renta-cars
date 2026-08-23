@@ -21,6 +21,10 @@ export {
   NOTIFICATION_CHANNELS,
   type NotificationChannelValue,
 } from './value-objects/notification-channel-preference';
+export {
+  MaintenanceThresholdPolicy,
+  type MaintenanceThresholdPolicyProps,
+} from './value-objects/maintenance-threshold-policy';
 export { EnabledProductModulesEmptyError } from './errors/enabled-product-modules-empty.error';
 export { PaymentMethodsEmptyError } from './errors/payment-methods-empty.error';
 export { InvalidPaymentMethodError } from './errors/invalid-payment-method.error';
