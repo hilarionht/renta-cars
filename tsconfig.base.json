@@ -81,6 +81,10 @@
       ],
       "@platform/notifications/infrastructure": [
         "./libs/platform/notifications/infrastructure/src/index.ts"
+      ],
+      "@rental/reports/application": ["./libs/products/rental/reports/application/src/index.ts"],
+      "@rental/reports/infrastructure": [
+        "./libs/products/rental/reports/infrastructure/src/index.ts"
       ]
     },
     "target": "es2022",
