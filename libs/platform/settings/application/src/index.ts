@@ -8,6 +8,7 @@ export {
   type CancellationPolicyView,
   type LateReturnPolicyView,
   type DepositPolicyView,
+  type MaintenanceThresholdPolicyView,
 } from './ports/settings-lookup.port';
 export { SETTINGS_REPOSITORY, type SettingsRepository } from './ports/settings.repository';
 export { CreateDefaultSettingsHandler } from './commands/create-default-settings/create-default-settings.handler';
@@ -27,6 +28,8 @@ export { UpdateMinimumBookingLeadTimeHandler } from './commands/update-minimum-b
 export type { UpdateMinimumBookingLeadTimeCommand } from './commands/update-minimum-booking-lead-time/update-minimum-booking-lead-time.command';
 export { UpdateNotificationChannelPreferenceHandler } from './commands/update-notification-channel-preference/update-notification-channel-preference.handler';
 export type { UpdateNotificationChannelPreferenceCommand } from './commands/update-notification-channel-preference/update-notification-channel-preference.command';
+export { UpdateMaintenanceThresholdPolicyHandler } from './commands/update-maintenance-threshold-policy/update-maintenance-threshold-policy.handler';
+export type { UpdateMaintenanceThresholdPolicyCommand } from './commands/update-maintenance-threshold-policy/update-maintenance-threshold-policy.command';
 export type {
   GetCompanySettingsQuery,
   CompanySettingsSummary,

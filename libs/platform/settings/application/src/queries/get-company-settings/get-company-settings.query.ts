@@ -14,4 +14,7 @@ export interface CompanySettingsSummary {
   draftExpirationMinutes: number;
   minimumBookingLeadTimeMinutes: number;
   notificationChannelPreference: string;
+  maintenanceThresholdApplies: boolean;
+  maintenanceThresholdOdometerKm?: number;
+  maintenanceThresholdDays?: number;
 }

@@ -22,6 +22,12 @@ export interface DepositPolicyView {
   percentageOfTotal: number;
 }
 
+export interface MaintenanceThresholdPolicyView {
+  applies: boolean;
+  odometerThresholdKm?: number;
+  daysThreshold?: number;
+}
+
 export interface SettingsLookupPort {
   getEnabledProductModules(companyId: string): Promise<string[] | null>;
   getCancellationPolicy(companyId: string): Promise<CancellationPolicyView | null>;
@@ -34,4 +40,7 @@ export interface SettingsLookupPort {
   getPaymentMethodsEnabled(companyId: string): Promise<string[] | null>;
   // Agregado para Notifications (Fase 3 item 1, RN-33) - primer consumidor real.
   getNotificationChannelPreference(companyId: string): Promise<string | null>;
+  // Agregado en Fase 4 item 2 (RN-29) - sin consumidor real todavia, mismo patron
+  // forward-looking que getDepositPolicy antes de Payments.
+  getMaintenanceThresholdPolicy(companyId: string): Promise<MaintenanceThresholdPolicyView | null>;
 }
