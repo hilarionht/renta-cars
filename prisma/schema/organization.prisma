@@ -95,13 +95,13 @@ model CompanySettings {
   // 20260819124604 (red de seguridad para cualquier INSERT que no pase por
   // CompanySettings.create(), no un valor de negocio) - declararlos aca tambien evita que
   // `prisma migrate dev` detecte drift permanente entre schema.prisma y la columna real.
-  cancellationPolicyTiers       Json    @default("[{\"minHoursBeforeStart\":0,\"penaltyPercentage\":0}]") @map("cancellation_policy_tiers")
-  lateReturnGraceMinutes        Int     @default(30) @map("late_return_grace_minutes")
-  lateReturnPenaltyPctPerHour   Float   @default(10) @map("late_return_penalty_pct_per_hour")
-  depositApplies                Boolean @default(false) @map("deposit_applies")
-  depositPercentageOfTotal      Float   @default(0) @map("deposit_percentage_of_total")
-  draftExpirationMinutes        Int     @default(1440) @map("draft_expiration_minutes")
-  minimumBookingLeadTimeMinutes Int     @default(0) @map("minimum_booking_lead_time_minutes")
+  cancellationPolicyTiers       Json                       @default("[{\"minHoursBeforeStart\":0,\"penaltyPercentage\":0}]") @map("cancellation_policy_tiers")
+  lateReturnGraceMinutes        Int                        @default(30) @map("late_return_grace_minutes")
+  lateReturnPenaltyPctPerHour   Float                      @default(10) @map("late_return_penalty_pct_per_hour")
+  depositApplies                Boolean                    @default(false) @map("deposit_applies")
+  depositPercentageOfTotal      Float                      @default(0) @map("deposit_percentage_of_total")
+  draftExpirationMinutes        Int                        @default(1440) @map("draft_expiration_minutes")
+  minimumBookingLeadTimeMinutes Int                        @default(0) @map("minimum_booking_lead_time_minutes")
   // Notifications, Fase 3 item 1, RN-33 - 8vo policy, primer consumidor real
   // (docs/persistence/10-DECISIONES.md). Nombre de enum distinto de NotificationChannel
   // (support.prisma, catalogo de 4) - mismo criterio que CommercePaymentMethod vs

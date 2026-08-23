@@ -1,6 +1,5 @@
 // @@schema("support") — File, Notification, AuditLogEntry, outbox_event
 // (docs/technical/02-PROYECTOS.md §2.5, docs/technical/04-PERSISTENCE.md §4).
-// Notification sigue vacio a proposito (Fase 0 item 8, Settings, deliberadamente diferido).
 // Sin OutboxRelayWorker todavia (BullMQ) - gap de durabilidad documentado en
 // docs/persistence/10-DECISIONES.md, reconfirmado ahora que Audit (el primer consumidor
 // real) ya existe.
@@ -81,6 +80,64 @@ model File {
 enum UploadStatus {
   Uploaded
   Deleted
+
+  @@schema("support")
+}
+
+model Notification {
+  // Generado en domain/ (EntityId.generate<'Notification'>()) - aggregate root real
+  // (docs/model/02-AGGREGATES.md §16), mismo criterio que AuditLogEntry/File.
+  id                   String               @id @db.Uuid
+  companyId            String               @map("company_id") @db.Uuid
+  kind                 NotificationKind
+  status               NotificationStatus
+  // Snapshot del Recipient al momento de create() - sin FK a User/Customer (docs/persistence/
+  // 03-RELACIONES.md: "sin columna de correlacion tipada"), coherente con que ningun otro
+  // dato de Notification referencia un agregado origen.
+  recipientEmail       String?              @map("recipient_email")
+  recipientPhone       String?              @map("recipient_phone")
+  recipientDeviceToken String?              @map("recipient_device_token")
+  templateId           String               @map("template_id")
+  channel              NotificationChannel?
+  providerReference    String?              @map("provider_reference")
+  failureReason        String?              @map("failure_reason")
+  channelsExhausted    Boolean              @default(false) @map("channels_exhausted")
+  deliveredAt          DateTime?            @map("delivered_at")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  version              Int                  @default(1)
+
+  @@index([companyId, createdAt(sort: Desc)], map: "notifications_company_created_idx")
+  @@map("notifications")
+  @@schema("support")
+}
+
+// Catalogo cerrado de 4 valores (docs/model/04-VALUE_OBJECTS.md §7) - nombre distinto de
+// NotificationChannelDefault (organization.prisma, 3 valores, sin Push) - mismo criterio que
+// CommercePaymentMethod vs PaymentMethod (docs/persistence/10-DECISIONES.md #71-78).
+enum NotificationChannel {
+  WhatsApp
+  Email
+  SMS
+  Push
+
+  @@schema("support")
+}
+
+enum NotificationStatus {
+  Pending
+  Sent
+  Delivered
+  Failed
+
+  @@schema("support")
+}
+
+enum NotificationKind {
+  Confirmation
+  Reminder
+  Receipt
+  Alert
 
   @@schema("support")
 }
