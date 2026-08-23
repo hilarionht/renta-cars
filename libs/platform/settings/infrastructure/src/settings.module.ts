@@ -10,6 +10,7 @@ import {
   UpdateEnabledProductModulesHandler,
   UpdateLateReturnPolicyHandler,
   UpdateMinimumBookingLeadTimeHandler,
+  UpdateNotificationChannelPreferenceHandler,
   UpdatePaymentMethodsEnabledHandler,
 } from '@platform/settings/application';
 
@@ -38,6 +39,7 @@ import { GetCompanySettingsHandler } from './queries/get-company-settings.handle
     UpdateDepositPolicyHandler,
     UpdateDraftExpirationPolicyHandler,
     UpdateMinimumBookingLeadTimeHandler,
+    UpdateNotificationChannelPreferenceHandler,
     GetCompanySettingsHandler,
   ],
   exports: [SETTINGS_REPOSITORY, SETTINGS_LOOKUP_PORT, CreateDefaultSettingsHandler],
