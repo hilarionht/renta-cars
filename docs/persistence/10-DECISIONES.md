@@ -576,6 +576,72 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Decisión**: `Invoice: 'rental'` se agrega antes de correr cualquier smoke test. `Charge` no necesita entrada propia — entidad interna, nunca publica eventos por sí misma, mismo criterio que `PriceAdjustment`/`Inspection`.
 
+## #87 — Máquina de estados de `Notification`: 3 transiciones, reconciliando las dos flechas documentadas
+
+**Contexto**: `docs/model/08-STATE_MACHINES.md §6.10` dibuja `Sent → Failed` explícitamente, y su nota "Inválida" (línea 326) lo confirma sin ambigüedad ("`Failed` no es alcanzable sin haber agotado el reintento por canal alternativo... la transición directa `Sent → Failed` sin ese intento previo es una violación de la política de reintento") — es decir, la transición documentada **es** `Sent → Failed`, no `Pending → Failed`. Una primera lectura de esta tanda leyó el diagrama de forma más débil de lo que sostiene (asumiendo solo `Pending → {Sent | Failed}`), corregido por una revisión antes de implementar.
+
+**Decisión**: se modelan 3 transiciones, no 2. `send(channel, providerReference)`: `Pending → Sent`, llamada solo después de que `NOTIFICATION_SENDER_PORT.send()` acepta el mensaje en algún canal — el reintento entre canales de RN-34 ocurre entero en `application/` (`SendNotificationHandler`) **antes** de esta llamada. `fail(reason, channelsExhausted: true)`: `Pending → Failed`, transición pragmática no diagramada explícitamente pero funcionalmente necesaria (agotamiento síncrono de todos los canales sin que ninguno aceptara nada). `markFailed(reason)`: `Sent → Failed` (`channelsExhausted: false`), honra la flecha documentada literalmente — representa un fallo **asíncrono posterior a la aceptación** (p. ej. WhatsApp reporta vía webhook de estado que un mensaje ya aceptado terminó fallando en destino, escenario real de Meta Cloud API, distinto del reintento síncrono de RN-34).
+
+## #88 — `NotificationChannelPreference`: 8vo policy de `CompanySettings`, primer consumidor real
+
+**Contexto**: `libs/platform/settings/domain/src/entities/company-settings.ts` ya listaba el campo como "sin consumidor real todavía" (mismo patrón forward-looking que `DepositPolicy` antes de Payments, `#71`).
+
+**Decisión**: VO `NotificationChannelPreference` (`{preferredChannel: 'WhatsApp'|'Email'|'SMS'}`), default `Email` — pragmático, no requiere aprobación de plantillas como sí exige WhatsApp. Enum Prisma `NotificationChannelDefault` (`organization.prisma`, 3 valores) con nombre distinto de `NotificationChannel` (`support.prisma`, 4 valores — incluye `Push`) — mismo criterio de colisión de nombres que `CommercePaymentMethod` vs `PaymentMethod` (`#71`).
+
+## #89 — `NotificationSenderPort`: un adaptador compuesto + `useFactory` fake/real, no 3 bindings separados
+
+**Contexto**: WhatsApp/Email/SMS comparten la misma operación conceptual (`send({channel, recipient, templateId, templateParams})`, `docs/contracts/05-INTEGRATION-CONTRACTS.md §1`). A diferencia de `PAYMENT_GATEWAY_PORT` (Stripe/MercadoPago, se activa UNO por config), en modo `real` los 3 canales de mensajería están simultáneamente activos — no hay "el proveedor activo", hay 3 proveedores activos a la vez.
+
+**Decisión**: un adaptador compuesto `NotificationSenderAdapter implements NotificationSenderPort` enruta internamente por `input.channel` hacia 3 sub-adaptadores de un solo canal (`WhatsAppChannelSender`, `EmailChannelSender`, `SmsChannelSender`). `IntegrationProvidersModule` gana un `useFactory` sobre `NOTIFICATION_SENDER_PORT` (`NOTIFICATION_SENDER_PROVIDER=fake|real`, default `fake`) que selecciona entre `FakeNotificationSenderAdapter` y el compuesto entero — necesario para que el modo fake sea determinista sin credenciales (reemplaza el compuesto completo, no cada canal por separado). `PushNotificationSenderPort` se bindea directo, sin este mecanismo — ningún flujo de esta tanda lo ejercita (`#94`).
+
+## #90 — Correlación del webhook de WhatsApp vía `biz_opaque_callback_data`, sin lookup por referencia opaca
+
+**Contexto**: mismo problema que Payments resolvió adjuntando `companyId` en la metadata del proveedor (`#76`) — una ruta de webhook `@Public()` no tiene `RequestContext`, y RLS fail-closed exige un `company_id` explícito.
+
+**Decisión**: Meta Cloud API expone `biz_opaque_callback_data`, un campo diseñado exactamente para esto (viaja ida y vuelta hasta el webhook de estado). `WhatsAppChannelSender.send()` manda `biz_opaque_callback_data: JSON.stringify({notificationId, companyId})`; `WhatsAppWebhookController` lo extrae directo del campo eco — nunca busca por `providerReference`. Sin traductor separado (a diferencia de `STRIPE_WEBHOOK_TRANSLATOR_PORT`/`MERCADOPAGO_WEBHOOK_TRANSLATOR_PORT`, `#75`) — único proveedor de webhook de Notifications esta tanda, no hay una segunda implementación con la que compartir un puerto de abstracción.
+
+## #91 — Alcance del webhook: solo WhatsApp esta tanda — Email/SMS sin confirmación de entrega
+
+**Contexto**: `docs/contracts/06-WEBHOOKS.md §2` lista verificación HMAC (`X-Hub-Signature-256`) específicamente para WhatsApp — SendGrid/Twilio no aparecen en ningún doc con un webhook de entrega documentado.
+
+**Decisión**: se implementa `POST /webhooks/v1/whatsapp` (traduce a `NotificationDelivered.v1`/`NotificationFailed.v1` vía `HandleDeliveryConfirmationHandler`) más el `GET /webhooks/v1/whatsapp` de verificación de suscripción que exige la Cloud API de Meta (`hub.mode`/`hub.verify_token`/`hub.challenge`, mecánica real de integración, no una regla de negocio inventada). Las `Notification` enviadas por Email/SMS quedan en `Sent`, nunca alcanzan `Delivered` automáticamente esta tanda — no bloquea RN-34 (el reintento decide por el resultado síncrono de `send()`, nunca por la confirmación de entrega asíncrona).
+
+## #92 — Reuso de `NotificationKind: 'Alert'` para el único listener de ejemplo
+
+**Contexto**: `UserCreated.v1` (bienvenida a un `User`, personal interno de la Company) no encaja en `Confirmation`/`Reminder`/`Receipt` — el catálogo de `NotificationKind` es cerrado, 4 valores.
+
+**Decisión**: se reutiliza `Alert` — el glosario (`docs/domain/02-LENGUAJE-UBICUO.md §8`) lo define exactamente como "reservado para notificaciones internas de operación... no para comunicación con el Customer", y `User` es personal interno, no un `Customer`. Sin inventar un 5to valor en el catálogo cerrado.
+
+## #93 — Orden de fallback entre canales: pragmático, sin tabla cerrada evento→canal documentada
+
+**Contexto**: no existe ningún documento con una matriz "tipo de notificación → evento que la dispara → canal". `Company` solo fija UN canal preferido (RN-33), no una lista de prioridad completa.
+
+**Decisión**: orden fijo `[preferido de `CompanySettings`, resto en prioridad WhatsApp > Email > SMS]`, saltando cualquier canal para el que el `Recipient` no tenga el dato necesario (`Recipient.hasChannel()`) — mismo criterio pragmático que el correlativo de `InvoiceNumber` por `Company` (`#83`).
+
+## #94 — Gaps de alcance explícitos: escalamiento humano y `meta.warning` sin implementar esta tanda
+
+**Contexto**: `docs/model/02-AGGREGATES.md §16` exige que una `Notification` `kind: Confirmation` que agota todos los canales genere "una señal visible para escalamiento humano" (Agente de Reservas). `docs/contracts/07-ERROR-CATALOG.md §6` documenta que el fallo se traduce "a `warning`... o a `NotificationFailed.v1`" — el mecanismo de `meta.warning` en la respuesta síncrona de la operación de negocio que originó la notificación no aplica todavía.
+
+**Decisión**: ninguno de los dos se implementa esta tanda — el único listener real usa `kind: 'Alert'`, nunca `Confirmation` (ítem 3 del roadmap, conectar Reservations/Payments/Invoices a Notifications, queda explícitamente diferido). La regla de escalamiento queda correctamente sin ejercer, pero también sin ningún mecanismo construido más allá de `NotificationFailed.v1` — documentado aquí para que una tanda futura no asuma que `fail()` ya cumple esa regla de negocio.
+
+## #95 — Proveedores de Email/SMS: SendGrid y Twilio, decisión del usuario esta sesión
+
+**Contexto**: WhatsApp (Meta Cloud API) y Push (Expo) ya estaban fijados en `docs/11-INTEGRACIONES.md §3/§5` sin ambigüedad — Email y SMS quedaban explícitamente diferidos ("documentado en el ADR correspondiente cuando se seleccione").
+
+**Decisión** (usuario, vía `AskUserQuestion`): SendGrid para Email (plan gratuito permanente de 100/día, recomendado por no tener publicidad) y Twilio para SMS. Mismo criterio que Stripe/MercadoPago (`#77`): se construyen los 4 adaptadores reales y completos (`WhatsAppChannelSender` vía `fetch` nativo sin SDK oficial de Meta para Node, `EmailChannelSender` vía `@sendgrid/mail`, `SmsChannelSender` vía `twilio`, `PushSenderAdapter` vía `expo-server-sdk`), sin credenciales disponibles en este entorno — no ejercidos contra su API viva en el smoke test/e2e de esta tanda, gap de alcance documentado explícitamente. `SmsChannelSender` tiene una limitación adicional propia: la API base de Messages de Twilio no tiene plantillas del lado del servidor (a diferencia de WhatsApp/SendGrid) — sin ningún catálogo de copy documentado en el repo, el body se toma de `templateParams.body` tal cual, con un fallback mínimo si falta.
+
+## #96 — `AGGREGATE_TYPE_TO_SCHEMA`: `Notification` agregado proactivamente
+
+**Contexto**: mismo mapa que ya causó bugs reales varias veces en la sesión (`#26`, `#35`, `#57`, `#68`, `#86`).
+
+**Decisión**: `Notification: 'support'` se agrega antes de correr cualquier smoke test.
+
+## #97 — Bug real: `SettingsModule` nunca registró `UpdateNotificationChannelPreferenceHandler` como provider
+
+**Contexto**: encontrado corriendo el smoke test de servidor real de Notifications (mismo método de toda la sesión, `#78`). `SettingsController` ya inyectaba `UpdateNotificationChannelPreferenceHandler` (agregado junto con la extensión del 8vo policy, `#88`), pero el handler nunca se declaró en el array `providers` de `SettingsModule` — el boot completo de `apps/api` fallaba con `UnknownDependenciesException` en `SettingsController`, no solo el endpoint nuevo.
+
+**Decisión**: se agrega el provider faltante. No detectado por los tests unitarios/de integración de la extensión de Settings porque instancian el handler directo (`new UpdateNotificationChannelPreferenceHandler(...)`), sin pasar por el grafo de DI de Nest — mismo tipo de gap de cobertura que `#78` (el smoke test contra un servidor real sigue siendo el único paso que ejercita el `@Module()` completo).
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
