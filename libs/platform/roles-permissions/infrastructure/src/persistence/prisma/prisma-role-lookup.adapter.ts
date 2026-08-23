@@ -20,4 +20,22 @@ export class PrismaRoleLookupAdapter implements RoleLookupPort {
     );
     return role !== null;
   }
+
+  // status: 'Active' explicito - Role.deactivate() no borra la columna permissions, solo
+  // cambia status (docs/persistence/10-DECISIONES.md Fase 4 item 2) - sin este filtro, un
+  // rol desactivado seguiria "teniendo" sus permisos en cualquier lectura fresca.
+  async getPermissionsForRoles(roleIds: string[], companyId?: string): Promise<string[]> {
+    if (roleIds.length === 0) {
+      return [];
+    }
+    const roles = await this.readTransaction.run(
+      (tx) =>
+        tx.role.findMany({
+          where: { id: { in: roleIds }, status: 'Active' },
+          select: { permissions: true },
+        }),
+      companyId,
+    );
+    return Array.from(new Set(roles.flatMap((role) => role.permissions)));
+  }
 }
