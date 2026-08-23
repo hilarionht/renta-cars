@@ -79,15 +79,21 @@ import { PrismaModule } from './persistence/prisma.module';
 // mismo, no visibles aca directamente (mismo patron que Vehicles->Branches). Payments NO
 // depende de Reservations directamente (Commerce es 100% event-driven respecto de Rental
 // Operations, docs/model/09-DEPENDENCIES.md SS2/SS3 - la coordinacion es via
-// EventEmitter2/@OnEvent, nunca un import de modulo) - solo importa SettingsModule +
-// IntegrationProvidersModule dentro de PaymentsModule mismo. Invoices, ultimo, tampoco
-// importa Reservations ni Payments directo - mismo mecanismo 100% por evento
-// (ReservationCheckedIn.v1 entrante, InvoiceIssued.v1 saliente, consumido por el nuevo
-// InvoiceIssuedListener DENTRO de ReservationsModule, no visible aca). Notifications,
-// ultimo, tampoco importa ningun otro modulo de negocio directo - su unico listener real
-// esta tanda (UserWelcomeNotificationListener) escucha UserCreated.v1 via EventEmitter2,
-// mismo mecanismo 100% por evento; solo importa SettingsModule + IntegrationProvidersModule
-// dentro de NotificationsModule mismo.
+// EventEmitter2/@OnEvent, nunca un import de modulo ENTRE MODULOS DE NEGOCIO PARES) - solo
+// importa SettingsModule + IntegrationProvidersModule dentro de PaymentsModule mismo.
+// Invoices tampoco importa Reservations ni Payments directo - mismo mecanismo 100% por
+// evento (ReservationCheckedIn.v1 entrante, InvoiceIssued.v1 saliente, consumido por
+// InvoiceIssuedListener DENTRO de ReservationsModule, no visible aca). Notifications tampoco
+// importa ningun otro modulo de negocio directo - su unico listener de Fase 3 item 1
+// (UserWelcomeNotificationListener) escucha UserCreated.v1 via EventEmitter2; solo importa
+// SettingsModule + IntegrationProvidersModule dentro de NotificationsModule mismo.
+// Excepcion deliberada (Fase 3 item 3, docs/persistence/10-DECISIONES.md #98):
+// ReservationsModule/InvoicesModule SI importan NotificationsModule directo (para que
+// ReservationConfirmedNotificationListener/InvoiceIssuedNotificationListener llamen
+// SendNotificationHandler.execute()) - no es un modulo de negocio par importando a otro, es
+// un modulo de producto usando un servicio de plataforma (mismo patron ya aceptado para
+// SettingsModule), forzado ademas porque boundaries.mjs bloquea a Notifications de alcanzar
+// Customers en cualquier capa - Notifications no puede hospedar ese listener por si sola.
 @Module({
   imports: [
     ConfigModule.forRoot({
