@@ -105,6 +105,175 @@ describe('GET /audit-log', () => {
     });
   });
 
+  // Fase 4 item 2 (revision de cobertura de Audit) - LoginFailed.v1 es un caso de riesgo real:
+  // aggregateId es command.email (string arbitrario), no un EntityId/UUID como el resto del
+  // catalogo (login.handler.ts, "sin agregado que cambie de estado en un login fallido") -
+  // nunca se habia verificado que ese shape distinto se audite correctamente.
+  it('registra LoginFailed.v1 con subjectId = email (no UUID) y actorRef "system"', async () => {
+    const taxId = `tax-audit-loginfail-${Date.now()}`;
+    const registerResponse = await request(baseUrl)
+      .post('/api/v1/companies')
+      .send({
+        legalName: `Company audit loginfail e2e ${taxId}`,
+        taxId,
+        billingContactEmail: 'billing@example.com',
+      });
+    const companyId: string = registerResponse.body.data.id;
+    const admin = await seedAdminForCompany(companyId);
+
+    const failedLoginResponse = await request(baseUrl)
+      .post('/api/v1/auth/login')
+      .send({ companyId, email: admin.adminEmail, password: 'ContraseñaIncorrecta!1' });
+    expect(failedLoginResponse.status).toBe(401);
+
+    const loginResponse = await request(baseUrl)
+      .post('/api/v1/auth/login')
+      .send({ companyId, email: admin.adminEmail, password: admin.adminPassword });
+    const accessToken: string = loginResponse.body.data.accessToken;
+
+    const entries = await pollAuditLog(baseUrl, accessToken, (current) =>
+      current.some((e) => e.action === 'LoginFailed.v1'),
+    );
+    const loginFailed = entries.find((e) => e.action === 'LoginFailed.v1');
+    expect(loginFailed).toMatchObject({
+      subjectType: 'Session',
+      subjectId: admin.adminEmail,
+      actorRef: 'system',
+    });
+  });
+
+  // ReservationRejectedByAvailability.v1 se publica en su PROPIA transaccion, independiente
+  // de la del aggregate Reservation (confirm-reservation.handler.ts, "el evento se publica
+  // sin tocar el agregado - permanece Draft") - nunca se habia verificado que ese publish
+  // desacoplado igual llegue completo a Audit.
+  it('registra ReservationRejectedByAvailability.v1 al confirmar 2 reservations superpuestas del mismo vehicle', async () => {
+    const taxId = `tax-audit-rejected-${Date.now()}`;
+    const registerResponse = await request(baseUrl)
+      .post('/api/v1/companies')
+      .send({
+        legalName: `Company audit rejected e2e ${taxId}`,
+        taxId,
+        billingContactEmail: 'billing@example.com',
+      });
+    const companyId: string = registerResponse.body.data.id;
+    const admin = await seedAdminForCompany(companyId);
+    const loginResponse = await request(baseUrl)
+      .post('/api/v1/auth/login')
+      .send({ companyId, email: admin.adminEmail, password: admin.adminPassword });
+    const accessToken: string = loginResponse.body.data.accessToken;
+    const auth = (req: request.Test) => req.set('Authorization', `Bearer ${accessToken}`);
+
+    const branchResponse = await auth(request(baseUrl).post('/api/v1/branches')).send({
+      name: 'Sucursal audit rejected e2e',
+      address: { line1: 'Av. Rejected 1', city: 'CDMX', country: 'MX' },
+      operatingHours: [{ day: 'monday', open: '08:00', close: '18:00' }],
+    });
+    const branchId: string = branchResponse.body.data.id;
+
+    const categoryResponse = await auth(request(baseUrl).post('/api/v1/vehicle-categories')).send({
+      name: 'Economico audit rejected e2e',
+    });
+    const categoryId: string = categoryResponse.body.data.id;
+    await auth(request(baseUrl).post(`/api/v1/vehicle-categories/${categoryId}/rates`)).send({
+      amountMinorUnits: 50000,
+      currency: 'USD',
+      unit: 'Day',
+      validFrom: '2026-01-01T00:00:00.000Z',
+    });
+
+    const vehicleResponse = await auth(request(baseUrl).post('/api/v1/vehicles')).send({
+      branchId,
+      vehicleCategoryId: categoryId,
+      licensePlate: `AUD-${Date.now() % 100000}`,
+      vin: '3HGCM82633A4447RJ',
+    });
+    const vehicleId: string = vehicleResponse.body.data.id;
+    const vehicleDocResponse = await auth(
+      request(baseUrl).post(`/api/v1/vehicles/${vehicleId}/documents`),
+    ).send({
+      documentType: 'PropertyCard',
+      fileId: 'file-e2e-vehicle-audit-rejected',
+      expiryDate: '2030-01-01T00:00:00.000Z',
+    });
+    const vehicleDocumentId: string = vehicleDocResponse.body.data.id;
+    await auth(
+      request(baseUrl).post(`/api/v1/vehicles/${vehicleId}/documents/${vehicleDocumentId}/verify`),
+    );
+    await auth(request(baseUrl).post(`/api/v1/vehicles/${vehicleId}/enable`));
+
+    async function createEligibleCustomer(suffix: string): Promise<string> {
+      const customerResponse = await auth(request(baseUrl).post('/api/v1/customers')).send({
+        name: `Cliente Audit Rejected E2E ${suffix}`,
+        taxIdOrDocumentId: `doc-${taxId}-${suffix}`,
+        contactEmail: `cliente-rejected-${suffix}-${Date.now()}@example.com`,
+        contactPhone: '+525500000003',
+        customerType: 'Individual',
+      });
+      const customerId: string = customerResponse.body.data.id;
+      const identityDocResponse = await auth(
+        request(baseUrl).post(`/api/v1/customers/${customerId}/identity-documents`),
+      ).send({
+        documentType: 'NationalId',
+        fileId: `file-e2e-identity-audit-rejected-${suffix}`,
+        expiryDate: '2030-01-01T00:00:00.000Z',
+      });
+      const identityDocumentId: string = identityDocResponse.body.data.id;
+      await auth(
+        request(baseUrl).post(
+          `/api/v1/customers/${customerId}/identity-documents/${identityDocumentId}/verify`,
+        ),
+      );
+      return customerId;
+    }
+
+    const customerAId = await createEligibleCustomer('A');
+    const customerBId = await createEligibleCustomer('B');
+
+    const startDate = '2026-12-10T10:00:00.000Z';
+    const endDate = '2026-12-13T10:00:00.000Z';
+
+    const reservationAResponse = await auth(request(baseUrl).post('/api/v1/reservations')).send({
+      customerId: customerAId,
+      vehicleId,
+      startDate,
+      endDate,
+    });
+    const reservationAId: string = reservationAResponse.body.data.id;
+    const reservationBResponse = await auth(request(baseUrl).post('/api/v1/reservations')).send({
+      customerId: customerBId,
+      vehicleId,
+      startDate,
+      endDate,
+    });
+    const reservationBId: string = reservationBResponse.body.data.id;
+
+    const confirmAResponse = await auth(
+      request(baseUrl).post(`/api/v1/reservations/${reservationAId}/confirm`),
+    );
+    expect(confirmAResponse.status).toBe(201);
+
+    const confirmBResponse = await auth(
+      request(baseUrl).post(`/api/v1/reservations/${reservationBId}/confirm`),
+    );
+    expect(confirmBResponse.status).toBe(409);
+    expect(confirmBResponse.body.code).toBe('VEHICLE_NOT_AVAILABLE');
+
+    const entries = await pollAuditLog(baseUrl, accessToken, (current) =>
+      current.some(
+        (e) =>
+          e.action === 'ReservationRejectedByAvailability.v1' && e.subjectId === reservationBId,
+      ),
+    );
+    const rejected = entries.find(
+      (e) => e.action === 'ReservationRejectedByAvailability.v1' && e.subjectId === reservationBId,
+    );
+    expect(rejected).toMatchObject({
+      subjectType: 'Reservation',
+      subjectId: reservationBId,
+      actorRef: admin.adminUserId,
+    });
+  });
+
   it('una company no ve las filas de audit_log de otra company (RLS)', async () => {
     const registerA = await request(baseUrl)
       .post('/api/v1/companies')
