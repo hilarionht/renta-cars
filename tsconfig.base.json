@@ -74,6 +74,13 @@
       "@rental/invoices/application": ["./libs/products/rental/invoices/application/src/index.ts"],
       "@rental/invoices/infrastructure": [
         "./libs/products/rental/invoices/infrastructure/src/index.ts"
+      ],
+      "@platform/notifications/domain": ["./libs/platform/notifications/domain/src/index.ts"],
+      "@platform/notifications/application": [
+        "./libs/platform/notifications/application/src/index.ts"
+      ],
+      "@platform/notifications/infrastructure": [
+        "./libs/platform/notifications/infrastructure/src/index.ts"
       ]
     },
     "target": "es2022",
