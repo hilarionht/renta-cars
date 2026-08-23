@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 
-import { RequestContext, RequiresProductModule } from '@platform/persistence-kernel';
+import {
+  RequestContext,
+  RequirePermission,
+  RequiresProductModule,
+} from '@platform/persistence-kernel';
 import {
   ApproveExtensionHandler,
   CancelReservationHandler,
@@ -50,6 +54,7 @@ export class ReservationsController {
   ) {}
 
   @Post()
+  @RequirePermission('reservations:create')
   async create(@Body() dto: CreateReservationRequestDto): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
     const id = await this.createReservation.execute({
@@ -86,12 +91,14 @@ export class ReservationsController {
   }
 
   @Post(':id/confirm')
+  @RequirePermission('reservations:confirm')
   async confirm(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.confirmReservation.execute({ companyId, reservationId: id });
   }
 
   @Post(':id/cancel')
+  @RequirePermission('reservations:cancel')
   async cancel(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CancelReservationRequestDto,
@@ -105,12 +112,14 @@ export class ReservationsController {
   }
 
   @Post(':id/mark-no-show')
+  @RequirePermission('reservations:mark-no-show')
   async markReservationNoShow(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.markNoShow.execute({ companyId, reservationId: id });
   }
 
   @Post(':id/check-out')
+  @RequirePermission('reservations:check-out')
   async checkOut(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CheckOutReservationRequestDto,
@@ -127,6 +136,7 @@ export class ReservationsController {
   }
 
   @Post(':id/check-in')
+  @RequirePermission('reservations:check-in')
   async checkIn(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CheckInReservationRequestDto,
@@ -150,6 +160,7 @@ export class ReservationsController {
   }
 
   @Post(':id/reschedule')
+  @RequirePermission('reservations:reschedule')
   async reschedule(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RescheduleReservationRequestDto,
@@ -164,6 +175,7 @@ export class ReservationsController {
   }
 
   @Post(':id/request-extension')
+  @RequirePermission('reservations:request-extension')
   async requestReservationExtension(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RequestExtensionRequestDto,
@@ -177,6 +189,7 @@ export class ReservationsController {
   }
 
   @Post(':id/approve-extension')
+  @RequirePermission('reservations:approve-extension')
   async approveReservationExtension(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ApproveExtensionRequestDto,
@@ -190,6 +203,7 @@ export class ReservationsController {
   }
 
   @Post(':id/swap-vehicle')
+  @RequirePermission('reservations:swap-vehicle')
   async swap(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SwapVehicleRequestDto,
