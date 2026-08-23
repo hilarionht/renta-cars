@@ -2,7 +2,7 @@ export default {
   displayName: 'platform-companies-infrastructure',
   preset: '../../../../tooling/jest/base.config.ts',
   testEnvironment: 'node',
-  testMatch: ['**/*.integration.spec.ts'],
+  testMatch: ['**/*.spec.ts'],
   globalSetup: '../../../../tooling/testing/testcontainers/jest-global-setup.ts',
   globalTeardown: '../../../../tooling/testing/testcontainers/jest-global-teardown.ts',
   testTimeout: 60000,

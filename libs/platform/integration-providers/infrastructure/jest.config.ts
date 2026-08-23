@@ -2,7 +2,7 @@ export default {
   displayName: 'platform-integration-providers-infrastructure',
   preset: '../../../../tooling/jest/base.config.ts',
   testEnvironment: 'node',
-  testMatch: ['**/*.integration.spec.ts'],
+  testMatch: ['**/*.spec.ts'],
   // MinIO, no el par Postgres+Redis del preset compartido de otros *-infrastructure - este
   // proyecto no toca Postgres en absoluto (ver tooling/testing/testcontainers/
   // minio-jest-global-setup.ts).
