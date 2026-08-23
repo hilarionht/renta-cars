@@ -1,9 +1,10 @@
 // @@schema("organization") — Company, Branch, CompanySettings (docs/technical/02-PROYECTOS.md §2.2).
-// CompanySettings (mas abajo) cubre 7 de sus 9 politicas documentadas
+// CompanySettings (mas abajo) cubre las 9 politicas documentadas
 // (EnabledProductModules, PaymentMethodsEnabled desde Fase 0; CancellationPolicy,
 // LateReturnPolicy, DepositPolicy, DraftExpirationPolicy, MinimumBookingLeadTime agregadas
-// en Reservations, docs/persistence/10-DECISIONES.md #59) - MaintenanceThresholdPolicy
-// (Vehicles) y NotificationChannelPreference (Support) siguen sin consumidor real.
+// en Reservations, docs/persistence/10-DECISIONES.md #59; NotificationChannelPreference en
+// Notifications, Fase 3 item 1; MaintenanceThresholdPolicy en Fase 4 item 2, sin consumidor
+// real todavia - mismo patron forward-looking que tuvo DepositPolicy antes de Payments).
 
 model Company {
   // Raiz de tenant (docs/persistence/06-RLS.md §4.1) - no tiene su propio companyId, su
@@ -95,18 +96,28 @@ model CompanySettings {
   // 20260819124604 (red de seguridad para cualquier INSERT que no pase por
   // CompanySettings.create(), no un valor de negocio) - declararlos aca tambien evita que
   // `prisma migrate dev` detecte drift permanente entre schema.prisma y la columna real.
-  cancellationPolicyTiers       Json                       @default("[{\"minHoursBeforeStart\":0,\"penaltyPercentage\":0}]") @map("cancellation_policy_tiers")
-  lateReturnGraceMinutes        Int                        @default(30) @map("late_return_grace_minutes")
-  lateReturnPenaltyPctPerHour   Float                      @default(10) @map("late_return_penalty_pct_per_hour")
-  depositApplies                Boolean                    @default(false) @map("deposit_applies")
-  depositPercentageOfTotal      Float                      @default(0) @map("deposit_percentage_of_total")
-  draftExpirationMinutes        Int                        @default(1440) @map("draft_expiration_minutes")
-  minimumBookingLeadTimeMinutes Int                        @default(0) @map("minimum_booking_lead_time_minutes")
+  cancellationPolicyTiers        Json                       @default("[{\"minHoursBeforeStart\":0,\"penaltyPercentage\":0}]") @map("cancellation_policy_tiers")
+  lateReturnGraceMinutes         Int                        @default(30) @map("late_return_grace_minutes")
+  lateReturnPenaltyPctPerHour    Float                      @default(10) @map("late_return_penalty_pct_per_hour")
+  depositApplies                 Boolean                    @default(false) @map("deposit_applies")
+  depositPercentageOfTotal       Float                      @default(0) @map("deposit_percentage_of_total")
+  draftExpirationMinutes         Int                        @default(1440) @map("draft_expiration_minutes")
+  minimumBookingLeadTimeMinutes  Int                        @default(0) @map("minimum_booking_lead_time_minutes")
   // Notifications, Fase 3 item 1, RN-33 - 8vo policy, primer consumidor real
   // (docs/persistence/10-DECISIONES.md). Nombre de enum distinto de NotificationChannel
   // (support.prisma, catalogo de 4) - mismo criterio que CommercePaymentMethod vs
   // PaymentMethod.
-  notificationChannelPreference NotificationChannelDefault @default(Email) @map("notification_channel_preference")
+  notificationChannelPreference  NotificationChannelDefault @default(Email) @map("notification_channel_preference")
+  // Fase 4 item 2, RN-29 - 9na y ultima policy. odometerThresholdKm/daysThreshold
+  // nullable (Int?, no Float - "kilometraje" y "dias" son cantidades enteras por
+  // naturaleza) - "Umbrales > 0" se valida en el dominio (MaintenanceThresholdPolicy.from()),
+  // no con un CHECK de Postgres (ambos son opcionales individualmente, un CHECK > 0 sobre una
+  // columna nullable ya deja pasar NULL sin más - la regla real, "al menos uno presente
+  // cuando applies=true", no es expresable como CHECK de columna simple sin acoplar 3
+  // columnas).
+  maintenanceThresholdApplies    Boolean                    @default(false) @map("maintenance_threshold_applies")
+  maintenanceThresholdOdometerKm Int?                       @map("maintenance_threshold_odometer_km")
+  maintenanceThresholdDays       Int?                       @map("maintenance_threshold_days")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
