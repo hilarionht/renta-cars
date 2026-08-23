@@ -51,6 +51,7 @@ function buildHandler(overrides?: {
     areAdditionalDriversValidated: jest
       .fn()
       .mockResolvedValue(overrides?.areDriversValidated ?? true),
+    getContactInfo: jest.fn(),
   };
   const unitOfWork = { run: jest.fn((work: (tx: object) => Promise<void>) => work({})) };
   const eventPublisher = { publish: jest.fn().mockResolvedValue(undefined) };

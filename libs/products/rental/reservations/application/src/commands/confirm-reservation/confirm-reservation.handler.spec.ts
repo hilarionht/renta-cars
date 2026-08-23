@@ -43,6 +43,7 @@ function buildHandler(overrides?: {
     areAdditionalDriversValidated: jest
       .fn()
       .mockResolvedValue(overrides?.areDriversValidated ?? true),
+    getContactInfo: jest.fn(),
   };
   const vehicleStatusPort: VehicleStatusPort = {
     isOperational: jest.fn().mockResolvedValue(true),
@@ -165,6 +166,7 @@ describe('ConfirmReservationHandler', () => {
     const customerLookupPort: CustomerLookupPort = {
       isEligibleForConfirmation: jest.fn().mockResolvedValue(true),
       areAdditionalDriversValidated: jest.fn().mockResolvedValue(true),
+      getContactInfo: jest.fn(),
     };
     const vehicleStatusPort: VehicleStatusPort = {
       isOperational: jest.fn().mockResolvedValue(true),

@@ -3,7 +3,11 @@
 // `export *`, salvo el propio index.ts reexportando un unico submodulo interno de barrel.
 // Ver docs/technical/09-CODING-STANDARDS.md SS2.
 export { CUSTOMER_REPOSITORY, type CustomerRepository } from './ports/customer.repository';
-export { CUSTOMER_LOOKUP_PORT, type CustomerLookupPort } from './ports/customer-lookup.port';
+export {
+  CUSTOMER_LOOKUP_PORT,
+  type CustomerLookupPort,
+  type CustomerContactInfo,
+} from './ports/customer-lookup.port';
 
 export { RegisterCustomerHandler } from './commands/register-customer/register-customer.handler';
 export type { RegisterCustomerCommand } from './commands/register-customer/register-customer.command';

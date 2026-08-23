@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { ReadTransaction } from '@platform/persistence-kernel';
-import type { CustomerLookupPort } from '@rental/customers/application';
+import type { CustomerContactInfo, CustomerLookupPort } from '@rental/customers/application';
 
 // Consumido por Reservation (Fase 1, todavia no construido) - corre despues de
 // TenantContextGuard, ReadTransaction ambiente alcanza. Reimplementa el predicado de
@@ -51,5 +51,23 @@ export class PrismaCustomerLookupAdapter implements CustomerLookupPort {
       return false;
     }
     return records.every((record) => record.status === 'Validated');
+  }
+
+  async getContactInfo(
+    customerId: string,
+    companyId?: string,
+  ): Promise<CustomerContactInfo | null> {
+    const record = await this.readTransaction.run(
+      (tx) =>
+        tx.customer.findFirst({
+          where: { id: customerId },
+          select: { contactEmail: true, contactPhone: true, name: true },
+        }),
+      companyId,
+    );
+    if (!record) {
+      return null;
+    }
+    return { email: record.contactEmail, phone: record.contactPhone, name: record.name };
   }
 }
