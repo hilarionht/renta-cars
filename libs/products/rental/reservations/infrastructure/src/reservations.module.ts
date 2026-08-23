@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { BranchesModule } from '@platform/branches/infrastructure';
 import { CalendarModule } from '@platform/calendar/infrastructure';
+import { NotificationsModule } from '@platform/notifications/infrastructure';
 import { SettingsModule } from '@platform/settings/infrastructure';
 import { CustomersModule } from '@rental/customers/infrastructure';
 import {
@@ -23,6 +24,7 @@ import {
 import { VehiclesModule } from '@rental/vehicles/infrastructure';
 
 import { InvoiceIssuedListener } from './events/invoice-issued.listener';
+import { ReservationConfirmedNotificationListener } from './events/reservation-confirmed-notification.listener';
 import { ReservationsController } from './http/reservations.controller';
 import { PrismaReservationRepository } from './persistence/prisma/prisma-reservation.repository';
 import { GetReservationHandler } from './queries/get-reservation.handler';
@@ -37,9 +39,19 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
 // CloseReservationHandler ya no esta atado a ningun endpoint HTTP (docs/persistence/
 // 10-DECISIONES.md #79) - InvoiceIssuedListener (@OnEvent('InvoiceIssued.v1')) es su unico
 // disparador real ahora que Invoices existe, mismo criterio que SecurityDepositHoldListener
-// en Payments.
+// en Payments. NotificationsModule agregado en Fase 3 item 3 (docs/persistence/
+// 10-DECISIONES.md #98) - ReservationConfirmedNotificationListener importa
+// SendNotificationHandler directo (servicio de plataforma, no un modulo de negocio par;
+// Notifications no puede alcanzar CustomerLookupPort por si sola, boundaries.mjs).
 @Module({
-  imports: [CustomersModule, VehiclesModule, CalendarModule, SettingsModule, BranchesModule],
+  imports: [
+    CustomersModule,
+    VehiclesModule,
+    CalendarModule,
+    SettingsModule,
+    BranchesModule,
+    NotificationsModule,
+  ],
   controllers: [ReservationsController],
   providers: [
     { provide: RESERVATION_REPOSITORY, useClass: PrismaReservationRepository },
@@ -59,6 +71,7 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
     GetReservationHandler,
     ListReservationsHandler,
     InvoiceIssuedListener,
+    ReservationConfirmedNotificationListener,
   ],
 })
 export class ReservationsModule {}
