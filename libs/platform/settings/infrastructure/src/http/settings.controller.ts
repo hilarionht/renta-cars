@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Patch } from '@nestjs/common';
 
-import { RequestContext } from '@platform/persistence-kernel';
+import { RequestContext, RequirePermission } from '@platform/persistence-kernel';
 import {
   UpdateCancellationPolicyHandler,
   UpdateDepositPolicyHandler,
@@ -55,6 +55,7 @@ export class SettingsController {
   }
 
   @Patch('enabled-product-modules')
+  @RequirePermission('settings:manage')
   async updateModules(@Body() dto: UpdateEnabledProductModulesRequestDto): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.updateEnabledProductModules.execute({
@@ -64,6 +65,7 @@ export class SettingsController {
   }
 
   @Patch('payment-methods-enabled')
+  @RequirePermission('settings:manage')
   async updatePaymentMethods(@Body() dto: UpdatePaymentMethodsEnabledRequestDto): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.updatePaymentMethodsEnabled.execute({
@@ -73,12 +75,14 @@ export class SettingsController {
   }
 
   @Patch('cancellation-policy')
+  @RequirePermission('settings:manage')
   async updateCancellation(@Body() dto: UpdateCancellationPolicyRequestDto): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.updateCancellationPolicy.execute({ companyId, tiers: dto.tiers });
   }
 
   @Patch('late-return-policy')
+  @RequirePermission('settings:manage')
   async updateLateReturn(@Body() dto: UpdateLateReturnPolicyRequestDto): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.updateLateReturnPolicy.execute({
@@ -89,6 +93,7 @@ export class SettingsController {
   }
 
   @Patch('deposit-policy')
+  @RequirePermission('settings:manage')
   async updateDeposit(@Body() dto: UpdateDepositPolicyRequestDto): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.updateDepositPolicy.execute({
@@ -99,6 +104,7 @@ export class SettingsController {
   }
 
   @Patch('draft-expiration-policy')
+  @RequirePermission('settings:manage')
   async updateDraftExpiration(@Body() dto: UpdateDraftExpirationPolicyRequestDto): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.updateDraftExpirationPolicy.execute({
@@ -108,6 +114,7 @@ export class SettingsController {
   }
 
   @Patch('minimum-booking-lead-time')
+  @RequirePermission('settings:manage')
   async updateMinimumLeadTime(@Body() dto: UpdateMinimumBookingLeadTimeRequestDto): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.updateMinimumBookingLeadTime.execute({
@@ -117,6 +124,7 @@ export class SettingsController {
   }
 
   @Patch('notification-channel-preference')
+  @RequirePermission('settings:manage')
   async updateNotificationChannel(
     @Body() dto: UpdateNotificationChannelPreferenceRequestDto,
   ): Promise<void> {
@@ -128,6 +136,7 @@ export class SettingsController {
   }
 
   @Patch('maintenance-threshold-policy')
+  @RequirePermission('settings:manage')
   async updateMaintenanceThreshold(
     @Body() dto: UpdateMaintenanceThresholdPolicyRequestDto,
   ): Promise<void> {

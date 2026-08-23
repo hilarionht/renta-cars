@@ -1,6 +1,6 @@
 import { Controller, Delete, Get, Header, Param, ParseUUIDPipe, Post, Body } from '@nestjs/common';
 
-import { RequestContext } from '@platform/persistence-kernel';
+import { RequestContext, RequirePermission } from '@platform/persistence-kernel';
 import {
   ConfirmUploadHandler,
   DeleteFileHandler,
@@ -29,6 +29,7 @@ export class FilesController {
   ) {}
 
   @Post('upload-url')
+  @RequirePermission('files:upload')
   async requestUpload(
     @Body() dto: RequestUploadUrlRequestDto,
   ): Promise<RequestUploadUrlResponseDto> {
@@ -46,6 +47,7 @@ export class FilesController {
   }
 
   @Post('confirm-upload')
+  @RequirePermission('files:upload')
   async confirm(@Body() dto: ConfirmUploadRequestDto): Promise<{ id: string }> {
     const { companyId, userId } = this.requestContext.get();
     const id = await this.confirmUpload.execute({
@@ -68,6 +70,7 @@ export class FilesController {
   }
 
   @Delete(':id')
+  @RequirePermission('files:delete')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.deleteFile.execute({ fileId: id, companyId });

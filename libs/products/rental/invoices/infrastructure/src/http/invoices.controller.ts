@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 
-import { RequestContext, RequiresProductModule } from '@platform/persistence-kernel';
+import {
+  RequestContext,
+  RequirePermission,
+  RequiresProductModule,
+} from '@platform/persistence-kernel';
 import { VoidInvoiceHandler, type InvoiceSummary } from '@rental/invoices/application';
 
 import { GetInvoiceHandler } from '../queries/get-invoice.handler';
@@ -36,6 +40,7 @@ export class InvoicesController {
   }
 
   @Post(':id/void')
+  @RequirePermission('invoices:void')
   async void(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: VoidInvoiceRequestDto,

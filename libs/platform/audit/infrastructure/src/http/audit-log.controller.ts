@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 
-import { RequestContext } from '@platform/persistence-kernel';
+import { RequestContext, RequirePermission } from '@platform/persistence-kernel';
 
 import { ListAuditLogHandler } from '../queries/list-audit-log.handler';
 import type { AuditLogEntryResponseDto } from './dto/audit-log-entry-response.dto';
@@ -17,6 +17,7 @@ export class AuditLogController {
   ) {}
 
   @Get()
+  @RequirePermission('audit:read')
   async list(@Query() dto: ListAuditLogRequestDto): Promise<AuditLogEntryResponseDto[]> {
     const { companyId } = this.requestContext.get();
     return this.listAuditLog.execute({
