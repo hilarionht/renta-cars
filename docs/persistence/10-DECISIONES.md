@@ -681,6 +681,21 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Bug 2, más significativo**: `CheckInReservationHandler` libera el `AvailabilitySlot` al devolver el vehículo (`AvailabilityService.release()`, `status: 'Active' → 'Released'`) — el filtro original del handler (`status: 'Active'`) hacía que **toda reserva ya cerrada desapareciera de cualquier reporte de ocupación histórica**, aunque la ocupación real haya ocurrido dentro del rango consultado. `status` en `AvailabilitySlot` representa "¿todavía retiene el recurso ahora mismo?", no "¿ocupó el recurso durante esta ventana histórica?" — son preguntas distintas, y `fleet-utilization` necesita la segunda. Se quita el filtro de `status` por completo (queda `resourceType`/`slotType: 'Booking'`/solape de fechas) — un reporte sobre `[from,to]` debe contar ocupación completada, no solo reservas todavía en curso.
 
+## #102 — Fase 4 item 2: gaps chicos de Audit/Settings cerrados, RBAC completo queda diferido explícitamente
+
+**Contexto**: `docs/01-ROADMAP.md` §6 item 2: "revisión de cobertura de Audit y hardening de Settings/Permissions con datos reales de uso". Una investigación previa (2 agentes en paralelo) encontró que este ítem esconde dos tamaños de trabajo muy distintos: gaps chicos y cerrables, y un hallazgo grande — el catálogo de permisos finos (`PERMISSION_CATALOG`) solo tiene 10 claves, todas de Users/Roles (Fase 0); `PermissionGuard` no está wireado a NINGUNA ruta en todo el repo; y el JWT nunca resuelve `roles[] → permissions[]`. Hoy, ningún endpoint del sistema tiene autorización fina — solo autenticación + tenant + flag de módulo de producto.
+
+**Decisión de alcance** (usuario, vía `AskUserQuestion`): esta tanda cierra únicamente los gaps chicos. El RBAC completo (catálogo de permisos por módulo + resolución `roles[]→permissions[]` + decorar cada ruta sensible) queda diferido a una tanda dedicada — es un build multi-módulo grande, no un fix.
+
+**Gaps cerrados**:
+
+- `docs/technical/05-EVENTING.md` §5 describía el listener catch-all de Audit como suscrito a `'*'` (comodín simple) — corregido a `'**'` desde la decisión #21, la doc nunca se había actualizado.
+- `DepositPolicy` (VO y `SettingsLookupPort`) seguía comentada como "sin consumidor real" pese a que `SecurityDepositHoldListener` la consume desde Fase 2.
+- Cobertura de `audit-log.e2e-spec.ts` ampliada de 3 a 5 eventos reales verificados — ver decisión de commit `test(audit)` (`LoginFailed.v1` con `subjectId` no-UUID, `ReservationRejectedByAvailability.v1` publicado en transacción separada). Deliberadamente no exhaustiva (58 eventos reales existen) — se priorizaron los 2 casos con shape genuinamente distinto al ya probado, no una cobertura completa.
+- **`MaintenanceThresholdPolicy`, 9na y última policy de `CompanySettings`**, construida con el mismo patrón mecánico ya usado 8 veces esta sesión (VO + campo + PATCH + `SettingsLookupPort`). **Sin consumidor real** — evaluar si un `Vehicle` cruzó el umbral (`docs/model/05-DOMAIN_SERVICES.md`, método candidato `evaluatePreventiveMaintenanceDue()`) requiere que `Vehicle` trackee su propio odometer (no lo hace hoy — el odometer vive en los registros de check-in/check-out de `Reservation`, no en `Vehicle`) más un job periódico que lea la política — mismo tipo de gap explícito que tuvo `DepositPolicy` antes de Payments (`#59`).
+
+**Gap explícitamente NO cerrado, decisión deliberada**: proteger `AuditLogController.list()` con un permission check. La investigación previa lo listó como "closeable" con "al menos un role check" — pero cualquier chequeo real (más allá de autenticación+tenant, ya existentes) requiere exactamente la maquinaria de RBAC que esta tanda decidió diferir. Construir un chequeo ad-hoc (p. ej. "requiere un rol de scope System") sin el catálogo de permisos real inventaría una política de autorización no documentada en ningún lado, y se descartaría en cuanto el RBAC completo aterrice — se prefiere dejar el gap documentado y abierto antes que un parche que se tira.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
