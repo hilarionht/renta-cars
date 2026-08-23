@@ -29,11 +29,16 @@ import {
 } from '@rental/reservations/infrastructure';
 import { PaymentsModule, PAYMENTS_DOMAIN_ERROR_ENTRIES } from '@platform/payments/infrastructure';
 import { InvoicesModule, INVOICES_DOMAIN_ERROR_ENTRIES } from '@rental/invoices/infrastructure';
+import {
+  NotificationsModule,
+  NOTIFICATIONS_DOMAIN_ERROR_ENTRIES,
+} from '@platform/notifications/infrastructure';
 
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
 import { validate } from '../config/env.validation';
 import jwtConfig from '../config/jwt.config';
+import notificationsConfig from '../config/notifications.config';
 import observabilityConfig from '../config/observability.config';
 import paymentsConfig from '../config/payments.config';
 import redisConfig from '../config/redis.config';
@@ -56,9 +61,10 @@ import { PrismaModule } from './persistence/prisma.module';
 
 // Composicion completa de Fase 0 (docs/01-ROADMAP.md SS2 - los 9 items) + Fase 1 completa
 // (docs/01-ROADMAP.md SS3: Customers, Vehicles, Calendar, Reservations) + Fase 2 completa
-// (Payments, Invoices). Orden de import: RolesPermissions -> Users -> Identity -> Settings ->
-// Companies -> Branches -> Audit -> Files -> Calendar -> Customers -> Vehicles ->
-// Reservations -> Payments -> Invoices, mismo orden de dependencia real y de composicion
+// (Payments, Invoices) + Fase 3 item 1 (Notifications). Orden de import: RolesPermissions ->
+// Users -> Identity -> Settings -> Companies -> Branches -> Audit -> Files -> Calendar ->
+// Customers -> Vehicles -> Reservations -> Payments -> Invoices -> Notifications, mismo
+// orden de dependencia real y de composicion
 // documentada (docs/technical/03-BACKEND-ARCHITECTURE.md SS1) - cada uno depende del
 // anterior via su puerto publico (ROLE_LOOKUP_PORT, USER_LOOKUP_PORT; Settings no depende de
 // ningun otro modulo de negocio, pero Companies SI depende de Settings ahora - ver
@@ -77,7 +83,11 @@ import { PrismaModule } from './persistence/prisma.module';
 // IntegrationProvidersModule dentro de PaymentsModule mismo. Invoices, ultimo, tampoco
 // importa Reservations ni Payments directo - mismo mecanismo 100% por evento
 // (ReservationCheckedIn.v1 entrante, InvoiceIssued.v1 saliente, consumido por el nuevo
-// InvoiceIssuedListener DENTRO de ReservationsModule, no visible aca).
+// InvoiceIssuedListener DENTRO de ReservationsModule, no visible aca). Notifications,
+// ultimo, tampoco importa ningun otro modulo de negocio directo - su unico listener real
+// esta tanda (UserWelcomeNotificationListener) escucha UserCreated.v1 via EventEmitter2,
+// mismo mecanismo 100% por evento; solo importa SettingsModule + IntegrationProvidersModule
+// dentro de NotificationsModule mismo.
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -92,6 +102,7 @@ import { PrismaModule } from './persistence/prisma.module';
         securityConfig,
         observabilityConfig,
         paymentsConfig,
+        notificationsConfig,
       ],
     }),
     // ClsModule (AsyncLocalStorage) antes que PrismaModule - RequestContext (poblado por
@@ -160,6 +171,7 @@ import { PrismaModule } from './persistence/prisma.module';
     ReservationsModule,
     PaymentsModule,
     InvoicesModule,
+    NotificationsModule,
   ],
   providers: [
     domainErrorRegistryProvider(
@@ -177,6 +189,7 @@ import { PrismaModule } from './persistence/prisma.module';
       RESERVATIONS_DOMAIN_ERROR_ENTRIES,
       PAYMENTS_DOMAIN_ERROR_ENTRIES,
       INVOICES_DOMAIN_ERROR_ENTRIES,
+      NOTIFICATIONS_DOMAIN_ERROR_ENTRIES,
     ),
     // Orden importa, e Nest lo evalua al REVES del orden de registro (el ultimo
     // registrado se prueba primero) - verificado a mano lanzando un DomainError real y

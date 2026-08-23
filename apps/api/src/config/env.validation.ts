@@ -112,6 +112,54 @@ class EnvironmentVariables {
   @IsString()
   MERCADOPAGO_WEBHOOK_SECRET?: string;
 
+  // --- notifications (NOTIFICATION_SENDER_PORT/PUSH_NOTIFICATION_SENDER_PORT,
+  // docs/11-INTEGRACIONES.md SS3-5) --- Todas opcionales: "fake" (default en
+  // notifications.config.ts) no requiere credenciales - WhatsApp/SendGrid/Twilio/Expo sin
+  // credenciales reales en este entorno de desarrollo.
+  @IsOptional()
+  @IsIn(['fake', 'real'])
+  NOTIFICATION_SENDER_PROVIDER?: 'fake' | 'real';
+
+  @IsOptional()
+  @IsString()
+  WHATSAPP_API_TOKEN?: string;
+
+  @IsOptional()
+  @IsString()
+  WHATSAPP_PHONE_NUMBER_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN?: string;
+
+  @IsOptional()
+  @IsString()
+  WHATSAPP_WEBHOOK_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  SENDGRID_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  SENDGRID_FROM_EMAIL?: string;
+
+  @IsOptional()
+  @IsString()
+  TWILIO_ACCOUNT_SID?: string;
+
+  @IsOptional()
+  @IsString()
+  TWILIO_AUTH_TOKEN?: string;
+
+  @IsOptional()
+  @IsString()
+  TWILIO_FROM_NUMBER?: string;
+
+  @IsOptional()
+  @IsString()
+  EXPO_PUSH_ACCESS_TOKEN?: string;
+
   // --- observability (docs/engineering/08-OBSERVABILITY-BOOTSTRAP.md §1) ---
   // Ambas con default seguro (namespace observability.config.ts) - el SDK de OpenTelemetry
   // no bloquea el arranque si el collector no esta disponible, por diseño de la libreria.

@@ -20,6 +20,8 @@ async function bootstrap(): Promise<void> {
   // POST /webhooks/v1/stripe para verificar la firma nativa del SDK
   // (stripe.webhooks.constructEvent, docs/contracts/06-WEBHOOKS.md) - Nest lo expone en
   // req.rawBody ademas del body ya parseado, sin desactivar el body-parser global.
+  // WhatsAppWebhookController lo reutiliza para su propia verificacion manual de
+  // X-Hub-Signature-256 (HMAC-SHA256, sin SDK oficial de Meta para Node).
   const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
   app.useLogger(app.get(Logger));
 
@@ -73,7 +75,13 @@ async function bootstrap(): Promise<void> {
   // docs/contracts/06-WEBHOOKS.md: rutas de webhook entrante, @Public(), nunca
   // Bearer-autenticadas, nunca bajo el namespace de recursos de tenant).
   app.setGlobalPrefix('api/v1', {
-    exclude: ['health/live', 'health/ready', 'webhooks/v1/stripe', 'webhooks/v1/mercadopago'],
+    exclude: [
+      'health/live',
+      'health/ready',
+      'webhooks/v1/stripe',
+      'webhooks/v1/mercadopago',
+      'webhooks/v1/whatsapp',
+    ],
   });
 
   const port = configService.getOrThrow<number>('app.port');
