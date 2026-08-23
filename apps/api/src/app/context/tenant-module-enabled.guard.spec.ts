@@ -44,6 +44,7 @@ async function buildApp(params: {
     getMinimumBookingLeadTimeMinutes: jest.fn(),
     getDepositPolicy: jest.fn(),
     getPaymentMethodsEnabled: jest.fn(),
+    getNotificationChannelPreference: jest.fn(),
   };
 
   const moduleRef = await Test.createTestingModule({

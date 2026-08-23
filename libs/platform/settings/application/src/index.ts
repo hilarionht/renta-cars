@@ -25,6 +25,8 @@ export { UpdateDraftExpirationPolicyHandler } from './commands/update-draft-expi
 export type { UpdateDraftExpirationPolicyCommand } from './commands/update-draft-expiration-policy/update-draft-expiration-policy.command';
 export { UpdateMinimumBookingLeadTimeHandler } from './commands/update-minimum-booking-lead-time/update-minimum-booking-lead-time.handler';
 export type { UpdateMinimumBookingLeadTimeCommand } from './commands/update-minimum-booking-lead-time/update-minimum-booking-lead-time.command';
+export { UpdateNotificationChannelPreferenceHandler } from './commands/update-notification-channel-preference/update-notification-channel-preference.handler';
+export type { UpdateNotificationChannelPreferenceCommand } from './commands/update-notification-channel-preference/update-notification-channel-preference.command';
 export type {
   GetCompanySettingsQuery,
   CompanySettingsSummary,

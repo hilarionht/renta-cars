@@ -2,6 +2,7 @@ import { ConcurrentModificationError, type DomainErrorEntries } from '@platform/
 import {
   CompanySettingsNotFoundError,
   EnabledProductModulesEmptyError,
+  InvalidNotificationChannelError,
   InvalidPaymentMethodError,
   PaymentMethodsEmptyError,
 } from '@platform/settings/domain';
@@ -26,6 +27,14 @@ export const SETTINGS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [
     InvalidPaymentMethodError,
     { status: 422, code: 'INVALID_PAYMENT_METHOD', title: 'Metodo de pago fuera del catalogo' },
+  ],
+  [
+    InvalidNotificationChannelError,
+    {
+      status: 422,
+      code: 'INVALID_NOTIFICATION_CHANNEL',
+      title: 'Canal de notificacion fuera del catalogo',
+    },
   ],
   [
     CompanySettingsNotFoundError,

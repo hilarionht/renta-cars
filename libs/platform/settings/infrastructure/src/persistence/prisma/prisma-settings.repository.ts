@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
   CompanySettings as PrismaCompanySettings,
+  NotificationChannelDefault as PrismaNotificationChannelDefault,
   PaymentMethod as PrismaPaymentMethod,
 } from '@prisma/client';
 
@@ -15,6 +16,7 @@ import {
   DraftExpirationPolicy,
   LateReturnPolicy,
   MinimumBookingLeadTime,
+  NotificationChannelPreference,
   PaymentMethod,
 } from '@platform/settings/domain';
 import type { SettingsRepository } from '@platform/settings/application';
@@ -51,6 +53,11 @@ export class PrismaSettingsRepository implements SettingsRepository {
       depositPercentageOfTotal: settings.depositPolicy.percentageOfTotal,
       draftExpirationMinutes: settings.draftExpirationPolicy.expirationMinutes,
       minimumBookingLeadTimeMinutes: settings.minimumBookingLeadTime.leadTimeMinutes,
+      // Cast puntual, mismo criterio que paymentMethodsEnabled - NotificationChannelDefault
+      // (organization) es un enum distinto de NotificationChannel (support), mismos 3
+      // literales que aplican aca.
+      notificationChannelPreference:
+        settings.notificationChannelPreference.toString() as PrismaNotificationChannelDefault,
     };
 
     if (settings.isNew) {
@@ -91,6 +98,9 @@ export class PrismaSettingsRepository implements SettingsRepository {
       }),
       draftExpirationPolicy: DraftExpirationPolicy.from(record.draftExpirationMinutes),
       minimumBookingLeadTime: MinimumBookingLeadTime.from(record.minimumBookingLeadTimeMinutes),
+      notificationChannelPreference: NotificationChannelPreference.from(
+        record.notificationChannelPreference,
+      ),
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       version: record.version,

@@ -16,8 +16,14 @@ export { LateReturnPolicy, type LateReturnPolicyProps } from './value-objects/la
 export { DepositPolicy, type DepositPolicyProps } from './value-objects/deposit-policy';
 export { DraftExpirationPolicy } from './value-objects/draft-expiration-policy';
 export { MinimumBookingLeadTime } from './value-objects/minimum-booking-lead-time';
+export {
+  NotificationChannelPreference,
+  NOTIFICATION_CHANNELS,
+  type NotificationChannelValue,
+} from './value-objects/notification-channel-preference';
 export { EnabledProductModulesEmptyError } from './errors/enabled-product-modules-empty.error';
 export { PaymentMethodsEmptyError } from './errors/payment-methods-empty.error';
 export { InvalidPaymentMethodError } from './errors/invalid-payment-method.error';
+export { InvalidNotificationChannelError } from './errors/invalid-notification-channel.error';
 export { CompanySettingsNotFoundError } from './errors/company-settings-not-found.error';
 export type { CompanySettingsUpdatedEvent } from './events/company-settings-updated.event';

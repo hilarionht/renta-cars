@@ -8,6 +8,7 @@ import {
   UpdateEnabledProductModulesHandler,
   UpdateLateReturnPolicyHandler,
   UpdateMinimumBookingLeadTimeHandler,
+  UpdateNotificationChannelPreferenceHandler,
   UpdatePaymentMethodsEnabledHandler,
 } from '@platform/settings/application';
 
@@ -19,14 +20,16 @@ import { UpdateDraftExpirationPolicyRequestDto } from './dto/update-draft-expira
 import { UpdateEnabledProductModulesRequestDto } from './dto/update-enabled-product-modules-request.dto';
 import { UpdateLateReturnPolicyRequestDto } from './dto/update-late-return-policy-request.dto';
 import { UpdateMinimumBookingLeadTimeRequestDto } from './dto/update-minimum-booking-lead-time-request.dto';
+import { UpdateNotificationChannelPreferenceRequestDto } from './dto/update-notification-channel-preference-request.dto';
 import { UpdatePaymentMethodsEnabledRequestDto } from './dto/update-payment-methods-enabled-request.dto';
 
 // docs/contracts/02-RESOURCE-CATALOG.md SS2: "company-settings" siempre "la propia" del
-// token (sin {id} en el path). Cubre 7 de las 9 politicas documentadas - las 5 de
-// Reservation agregadas en docs/persistence/10-DECISIONES.md #59, cada una con su propio
-// PATCH (mismo criterio que enabled-product-modules/payment-methods-enabled: "cada
-// actualizacion de una politica individual es una transaccion sobre el agregado completo",
-// docs/model/02-AGGREGATES.md SS6).
+// token (sin {id} en el path). Cubre 8 de las 9 politicas documentadas - las 5 de
+// Reservation agregadas en docs/persistence/10-DECISIONES.md #59 mas
+// NotificationChannelPreference (Fase 3 item 1), cada una con su propio PATCH (mismo
+// criterio que enabled-product-modules/payment-methods-enabled: "cada actualizacion de una
+// politica individual es una transaccion sobre el agregado completo", docs/model/
+// 02-AGGREGATES.md SS6).
 @Controller('company-settings')
 export class SettingsController {
   constructor(
@@ -38,6 +41,7 @@ export class SettingsController {
     private readonly updateDepositPolicy: UpdateDepositPolicyHandler,
     private readonly updateDraftExpirationPolicy: UpdateDraftExpirationPolicyHandler,
     private readonly updateMinimumBookingLeadTime: UpdateMinimumBookingLeadTimeHandler,
+    private readonly updateNotificationChannelPreference: UpdateNotificationChannelPreferenceHandler,
     private readonly requestContext: RequestContext,
   ) {}
 
@@ -106,6 +110,17 @@ export class SettingsController {
     await this.updateMinimumBookingLeadTime.execute({
       companyId,
       leadTimeMinutes: dto.leadTimeMinutes,
+    });
+  }
+
+  @Patch('notification-channel-preference')
+  async updateNotificationChannel(
+    @Body() dto: UpdateNotificationChannelPreferenceRequestDto,
+  ): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.updateNotificationChannelPreference.execute({
+      companyId,
+      preferredChannel: dto.preferredChannel,
     });
   }
 }

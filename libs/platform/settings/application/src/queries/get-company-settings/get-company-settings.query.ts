@@ -13,4 +13,5 @@ export interface CompanySettingsSummary {
   depositPercentageOfTotal: number;
   draftExpirationMinutes: number;
   minimumBookingLeadTimeMinutes: number;
+  notificationChannelPreference: string;
 }

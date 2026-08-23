@@ -103,4 +103,14 @@ export class PrismaSettingsLookupAdapter implements SettingsLookupPort {
     );
     return record?.paymentMethodsEnabled ?? null;
   }
+
+  async getNotificationChannelPreference(companyId: string): Promise<string | null> {
+    const record = await this.readTransaction.run((tx) =>
+      tx.companySettings.findFirst({
+        where: { companyId },
+        select: { notificationChannelPreference: true },
+      }),
+    );
+    return record?.notificationChannelPreference ?? null;
+  }
 }

@@ -31,4 +31,6 @@ export interface SettingsLookupPort {
   // Agregado para Payments (Fase 2, docs/model/04-VALUE_OBJECTS.md SS6: "PaymentMethod
   // debe pertenecer al PaymentMethodsEnabled vigente de la Company").
   getPaymentMethodsEnabled(companyId: string): Promise<string[] | null>;
+  // Agregado para Notifications (Fase 3 item 1, RN-33) - primer consumidor real.
+  getNotificationChannelPreference(companyId: string): Promise<string | null>;
 }

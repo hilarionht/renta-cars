@@ -9,4 +9,5 @@ export interface CompanySettingsResponseDto {
   depositPercentageOfTotal: number;
   draftExpirationMinutes: number;
   minimumBookingLeadTimeMinutes: number;
+  notificationChannelPreference: string;
 }

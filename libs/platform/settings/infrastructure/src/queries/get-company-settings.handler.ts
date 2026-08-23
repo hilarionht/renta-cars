@@ -31,6 +31,7 @@ export class GetCompanySettingsHandler {
         depositPercentageOfTotal: record.depositPercentageOfTotal,
         draftExpirationMinutes: record.draftExpirationMinutes,
         minimumBookingLeadTimeMinutes: record.minimumBookingLeadTimeMinutes,
+        notificationChannelPreference: record.notificationChannelPreference,
       };
     });
   }

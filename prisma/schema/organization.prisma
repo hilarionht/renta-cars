@@ -102,6 +102,11 @@ model CompanySettings {
   depositPercentageOfTotal      Float   @default(0) @map("deposit_percentage_of_total")
   draftExpirationMinutes        Int     @default(1440) @map("draft_expiration_minutes")
   minimumBookingLeadTimeMinutes Int     @default(0) @map("minimum_booking_lead_time_minutes")
+  // Notifications, Fase 3 item 1, RN-33 - 8vo policy, primer consumidor real
+  // (docs/persistence/10-DECISIONES.md). Nombre de enum distinto de NotificationChannel
+  // (support.prisma, catalogo de 4) - mismo criterio que CommercePaymentMethod vs
+  // PaymentMethod.
+  notificationChannelPreference NotificationChannelDefault @default(Email) @map("notification_channel_preference")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -116,6 +121,14 @@ enum PaymentMethod {
   Cash
   Transfer
   DigitalWallet
+
+  @@schema("organization")
+}
+
+enum NotificationChannelDefault {
+  WhatsApp
+  Email
+  SMS
 
   @@schema("organization")
 }
