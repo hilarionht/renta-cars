@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 
-import { RequestContext, RequiresProductModule } from '@platform/persistence-kernel';
+import {
+  RequestContext,
+  RequirePermission,
+  RequiresProductModule,
+} from '@platform/persistence-kernel';
 import {
   BlockCustomerHandler,
   RegisterAdditionalDriverHandler,
@@ -46,6 +50,7 @@ export class CustomersController {
   ) {}
 
   @Post()
+  @RequirePermission('customers:create')
   async create(@Body() dto: RegisterCustomerRequestDto): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
     const id = await this.registerCustomer.execute({
@@ -72,6 +77,7 @@ export class CustomersController {
   }
 
   @Patch(':id')
+  @RequirePermission('customers:edit')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCustomerRequestDto,
@@ -87,6 +93,7 @@ export class CustomersController {
   }
 
   @Post(':id/block')
+  @RequirePermission('customers:block')
   async block(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: BlockCustomerRequestDto,
@@ -96,6 +103,7 @@ export class CustomersController {
   }
 
   @Post(':id/unblock')
+  @RequirePermission('customers:unblock')
   async unblock(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     const { companyId, userId } = this.requestContext.get();
     await this.unblockCustomer.execute({ customerId: id, companyId, unblockedBy: userId });
@@ -105,6 +113,7 @@ export class CustomersController {
   // 02-RESOURCE-CATALOG.md SS4: "customers/{id}/identity-documents", un unico sub-recurso,
   // no anidado 3 niveles bajo additional-drivers).
   @Post(':id/identity-documents')
+  @RequirePermission('customers:manage-documents')
   async uploadDocument(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UploadIdentityDocumentRequestDto,
@@ -122,6 +131,7 @@ export class CustomersController {
   }
 
   @Post(':id/identity-documents/:documentId/verify')
+  @RequirePermission('customers:verify-documents')
   async verifyDocument(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('documentId', ParseUUIDPipe) documentId: string,
@@ -131,6 +141,7 @@ export class CustomersController {
   }
 
   @Post(':id/additional-drivers')
+  @RequirePermission('customers:manage-documents')
   async registerDriver(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RegisterAdditionalDriverRequestDto,
@@ -145,6 +156,7 @@ export class CustomersController {
   }
 
   @Post(':id/additional-drivers/:driverId/validate-license')
+  @RequirePermission('customers:verify-documents')
   async validateLicense(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('driverId', ParseUUIDPipe) driverId: string,
@@ -154,6 +166,7 @@ export class CustomersController {
   }
 
   @Post(':id/additional-drivers/:driverId/revoke')
+  @RequirePermission('customers:verify-documents')
   async revokeDriver(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('driverId', ParseUUIDPipe) driverId: string,

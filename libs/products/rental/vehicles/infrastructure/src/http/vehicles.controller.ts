@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 
-import { RequestContext, RequiresProductModule } from '@platform/persistence-kernel';
+import {
+  RequestContext,
+  RequirePermission,
+  RequiresProductModule,
+} from '@platform/persistence-kernel';
 import {
   CompleteMaintenanceHandler,
   EnableVehicleHandler,
@@ -45,6 +49,7 @@ export class VehiclesController {
   ) {}
 
   @Post()
+  @RequirePermission('vehicles:manage')
   async create(@Body() dto: RegisterVehicleRequestDto): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
     const id = await this.registerVehicle.execute({
@@ -70,6 +75,7 @@ export class VehiclesController {
   }
 
   @Post(':id/documents')
+  @RequirePermission('vehicles:manage')
   async uploadDocument(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UploadVehicleDocumentRequestDto,
@@ -86,6 +92,7 @@ export class VehiclesController {
   }
 
   @Post(':id/documents/:documentId/verify')
+  @RequirePermission('vehicles:manage')
   async verifyDocument(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('documentId', ParseUUIDPipe) documentId: string,
@@ -95,12 +102,14 @@ export class VehiclesController {
   }
 
   @Post(':id/enable')
+  @RequirePermission('vehicles:manage')
   async enable(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.enableVehicle.execute({ vehicleId: id, companyId });
   }
 
   @Post(':id/maintenance')
+  @RequirePermission('vehicles:manage')
   async schedule(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ScheduleMaintenanceRequestDto,
@@ -118,6 +127,7 @@ export class VehiclesController {
   }
 
   @Post(':id/maintenance/:maintenanceId/start')
+  @RequirePermission('vehicles:manage')
   async start(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('maintenanceId', ParseUUIDPipe) maintenanceId: string,
@@ -127,6 +137,7 @@ export class VehiclesController {
   }
 
   @Post(':id/maintenance/:maintenanceId/complete')
+  @RequirePermission('vehicles:manage')
   async complete(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('maintenanceId', ParseUUIDPipe) maintenanceId: string,
@@ -142,6 +153,7 @@ export class VehiclesController {
   }
 
   @Post(':id/report-damage')
+  @RequirePermission('vehicles:manage')
   async reportVehicleDamage(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReportDamageRequestDto,
@@ -156,6 +168,7 @@ export class VehiclesController {
   }
 
   @Post(':id/mark-out-of-service')
+  @RequirePermission('vehicles:manage')
   async markOutOfService(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: MarkVehicleOutOfServiceRequestDto,

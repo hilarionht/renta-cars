@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 
-import { RequestContext, RequiresProductModule } from '@platform/persistence-kernel';
+import {
+  RequestContext,
+  RequirePermission,
+  RequiresProductModule,
+} from '@platform/persistence-kernel';
 import { AddRateHandler, CreateVehicleCategoryHandler } from '@rental/vehicles/application';
 
 import { GetVehicleCategoryHandler } from '../queries/get-vehicle-category.handler';
@@ -24,6 +28,7 @@ export class VehicleCategoriesController {
   ) {}
 
   @Post()
+  @RequirePermission('vehicle-categories:manage')
   async create(@Body() dto: CreateVehicleCategoryRequestDto): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
     const id = await this.createVehicleCategory.execute({
@@ -47,6 +52,7 @@ export class VehicleCategoriesController {
   }
 
   @Post(':id/rates')
+  @RequirePermission('vehicle-categories:manage')
   async addNewRate(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AddRateRequestDto,
