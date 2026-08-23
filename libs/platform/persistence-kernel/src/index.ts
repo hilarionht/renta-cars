@@ -12,3 +12,4 @@ export {
   REQUIRES_PRODUCT_MODULE_KEY,
   RequiresProductModule,
 } from './requires-product-module.decorator';
+export { REQUIRE_PERMISSION_KEY, RequirePermission } from './require-permission.decorator';
