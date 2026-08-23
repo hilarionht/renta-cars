@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 
-import { RequestContext } from '@platform/persistence-kernel';
+import { RequestContext, RequirePermission } from '@platform/persistence-kernel';
 import {
   AssignRoleHandler,
   ChangePasswordHandler,
@@ -34,6 +34,7 @@ export class UsersController {
   ) {}
 
   @Post()
+  @RequirePermission('users:create')
   async create(@Body() dto: CreateUserRequestDto): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
     const id = await this.createUser.execute({
@@ -54,6 +55,7 @@ export class UsersController {
   }
 
   @Post(':id/disable')
+  @RequirePermission('users:disable')
   async disable(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: DisableUserRequestDto,
@@ -68,12 +70,14 @@ export class UsersController {
   }
 
   @Post(':id/reactivate')
+  @RequirePermission('users:reactivate')
   async reactivate(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.reactivateUser.execute({ userId: id, companyId });
   }
 
   @Post(':id/change-password')
+  @RequirePermission('users:change-password')
   async changePasswordFor(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ChangePasswordRequestDto,
@@ -88,6 +92,7 @@ export class UsersController {
   }
 
   @Post(':id/assign-role')
+  @RequirePermission('users:assign-role')
   async assignRoleTo(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AssignRoleRequestDto,
@@ -97,6 +102,7 @@ export class UsersController {
   }
 
   @Post(':id/revoke-role')
+  @RequirePermission('users:revoke-role')
   async revokeRoleFrom(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AssignRoleRequestDto,

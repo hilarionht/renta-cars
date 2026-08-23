@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 
-import { RequestContext } from '@platform/persistence-kernel';
+import { RequestContext, RequirePermission } from '@platform/persistence-kernel';
 import {
   CreateRoleHandler,
   DeactivateRoleHandler,
@@ -27,6 +27,7 @@ export class RolesController {
   ) {}
 
   @Post()
+  @RequirePermission('roles:create')
   async create(@Body() dto: CreateRoleRequestDto): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
     const id = await this.createRole.execute({
@@ -38,6 +39,7 @@ export class RolesController {
   }
 
   @Patch(':id/permissions')
+  @RequirePermission('roles:edit-permissions')
   async editPermissions(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: EditRolePermissionsRequestDto,
@@ -47,6 +49,7 @@ export class RolesController {
   }
 
   @Post(':id/deactivate')
+  @RequirePermission('roles:deactivate')
   async deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.deactivateRole.execute({ roleId: id, companyId });

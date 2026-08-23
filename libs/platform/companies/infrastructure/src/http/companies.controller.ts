@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Patch, Post } from '@nestjs/common';
 
-import { Public, RequestContext } from '@platform/persistence-kernel';
+import { Public, RequestContext, RequirePermission } from '@platform/persistence-kernel';
 import {
   RegisterCompanyHandler,
   UpdateCompanyDetailsHandler,
@@ -43,6 +43,7 @@ export class CompaniesController {
   }
 
   @Patch()
+  @RequirePermission('companies:edit')
   async updateSelf(@Body() dto: UpdateCompanyDetailsRequestDto): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.updateCompanyDetails.execute({

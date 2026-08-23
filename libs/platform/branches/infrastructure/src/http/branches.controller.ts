@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 
-import { RequestContext } from '@platform/persistence-kernel';
+import { RequestContext, RequirePermission } from '@platform/persistence-kernel';
 import {
   CloseBranchHandler,
   CreateBranchHandler,
@@ -29,6 +29,7 @@ export class BranchesController {
   ) {}
 
   @Post()
+  @RequirePermission('branches:create')
   async create(@Body() dto: CreateBranchRequestDto): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
     const id = await this.createBranch.execute({
@@ -53,6 +54,7 @@ export class BranchesController {
   }
 
   @Patch(':id')
+  @RequirePermission('branches:edit')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateBranchRequestDto,
@@ -68,12 +70,14 @@ export class BranchesController {
   }
 
   @Post(':id/close')
+  @RequirePermission('branches:close')
   async close(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.closeBranch.execute({ branchId: id, companyId });
   }
 
   @Post(':id/reopen')
+  @RequirePermission('branches:reopen')
   async reopen(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.reopenBranch.execute({ branchId: id, companyId });
