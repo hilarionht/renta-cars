@@ -654,6 +654,33 @@ Registro de las decisiones **nuevas** de esta fase de modelado físico — el eq
 
 **Verificación reforzada tras `#97`**: dado que ese bug de DI solo lo detectó un smoke test de servidor real (nunca los tests unitarios, que instancian handlers con `new`), esta tanda corrió el mismo smoke test ANTES de dar por cerrado el wiring de `ReservationsModule`/`InvoicesModule` — boot limpio confirmado en el primer intento (a diferencia de `#97`, que sí lo atrapó).
 
+## #99 — Bug real repo-wide: `testMatch` de `*/infrastructure` nunca ejecutaba specs unitarios planos
+
+**Contexto**: encontrado al agregar `overlap-days.spec.ts` (Fase 4, Reports) y ver "No tests found" pese a que el archivo existía. Todo `jest.config.ts` de un proyecto `infrastructure` (17 proyectos, desde el primer módulo de Fase 0) tenía `testMatch: ['**/*.integration.spec.ts']` — cualquier `*.spec.ts` plano (no-integration) en esa capa nunca se ejecutaba, sin ningún error visible. Confirmado con `jest --listTests` que `invoice-issued-notification.listener.spec.ts` e `reservation-confirmed-notification.listener.spec.ts` (decisión #98) nunca habían corrido tampoco, pese a haber sido reportados como "verdes" en su momento — la suite que en verdad corría y pasaba era la integration spec de RLS del mismo proyecto, con un conteo de tests que coincidía por casualidad con el esperado.
+
+**Decisión**: `testMatch` se amplía a `['**/*.spec.ts']` en los 17 proyectos (ya incluye `*.integration.spec.ts`, que también termina en `.spec.ts`) — `globalSetup`/`globalTeardown` de Testcontainers ya aplicaban a todo el target sin importar el patrón, así que unificar no cambia el costo de la corrida, solo corrige que los specs unitarios se ejecuten de verdad. Re-verificado: los 3 specs afectados corren y pasan; una muestra de proyectos sin specs planos confirmada sin cambio de comportamiento.
+
+## #100 — `reports`: técnica de lectura (Prisma directo, sin vistas materializadas) y decisiones de las 4 proyecciones
+
+**Contexto**: `docs/01-ROADMAP.md` §6 item 1 + ADR-0007 ("CQRS selectivo") — `reports` es el único módulo sin capa `domain` (`docs/technical/01-MONOREPO.md` §3.1), lee Prisma directo sin vistas materializadas/read-model separado (diferido explícitamente hasta tener datos reales de volumen/latencia de producción).
+
+**Decisiones**:
+
+- **"Ingresos" = revenue facturado** (`Invoice.status='Issued'`), no cash cobrado (`Payment.status='Captured'`) — `Payment` no tiene columna de branch ni forma de llegar a una sin el mismo join que ya hace falta del lado de `Invoice` (`Charge→Invoice→Reservation→Vehicle`, relaciones Prisma reales dentro del schema `rental`), más un stitching manual encima (`Payment.targetId` es opaco, sin FK). Campo de respuesta `billedRevenueMinorUnits`, no `revenue` a secas, para dejar espacio a un futuro reporte de cash-cobrado sin ambigüedad.
+- **`revenue-by-branch`/`customer-activity` agrupan por `(dimensión, currency)`**, nunca solo por dimensión — `Charge.currency` es un `String` libre sin constraint que impida montos mixtos por company/customer.
+- **`fleet-utilization` excluye vehículos `OutOfService`/`Maintenance` del denominador** (decisión del usuario) — el % refleja la flota operativamente disponible, no penaliza por vehículos en taller. Redondeo a 1 decimal.
+- **Sin paginación real en `customer-activity`** (`limit`, top-N por spend, default 20) — ningún endpoint de lista en el repo pagina con offset/cursor, mismo nivel de sofisticación que el resto del sistema.
+- **`InvalidReportRangeError extends DomainError`** vive en `reports/application/src/errors/` — `DomainError` es un primitivo de `@platform/shared-kernel` (scope:shared), utilizable sin capa `domain` propia. Guard `from <= to` en cada Query Handler, no un `@Validate()` cross-field nuevo en el DTO (sin precedente en el repo).
+- **Sin integration spec de RLS propio** — `reports` no introduce tablas nuevas, cada tabla que lee ya tiene su propio RLS test en su módulo dueño. Verificación de agregación vía un e2e nuevo (mismo criterio que `GetInvoiceHandler`, que tampoco tiene spec propio — su corrección se verifica solo vía `invoices-lifecycle.e2e-spec.ts`).
+
+## #101 — 2 bugs reales encontrados por el e2e de `reports`
+
+**Contexto**: `fleet-utilization.handler.ts` devolvía `occupiedDays: 0` para toda reserva real, encontrado al escribir `reports.e2e-spec.ts`.
+
+**Bug 1**: `AvailabilityService.reserve()` (`reservations/application`) escribe `resourceType: 'vehicle'` en minúscula (`ResourceRef` es deliberadamente opaco, sin normalización — `docs/model/04-VALUE_OBJECTS.md` §4) — el handler filtraba `resourceType: 'Vehicle'` (capitalizado), sin matchear nunca ningún slot. Corregido a `'vehicle'`, documentado inline para que no se re-capitalice por costumbre (todo el resto del repo usa `PascalCase` para enums reales).
+
+**Bug 2, más significativo**: `CheckInReservationHandler` libera el `AvailabilitySlot` al devolver el vehículo (`AvailabilityService.release()`, `status: 'Active' → 'Released'`) — el filtro original del handler (`status: 'Active'`) hacía que **toda reserva ya cerrada desapareciera de cualquier reporte de ocupación histórica**, aunque la ocupación real haya ocurrido dentro del rango consultado. `status` en `AvailabilitySlot` representa "¿todavía retiene el recurso ahora mismo?", no "¿ocupó el recurso durante esta ventana histórica?" — son preguntas distintas, y `fleet-utilization` necesita la segunda. Se quita el filtro de `status` por completo (queda `resourceType`/`slotType: 'Booking'`/solape de fechas) — un reporte sobre `[from,to]` debe contar ocupación completada, no solo reservas todavía en curso.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
