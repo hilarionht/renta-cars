@@ -43,9 +43,18 @@ export class FleetUtilizationHandler {
       });
       const slotRecords = await tx.availabilitySlot.findMany({
         where: {
-          resourceType: 'Vehicle',
+          // AvailabilityService.reserve() (reservations/application) escribe resourceType
+          // en minuscula ('vehicle') - Scheduling lo trata como un string opaco, sin
+          // normalizacion (docs/persistence/10-DECISIONES.md Fase 4, item 1, bug real
+          // encontrado por el e2e de este mismo item).
+          resourceType: 'vehicle',
           slotType: 'Booking',
-          status: 'Active',
+          // Sin filtro de status: CheckInReservationHandler libera el slot
+          // (AvailabilityService.release(), status -> 'Released') al devolver el vehiculo -
+          // un reporte de ocupacion HISTORICA sobre [from,to] debe seguir contando esa
+          // ocupacion ya completada, no solo reservas todavia en curso (bug real encontrado
+          // por el e2e de este mismo item - el filtro `status: 'Active'` original hacia que
+          // toda reserva ya cerrada desapareciera de cualquier reporte historico).
           startDate: { lte: rangeEnd },
           endDate: { gte: rangeStart },
         },
