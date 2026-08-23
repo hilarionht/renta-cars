@@ -1,22 +1,28 @@
-import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
+import { type CanActivate, type ExecutionContext, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+
+import { REQUIRE_PERMISSION_KEY } from '@platform/persistence-kernel';
+import { ROLE_LOOKUP_PORT, type RoleLookupPort } from '@platform/roles-permissions/application';
 
 import { ApiException } from '../errors/api-exception';
 import type { JwtPayload } from './jwt-payload.interface';
-import { REQUIRE_PERMISSION_KEY } from './require-permission.decorator';
 
-// docs/technical/07-SECURITY.md SS2: mecanismo del primer nivel de RBAC
-// (@RequirePermission('reservations:create')) - implementado como paso 9 del bootstrap
-// pide explicitamente, "sin permisos de negocio reales todavia". Ningun modulo resuelve
-// hoy roles[] -> permissions[] (llega con el modulo Identity de Fase 0,
-// docs/01-ROADMAP.md), asi que un endpoint que declare @RequirePermission() sin que
-// Identity exista siempre rechaza (falla cerrado, no abierto) - intencional, no un bug:
-// nada debe poder marcarse "autorizado" sin un catalogo de permisos real detras.
+// docs/technical/07-SECURITY.md SS2: primer nivel de RBAC (@RequirePermission('reservations:
+// create')). roles[] -> permissions[] se resuelve aca, no en el JWT (docs/09-SEGURIDAD.md
+// SS1) - ROLE_LOOKUP_PORT.getPermissionsForRoles() esta respaldado por un cache en memoria
+// (CachedRoleLookupAdapter, platform-roles-permissions-infrastructure), asi que esto no
+// toca la base de datos de negocio en el camino caliente salvo el primer miss por role
+// (Fase 4 item 2, docs/persistence/10-DECISIONES.md). El early-return de abajo (sin
+// @RequirePermission() en la ruta) nunca invoca el puerto - ninguna ruta paga el costo de
+// resolucion si no lo necesita.
 @Injectable()
 export class PermissionGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    @Inject(ROLE_LOOKUP_PORT) private readonly roleLookupPort: RoleLookupPort,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredPermission = this.reflector.getAllAndOverride<string | undefined>(
       REQUIRE_PERMISSION_KEY,
       [context.getHandler(), context.getClass()],
@@ -27,9 +33,13 @@ export class PermissionGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<{ user?: JwtPayload }>();
-    const hasPermission = request.user?.permissions?.includes(requiredPermission) ?? false;
+    const roleIds = request.user?.roles ?? [];
+    const permissions = await this.roleLookupPort.getPermissionsForRoles(
+      roleIds,
+      request.user?.companyId,
+    );
 
-    if (!hasPermission) {
+    if (!permissions.includes(requiredPermission)) {
       throw new ApiException(403, 'FORBIDDEN', `Falta el permiso "${requiredPermission}"`);
     }
 

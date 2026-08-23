@@ -47,6 +47,7 @@ import securityConfig from '../config/security.config';
 import storageConfig from '../config/storage.config';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { PermissionGuard } from './auth/permission.guard';
 import { CompanyStatusGuard } from './context/company-status.guard';
 import { TenantContextGuard } from './context/tenant-context.guard';
 import { TenantModuleEnabledGuard } from './context/tenant-module-enabled.guard';
@@ -216,15 +217,15 @@ import { PrismaModule } from './persistence/prisma.module';
     { provide: APP_INTERCEPTOR, useClass: TimeoutInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ResponseEnvelopeInterceptor },
     // docs/technical/03-BACKEND-ARCHITECTURE.md SS7: JwtAuthGuard -> TenantContextGuard ->
-    // CompanyStatusGuard -> TenantModuleEnabledGuard (opt-in via @RequiresProductModule(),
-    // pasa siempre en rutas sin el decorator - ninguna ruta de Fase 0 lo usa, el primer
-    // consumidor real llega con Fase 1/libs/products/rental) -> PermissionGuard (ya
-    // disponible via @UseGuards() puntual, no global - nada puebla permissions[] todavia asi
-    // que aplicarlo global bloquearia todo) -> ThrottlerGuard.
+    // CompanyStatusGuard -> TenantModuleEnabledGuard (opt-in via @RequiresProductModule()) ->
+    // PermissionGuard (opt-in via @RequirePermission(), Fase 4 item 2 RBAC completo - global
+    // desde aqui porque resuelve roles[] -> permissions[] via ROLE_LOOKUP_PORT, ya provisto
+    // por RolesPermissionsModule; pasa siempre en rutas sin el decorator) -> ThrottlerGuard.
     { provide: APP_GUARD, useExisting: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantContextGuard },
     { provide: APP_GUARD, useClass: CompanyStatusGuard },
     { provide: APP_GUARD, useClass: TenantModuleEnabledGuard },
+    { provide: APP_GUARD, useClass: PermissionGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
