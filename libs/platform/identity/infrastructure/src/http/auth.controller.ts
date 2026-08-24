@@ -1,8 +1,9 @@
 import { Body, Controller, Headers, Post, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle, seconds } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 
-import { Public } from '@platform/persistence-kernel';
+import { AUTH_THROTTLE_PROFILE, Public } from '@platform/persistence-kernel';
 import {
   LoginHandler,
   RefreshSessionHandler,
@@ -32,6 +33,11 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
+  // Perfil AUTH (docs/09-SEGURIDAD.md SS6): mas estricto que el limite general - blanco
+  // directo de fuerza bruta de credenciales.
+  @Throttle({
+    default: { limit: AUTH_THROTTLE_PROFILE.limit, ttl: seconds(AUTH_THROTTLE_PROFILE.ttlSeconds) },
+  })
   @Public()
   @Post('login')
   async login(
@@ -53,6 +59,11 @@ export class AuthController {
     );
   }
 
+  // Perfil AUTH (docs/09-SEGURIDAD.md SS6): un refresh token robado es tan sensible como
+  // una contrasena - mismo limite estricto que login, no el general.
+  @Throttle({
+    default: { limit: AUTH_THROTTLE_PROFILE.limit, ttl: seconds(AUTH_THROTTLE_PROFILE.ttlSeconds) },
+  })
   @Public()
   @Post('refresh')
   async refresh(

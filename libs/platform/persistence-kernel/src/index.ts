@@ -13,3 +13,8 @@ export {
   RequiresProductModule,
 } from './requires-product-module.decorator';
 export { REQUIRE_PERMISSION_KEY, RequirePermission } from './require-permission.decorator';
+export {
+  AUTH_THROTTLE_PROFILE,
+  WRITE_HEAVY_THROTTLE_PROFILE,
+  GENERAL_THROTTLE_PROFILE,
+} from './throttle-profiles';

@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Throttle, seconds } from '@nestjs/throttler';
 
 import {
   RequestContext,
   RequirePermission,
   RequiresProductModule,
+  WRITE_HEAVY_THROTTLE_PROFILE,
 } from '@platform/persistence-kernel';
 import {
   ApproveExtensionHandler,
@@ -53,6 +55,14 @@ export class ReservationsController {
     private readonly requestContext: RequestContext,
   ) {}
 
+  // Perfil WRITE-HEAVY (docs/09-SEGURIDAD.md SS6): mitiga spam de negocio ademas de abuso
+  // tecnico - crear una reserva bloquea inventario real, no es un endpoint de solo lectura.
+  @Throttle({
+    default: {
+      limit: WRITE_HEAVY_THROTTLE_PROFILE.limit,
+      ttl: seconds(WRITE_HEAVY_THROTTLE_PROFILE.ttlSeconds),
+    },
+  })
   @Post()
   @RequirePermission('reservations:create')
   async create(@Body() dto: CreateReservationRequestDto): Promise<{ id: string }> {

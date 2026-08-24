@@ -128,19 +128,31 @@ import { PrismaModule } from './persistence/prisma.module';
     EventEmitterModule.forRoot({ wildcard: true }),
     PrismaModule,
     // docs/technical/03-BACKEND-ARCHITECTURE.md SS7 (ThrottlerGuard, ultimo guard de la
-    // cadena) - limite unico global, ver security.config.ts sobre por que no se separo un
-    // perfil "auth" mas estricto en esta tanda. Storage en memoria por proceso, no Redis
+    // cadena) - throttler 'default' con el perfil GENERAL (security.config.ts). Perfiles
+    // auth/write-heavy, mas estrictos, se aplican por ruta via @Throttle({default: {...}})
+    // en AuthController/ReservationsController (Fase 6/Hardening) - no hace falta un array
+    // de throttlers nombrados ni @SkipThrottle(): @nestjs/throttler ya genera una clave de
+    // storage por Controller+handler+throttler+IP (generateKey(), verificado en
+    // node_modules/@nestjs/throttler/dist/throttler.guard.js), asi que cada ruta tiene su
+    // propio balde aunque haya un unico throttler registrado - @Throttle() alcanza para
+    // sobreescribir el limite en rutas puntuales. Storage en memoria por proceso, no Redis
     // todavia - correcto para una unica instancia; una segunda instancia de apps/api
     // necesitaria storage compartido (paquete de terceros aparte de @nestjs/throttler, no
     // agregado sin discutirlo) para que el limite sea real entre instancias - gap
-    // conocido, no silencioso.
+    // conocido, no silencioso (item de cache/performance propio de Fase 6).
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const security = configService.getOrThrow<{
           throttle: { limit: number; ttlSeconds: number };
         }>('security');
-        return [{ ttl: security.throttle.ttlSeconds * 1000, limit: security.throttle.limit }];
+        return [
+          {
+            name: 'default',
+            ttl: security.throttle.ttlSeconds * 1000,
+            limit: security.throttle.limit,
+          },
+        ];
       },
     }),
     LoggerModule.forRootAsync({
