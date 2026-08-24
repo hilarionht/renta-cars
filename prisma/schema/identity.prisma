@@ -104,6 +104,11 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Restrict, map: "sessions_user_id_fkey")
 
+  // Fase 6/Hardening "cache/performance" (docs/persistence/10-DECISIONES.md #106) -
+  // findActiveForUser() (prisma-session.repository.ts) filtra por userId+status en cada
+  // refresh de access token, el camino mas caliente de toda la plataforma - sin este indice
+  // escaneaba el historial completo de sesiones de la company.
+  @@index([companyId, userId, status], map: "sessions_company_user_status_idx")
   @@map("sessions")
   @@schema("identity")
 }

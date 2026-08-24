@@ -58,6 +58,10 @@ model Branch {
   updatedAt DateTime     @updatedAt @map("updated_at")
   version   Int          @default(1)
 
+  // Fase 6/Hardening "cache/performance" (docs/persistence/10-DECISIONES.md #106) -
+  // ListBranchesHandler (GET /branches) filtra solo por companyId, sin ningun indice/unique
+  // que lo cubra hasta ahora.
+  @@index([companyId], map: "branches_company_id_idx")
   @@map("branches")
   @@schema("organization")
 }

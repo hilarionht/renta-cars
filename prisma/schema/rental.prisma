@@ -380,6 +380,12 @@ model Reservation {
   // agrega a mano en la migracion (docs/persistence/05-INDICES-Y-CONSTRAINTS.md §2).
   @@index([companyId, vehicleId, status])
   @@index([companyId, customerId, status])
+  // Fase 6/Hardening "cache/performance" (docs/persistence/10-DECISIONES.md #106) - GET
+  // /reservations permite filtrar solo por status (vehicleId/customerId ambos opcionales),
+  // patron que ninguno de los 2 indices de arriba sirve con status como prefijo util.
+  // Distinto del parcial WHERE status='Draft' de arriba (ese es solo para el job de
+  // expiracion) - este cubre listar por CUALQUIER status.
+  @@index([companyId, status], map: "reservations_company_status_idx")
   @@map("reservations")
   @@schema("rental")
 }
