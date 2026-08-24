@@ -37,6 +37,10 @@ services:
     image: prom/prometheus:latest
     volumes:
       - ./tooling/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # docs/persistence/10-DECISIONES.md #105: reglas de alerta - montado aparte porque
+      # rule_files (prometheus.yml) resuelve rutas relativas al directorio de trabajo del
+      # proceso dentro del contenedor, no al host.
+      - ./tooling/observability/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
     ports:
       - '9090:9090'
     networks:
