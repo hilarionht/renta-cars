@@ -112,6 +112,7 @@
     "@expo/metro": "~56.0.0",
     "@expo/metro-runtime": "~56.0.14",
     "@expo/vector-icons": "~15.1.0",
+    "@nest-lab/throttler-storage-redis": "1.2.0",
     "@nestjs/common": "^11.1.28",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.28",

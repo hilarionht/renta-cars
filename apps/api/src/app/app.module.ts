@@ -3,9 +3,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import type { Redis } from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 import { ClsModule } from 'nestjs-cls';
 
+import { CACHE_REDIS_CLIENT, RedisCacheModule } from '@platform/persistence-kernel';
 import {
   RolesPermissionsModule,
   ROLES_PERMISSIONS_DOMAIN_ERROR_ENTRIES,
@@ -135,24 +138,34 @@ import { PrismaModule } from './persistence/prisma.module';
     // storage por Controller+handler+throttler+IP (generateKey(), verificado en
     // node_modules/@nestjs/throttler/dist/throttler.guard.js), asi que cada ruta tiene su
     // propio balde aunque haya un unico throttler registrado - @Throttle() alcanza para
-    // sobreescribir el limite en rutas puntuales. Storage en memoria por proceso, no Redis
-    // todavia - correcto para una unica instancia; una segunda instancia de apps/api
-    // necesitaria storage compartido (paquete de terceros aparte de @nestjs/throttler, no
-    // agregado sin discutirlo) para que el limite sea real entre instancias - gap
-    // conocido, no silencioso (item de cache/performance propio de Fase 6).
+    // sobreescribir el limite en rutas puntuales. Storage en Redis compartido
+    // (ThrottlerStorageRedisService, @nest-lab/throttler-storage-redis - implementa
+    // ThrottlerStorage con un script Lua atomico, no hand-rolled: el contador
+    // incrementar+expirar+bloquear necesita atomicidad real entre requests concurrentes de
+    // multiples instancias, docs/persistence/10-DECISIONES.md #106) - cierra el gap que
+    // este comentario documentaba antes ("storage en memoria, gap conocido").
     ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
+      // ThrottlerModule.forRootAsync() crea su propio modulo dinamico - RedisCacheModule
+      // estar en AppModule.imports no alcanza para que el useFactory de ESTE modulo
+      // resuelva CACHE_REDIS_CLIENT (a diferencia de ConfigService, global via
+      // ConfigModule.forRoot({isGlobal:true})); hay que importarlo explicito aca (bug real
+      // atrapado por el smoke test de servidor real, UnknownDependenciesException).
+      imports: [RedisCacheModule],
+      inject: [ConfigService, CACHE_REDIS_CLIENT],
+      useFactory: (configService: ConfigService, redisClient: Redis) => {
         const security = configService.getOrThrow<{
           throttle: { limit: number; ttlSeconds: number };
         }>('security');
-        return [
-          {
-            name: 'default',
-            ttl: security.throttle.ttlSeconds * 1000,
-            limit: security.throttle.limit,
-          },
-        ];
+        return {
+          throttlers: [
+            {
+              name: 'default',
+              ttl: security.throttle.ttlSeconds * 1000,
+              limit: security.throttle.limit,
+            },
+          ],
+          storage: new ThrottlerStorageRedisService(redisClient),
+        };
       },
     }),
     LoggerModule.forRootAsync({
