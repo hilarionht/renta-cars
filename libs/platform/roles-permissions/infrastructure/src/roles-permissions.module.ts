@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { RedisCacheModule } from '@platform/persistence-kernel';
 import {
   CreateRoleHandler,
   DeactivateRoleHandler,
@@ -20,10 +21,13 @@ import { ListRolesHandler } from './queries/list-roles.handler';
 // (docs/05-CONVENCIONES-BACKEND.md SS3). RoleLookupPort se exporta - lo consume UsersModule
 // (validar un roleId al asignarlo) y PermissionGuard (apps/api, RBAC completo Fase 4 item 2)
 // para resolver roles[] -> permissions[]. ROLE_LOOKUP_PORT se bindea a
-// CachedRoleLookupAdapter (cache en memoria, invalidado por RolePermissionsChanged.v1/
-// RoleDeactivated.v1) - PrismaRoleLookupAdapter queda como provider propio, inyectado
-// directo dentro del adapter cacheado, nunca expuesto el mismo como ROLE_LOOKUP_PORT.
+// CachedRoleLookupAdapter (cache en Redis compartido entre instancias, RedisCacheModule -
+// Fase 6/Hardening "cache/performance", docs/persistence/10-DECISIONES.md #106; invalidado
+// por RolePermissionsChanged.v1/RoleDeactivated.v1) - PrismaRoleLookupAdapter queda como
+// provider propio, inyectado directo dentro del adapter cacheado, nunca expuesto el mismo
+// como ROLE_LOOKUP_PORT.
 @Module({
+  imports: [RedisCacheModule],
   controllers: [RolesController, PermissionsController],
   providers: [
     { provide: ROLE_REPOSITORY, useClass: PrismaRoleRepository },
