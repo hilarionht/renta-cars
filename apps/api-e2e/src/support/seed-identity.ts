@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { hashSync } from '@node-rs/argon2';
 import { Client } from 'pg';
 
+import { PERMISSION_CATALOG } from '@platform/roles-permissions/domain';
+
 // Sembrado directo en Postgres (rol migrator, exento de RLS) para los e2e de auth. Companies
 // ya tiene un camino real via API (POST /api/v1/companies, @Public()) - lo que sigue sin
 // existir es un camino via API para el PRIMER usuario de una company (POST /api/v1/users
@@ -34,10 +36,13 @@ export async function seedAdminForCompany(companyId: string): Promise<SeededAdmi
     const adminPassword = 'Sup3rSecret!123';
     const passwordHash = hashSync(adminPassword, ARGON2_PARAMS);
 
+    // Admin de bootstrap de test omnisciente (todo el catalogo real, nunca una copia a mano) -
+    // no es un actor real cuyos permisos limitados esten bajo prueba (eso lo cubre
+    // permissions-enforcement.e2e-spec.ts, con un rol curado creado via la API real).
     await client.query(
       `INSERT INTO identity.roles (id, company_id, role_name, scope, status, permissions, updated_at, version)
-       VALUES ($1, NULL, $2, 'System', 'Active', ARRAY['users:create','roles:create'], now(), 1)`,
-      [systemRoleId, `System Role e2e ${systemRoleId}`],
+       VALUES ($1, NULL, $2, 'System', 'Active', $3, now(), 1)`,
+      [systemRoleId, `System Role e2e ${systemRoleId}`, PERMISSION_CATALOG],
     );
 
     await client.query(
