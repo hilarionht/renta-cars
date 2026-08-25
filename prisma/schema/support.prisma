@@ -138,6 +138,13 @@ enum NotificationKind {
   Reminder
   Receipt
   Alert
+  // Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - extension
+  // deliberada del catalogo antes cerrado en 4 valores (docs/domain/02-LENGUAJE-UBICUO.md
+  // SS8, docs/model/04-VALUE_OBJECTS.md SS7). Ninguno de los 4 valores existentes encaja: un
+  // OTP de login no es una Confirmation/Reminder/Receipt, y "Alert" esta reservado
+  // explicitamente para notificaciones internas de operacion, "no para comunicacion con el
+  // Customer" - usarlo aca violaria esa regla ya documentada.
+  SecurityCode
 
   @@schema("support")
 }
