@@ -25,7 +25,10 @@
     "db:seed": "ts-node tooling/scripts/db/seed.ts",
     "db:studio": "prisma studio",
     "security:generate-jwt-keys": "ts-node tooling/scripts/security/generate-jwt-keys.ts",
-    "ci:audit-gate": "ts-node tooling/scripts/ci/audit-gate.ts"
+    "ci:audit-gate": "ts-node tooling/scripts/ci/audit-gate.ts",
+    "load-test:setup": "ts-node tooling/load-testing/setup.ts",
+    "load-test:run": "k6 run tooling/load-testing/scenarios/tenant-isolation.js",
+    "load-test:teardown": "ts-node tooling/load-testing/teardown.ts"
   },
   "devDependencies": {
     "@changesets/cli": "2.31.1",
