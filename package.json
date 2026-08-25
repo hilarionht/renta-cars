@@ -115,6 +115,7 @@
     "@expo/metro": "~56.0.0",
     "@expo/metro-runtime": "~56.0.14",
     "@expo/vector-icons": "~15.1.0",
+    "@hookform/resolvers": "5.9.1",
     "@nest-lab/throttler-storage-redis": "1.2.0",
     "@nestjs/common": "^11.1.28",
     "@nestjs/config": "^4.0.4",
@@ -139,6 +140,7 @@
     "@prisma/client": "^7.9.1",
     "@prisma/instrumentation": "7.9.1",
     "@sendgrid/mail": "8.1.6",
+    "@tanstack/react-query": "5.102.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "1.4.7",
@@ -165,6 +167,7 @@
     "pino-opentelemetry-transport": "4.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hook-form": "7.86.0",
     "react-native": "0.86.2",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.1",
@@ -177,6 +180,7 @@
     "rxjs": "^7.8.2",
     "stripe": "22.5.0",
     "twilio": "6.1.0",
-    "uuid": "14.0.1"
+    "uuid": "14.0.1",
+    "zod": "4.4.3"
   }
 }
