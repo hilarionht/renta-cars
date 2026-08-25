@@ -5,3 +5,10 @@
 export { apiRequest, ApiError, AuthenticationExpiredError } from './auth/api-client';
 export { AuthProvider, useAuth } from './auth/auth-context';
 export { decodeAccessToken, type AccessTokenClaims } from './auth/decode-access-token';
+export {
+  useReservationsToCheckOut,
+  useReservationsToCheckIn,
+  useCheckOutReservation,
+  useCheckInReservation,
+} from './reservations/reservations-hooks';
+export { useUploadPhoto } from './files/use-upload-photo';
