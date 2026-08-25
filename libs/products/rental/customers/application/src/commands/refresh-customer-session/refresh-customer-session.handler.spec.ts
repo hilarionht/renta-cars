@@ -64,6 +64,7 @@ function buildHandler(overrides?: {
   };
   const customerRepository: CustomerRepository = {
     findById: jest.fn().mockResolvedValue(customer),
+    findByCompanyIdAndPhone: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
   };
   const unitOfWork: UnitOfWork = {

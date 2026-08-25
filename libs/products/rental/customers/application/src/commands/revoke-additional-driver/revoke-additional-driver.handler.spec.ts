@@ -25,6 +25,7 @@ function createCustomerWithDriver(): { customer: Customer; driverId: string } {
 function buildHandler(existingCustomer: Customer | null) {
   const customerRepository: CustomerRepository = {
     findById: jest.fn().mockResolvedValue(existingCustomer),
+    findByCompanyIdAndPhone: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
   };
   const unitOfWork: UnitOfWork = { run: jest.fn((work) => work({})) };

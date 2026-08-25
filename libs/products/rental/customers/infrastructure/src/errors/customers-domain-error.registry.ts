@@ -8,7 +8,9 @@ import {
   DuplicateActiveIdentityDocumentError,
   IdentityDocumentExpiredError,
   IdentityDocumentNotFoundError,
+  InvalidCustomerOtpCodeError,
   InvalidCustomerRefreshTokenError,
+  OtpChallengeNotFoundError,
 } from '@rental/customers/domain';
 
 // TOKEN_INVALID: mismo codigo/status/title que IDENTITY_DOMAIN_ERROR_ENTRIES para
@@ -66,5 +68,13 @@ export const CUSTOMERS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [
     CustomerRefreshTokenReusedError,
     { status: 401, code: 'TOKEN_INVALID', title: 'Token invalido' },
+  ],
+  [
+    OtpChallengeNotFoundError,
+    { status: 401, code: 'OTP_CHALLENGE_NOT_FOUND', title: 'No hay un codigo vigente' },
+  ],
+  [
+    InvalidCustomerOtpCodeError,
+    { status: 401, code: 'OTP_CODE_INVALID', title: 'Codigo invalido' },
   ],
 ];

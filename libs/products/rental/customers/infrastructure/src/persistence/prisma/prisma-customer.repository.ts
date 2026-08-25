@@ -55,6 +55,23 @@ export class PrismaCustomerRepository implements CustomerRepository {
     return record ? this.toDomain(record) : null;
   }
 
+  // Match exacto por string (contactPhone es TEXT plano) - coherente con PhoneNumber.equals()
+  // del dominio, ver el comentario del puerto.
+  async findByCompanyIdAndPhone(companyId: string, phone: string): Promise<Customer | null> {
+    const record = await this.readTransaction.run(
+      (tx) =>
+        tx.customer.findFirst({
+          where: { contactPhone: phone },
+          include: {
+            identityDocuments: true,
+            additionalDrivers: { include: { identityDocuments: true } },
+          },
+        }),
+      companyId,
+    );
+    return record ? this.toDomain(record) : null;
+  }
+
   async save(customer: Customer, tx: UnitOfWorkTransaction): Promise<void> {
     const prisma = asPrismaTransaction(tx);
     const rootData = {

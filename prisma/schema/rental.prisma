@@ -29,6 +29,7 @@ model Customer {
   reservations      Reservation[]
   invoices          Invoice[]
   customerSessions  CustomerSession[]
+  otpChallenges     CustomerOtpChallenge[]
 
   // Clave natural (docs/persistence/04-COLUMNAS-CONCEPTUALES.md §6).
   @@unique([companyId, taxIdOrDocumentId])
@@ -161,6 +162,41 @@ enum CustomerSessionStatus {
   Revoked
 
   @@map("customer_session_status")
+  @@schema("rental")
+}
+
+// Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - agregado corto y
+// propio, efimero (irrelevante despues de su unico uso). version protege attempts/status
+// contra una carrera de 2 verify() concurrentes sobre el mismo challenge (attempts es un
+// control de seguridad real, no solo un contador informativo).
+model CustomerOtpChallenge {
+  id          String                     @id @db.Uuid
+  companyId   String                     @map("company_id") @db.Uuid
+  customerId  String                     @map("customer_id") @db.Uuid
+  phone       String
+  codeHash    String                     @map("code_hash")
+  status      CustomerOtpChallengeStatus
+  attempts    Int                        @default(0)
+  maxAttempts Int                        @map("max_attempts")
+  expiresAt   DateTime                   @map("expires_at")
+  createdAt   DateTime                   @default(now()) @map("created_at")
+  version     Int                        @default(1)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, map: "customer_otp_challenges_customer_id_fkey")
+
+  // findLatestForCustomer() ordena por createdAt desc filtrando por companyId+customerId -
+  // el mismo patron de acceso caliente que customer_sessions_company_customer_status_idx.
+  @@index([companyId, customerId, createdAt], map: "customer_otp_challenges_company_customer_created_idx")
+  @@map("customer_otp_challenges")
+  @@schema("rental")
+}
+
+enum CustomerOtpChallengeStatus {
+  Pending
+  Verified
+  Expired
+
+  @@map("customer_otp_challenge_status")
   @@schema("rental")
 }
 

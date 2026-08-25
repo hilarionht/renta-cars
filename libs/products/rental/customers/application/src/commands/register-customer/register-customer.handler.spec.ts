@@ -8,6 +8,7 @@ function buildHandler() {
   const savedCustomers: Customer[] = [];
   const customerRepository: CustomerRepository = {
     findById: jest.fn(),
+    findByCompanyIdAndPhone: jest.fn(),
     save: jest.fn((customer: Customer) => {
       savedCustomers.push(customer);
       return Promise.resolve();

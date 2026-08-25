@@ -55,3 +55,13 @@ export type { CustomerSessionCreatedEvent } from './events/customer-session-crea
 export type { CustomerSessionRevokedEvent } from './events/customer-session-revoked.event';
 export { InvalidCustomerRefreshTokenError } from './errors/invalid-customer-refresh-token.error';
 export { CustomerRefreshTokenReusedError } from './errors/customer-refresh-token-reused.error';
+export {
+  CustomerOtpChallenge,
+  type CustomerOtpChallengeId,
+  type CustomerOtpChallengeProps,
+  type CustomerOtpVerificationOutcome,
+} from './entities/customer-otp-challenge';
+export { CustomerOtpCodeHash } from './value-objects/customer-otp-code-hash';
+export type { CustomerOtpChallengeStatus } from './value-objects/customer-otp-challenge-status';
+export { OtpChallengeNotFoundError } from './errors/otp-challenge-not-found.error';
+export { InvalidCustomerOtpCodeError } from './errors/invalid-customer-otp-code.error';

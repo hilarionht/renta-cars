@@ -16,6 +16,14 @@ export {
   CUSTOMER_REFRESH_TOKEN_HASHER,
   type CustomerRefreshTokenHasher,
 } from './ports/customer-refresh-token-hasher.port';
+export {
+  CUSTOMER_OTP_CHALLENGE_REPOSITORY,
+  type CustomerOtpChallengeRepository,
+} from './ports/customer-otp-challenge.repository';
+export {
+  CUSTOMER_OTP_CODE_GENERATOR,
+  type CustomerOtpCodeGenerator,
+} from './ports/customer-otp-code-generator.port';
 
 export { RegisterCustomerHandler } from './commands/register-customer/register-customer.handler';
 export type { RegisterCustomerCommand } from './commands/register-customer/register-customer.command';
@@ -42,6 +50,13 @@ export type {
 } from './commands/refresh-customer-session/refresh-customer-session.command';
 export { RevokeCustomerSessionHandler } from './commands/revoke-customer-session/revoke-customer-session.handler';
 export type { RevokeCustomerSessionCommand } from './commands/revoke-customer-session/revoke-customer-session.command';
+export { RequestCustomerOtpHandler } from './commands/request-customer-otp/request-customer-otp.handler';
+export type { RequestCustomerOtpCommand } from './commands/request-customer-otp/request-customer-otp.command';
+export { VerifyCustomerOtpHandler } from './commands/verify-customer-otp/verify-customer-otp.handler';
+export type {
+  VerifyCustomerOtpCommand,
+  VerifyCustomerOtpResult,
+} from './commands/verify-customer-otp/verify-customer-otp.command';
 
 export type {
   GetCustomerQuery,
