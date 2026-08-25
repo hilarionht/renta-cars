@@ -7,7 +7,12 @@ import {
   type UnitOfWork,
 } from '@platform/shared-kernel';
 import { SETTINGS_LOOKUP_PORT, type SettingsLookupPort } from '@platform/settings/application';
-import { Notification, type NotificationId, Recipient } from '@platform/notifications/domain';
+import {
+  Notification,
+  type NotificationId,
+  NotificationDeliveryFailedError,
+  Recipient,
+} from '@platform/notifications/domain';
 
 import {
   NOTIFICATION_REPOSITORY,
@@ -51,10 +56,11 @@ export class SendNotificationHandler {
       await this.notificationRepository.save(notification, tx);
     }, command.companyId);
 
-    const preferredChannel = await this.settingsLookupPort.getNotificationChannelPreference(
-      command.companyId,
-    );
-    const channelOrder = this.resolveChannelOrder(preferredChannel);
+    const channelOrder = command.requireExactChannel
+      ? [command.requireExactChannel]
+      : this.resolveChannelOrder(
+          await this.settingsLookupPort.getNotificationChannelPreference(command.companyId),
+        );
 
     let lastFailureReason: string | undefined;
     for (const channel of channelOrder) {
@@ -78,11 +84,14 @@ export class SendNotificationHandler {
       }
     }
 
-    notification.fail(
-      lastFailureReason ?? 'El destinatario no tiene datos de contacto para ningun canal.',
-      true,
-    );
+    const failureReason =
+      lastFailureReason ?? 'El destinatario no tiene datos de contacto para ningun canal.';
+    notification.fail(failureReason, true);
     await this.persistAndPublish(notification);
+
+    if (command.requireExactChannel) {
+      throw new NotificationDeliveryFailedError(command.requireExactChannel, failureReason);
+    }
     return notification.id;
   }
 

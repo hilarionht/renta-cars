@@ -11,6 +11,7 @@ export { Recipient, type RecipientProps } from './value-objects/recipient';
 
 export { NotificationNotFoundError } from './errors/notification-not-found.error';
 export { NotificationInvalidStateTransitionError } from './errors/notification-invalid-state-transition.error';
+export { NotificationDeliveryFailedError } from './errors/notification-delivery-failed.error';
 
 export type { NotificationSentEvent } from './events/notification-sent.event';
 export type { NotificationDeliveredEvent } from './events/notification-delivered.event';

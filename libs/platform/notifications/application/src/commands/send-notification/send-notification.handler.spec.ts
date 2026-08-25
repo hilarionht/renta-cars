@@ -122,4 +122,44 @@ describe('SendNotificationHandler', () => {
       expect.objectContaining({ eventType: 'NotificationFailed.v1' }),
     );
   });
+
+  it('requireExactChannel: intenta solo ese canal, sin fallback, y sin consultar SettingsLookupPort', async () => {
+    const send = jest.fn().mockResolvedValue({ providerReference: 'provider-ref-4' });
+    const { handler, savedNotifications } = buildHandler({
+      preferredChannel: 'Email',
+      send,
+    });
+
+    await handler.execute({
+      companyId: 'company-1',
+      kind: 'Alert',
+      recipient: { email: 'user@example.com', phone: '+525500000000' },
+      templateId: 'customer-otp-login',
+      requireExactChannel: 'WhatsApp',
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ channel: 'WhatsApp' }));
+    expect(savedNotifications[savedNotifications.length - 1].status).toBe('Sent');
+  });
+
+  it('requireExactChannel: si ese canal falla, marca Failed y lanza NotificationDeliveryFailedError (nunca reintenta otro canal)', async () => {
+    const send = jest.fn().mockRejectedValue(new Error('WhatsApp no disponible'));
+    const { handler, savedNotifications } = buildHandler({ preferredChannel: 'Email', send });
+
+    await expect(
+      handler.execute({
+        companyId: 'company-1',
+        kind: 'Alert',
+        recipient: { email: 'user@example.com', phone: '+525500000000' },
+        templateId: 'customer-otp-login',
+        requireExactChannel: 'WhatsApp',
+      }),
+    ).rejects.toThrow('WhatsApp no disponible');
+
+    expect(send).toHaveBeenCalledTimes(1);
+    const last = savedNotifications[savedNotifications.length - 1];
+    expect(last.status).toBe('Failed');
+    expect(last.channelsExhausted).toBe(true);
+  });
 });
