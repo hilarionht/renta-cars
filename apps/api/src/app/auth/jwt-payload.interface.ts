@@ -8,4 +8,6 @@ export interface JwtPayload {
   companyId: string;
   branchId?: string;
   roles: string[];
+  // Ver AccessTokenClaims.actorType (platform/identity/application) - mismo campo, aditivo.
+  actorType?: 'Customer';
 }

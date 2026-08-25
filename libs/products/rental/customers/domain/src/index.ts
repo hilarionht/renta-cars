@@ -38,3 +38,20 @@ export type { AdditionalDriverValidatedEvent } from './events/additional-driver-
 export type { AdditionalDriverRevokedEvent } from './events/additional-driver-revoked.event';
 export type { CustomerBlockedEvent } from './events/customer-blocked.event';
 export type { CustomerUnblockedEvent } from './events/customer-unblocked.event';
+export {
+  CustomerSession,
+  type CustomerSessionId,
+  type CustomerSessionProps,
+} from './entities/customer-session';
+export { CustomerDeviceContext } from './value-objects/customer-device-context';
+export { CustomerRefreshTokenHash } from './value-objects/customer-refresh-token-hash';
+export type { CustomerSessionStatus } from './value-objects/customer-session-status';
+export {
+  CustomerSessionSecurityService,
+  type CustomerRotateParams,
+  type CustomerRotateOutcome,
+} from './services/customer-session-security.service';
+export type { CustomerSessionCreatedEvent } from './events/customer-session-created.event';
+export type { CustomerSessionRevokedEvent } from './events/customer-session-revoked.event';
+export { InvalidCustomerRefreshTokenError } from './errors/invalid-customer-refresh-token.error';
+export { CustomerRefreshTokenReusedError } from './errors/customer-refresh-token-reused.error';

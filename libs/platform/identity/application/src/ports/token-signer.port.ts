@@ -10,6 +10,11 @@ export interface AccessTokenClaims {
   companyId: string;
   branchId?: string;
   roles: string[];
+  // Aditivo (Fase 5 cliente-autogestion, docs/persistence/10-DECISIONES.md #109) - ausente/
+  // undefined = staff (implicito 'User'), presente solo en tokens de CustomerSession. Un
+  // chequeo explicito es mas barato que confiar en la no-colision de UUIDs entre
+  // identity.users/rental.customers como mecanismo de seguridad "seguro por accidente".
+  actorType?: 'Customer';
 }
 
 export interface TokenSigner {

@@ -8,6 +8,14 @@ export {
   type CustomerLookupPort,
   type CustomerContactInfo,
 } from './ports/customer-lookup.port';
+export {
+  CUSTOMER_SESSION_REPOSITORY,
+  type CustomerSessionRepository,
+} from './ports/customer-session.repository';
+export {
+  CUSTOMER_REFRESH_TOKEN_HASHER,
+  type CustomerRefreshTokenHasher,
+} from './ports/customer-refresh-token-hasher.port';
 
 export { RegisterCustomerHandler } from './commands/register-customer/register-customer.handler';
 export type { RegisterCustomerCommand } from './commands/register-customer/register-customer.command';
@@ -27,6 +35,13 @@ export { BlockCustomerHandler } from './commands/block-customer/block-customer.h
 export type { BlockCustomerCommand } from './commands/block-customer/block-customer.command';
 export { UnblockCustomerHandler } from './commands/unblock-customer/unblock-customer.handler';
 export type { UnblockCustomerCommand } from './commands/unblock-customer/unblock-customer.command';
+export { RefreshCustomerSessionHandler } from './commands/refresh-customer-session/refresh-customer-session.handler';
+export type {
+  RefreshCustomerSessionCommand,
+  RefreshCustomerSessionResult,
+} from './commands/refresh-customer-session/refresh-customer-session.command';
+export { RevokeCustomerSessionHandler } from './commands/revoke-customer-session/revoke-customer-session.handler';
+export type { RevokeCustomerSessionCommand } from './commands/revoke-customer-session/revoke-customer-session.command';
 
 export type {
   GetCustomerQuery,

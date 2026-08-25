@@ -28,6 +28,7 @@ model Customer {
   additionalDrivers AdditionalDriver[]
   reservations      Reservation[]
   invoices          Invoice[]
+  customerSessions  CustomerSession[]
 
   // Clave natural (docs/persistence/04-COLUMNAS-CONCEPTUALES.md §6).
   @@unique([companyId, taxIdOrDocumentId])
@@ -125,6 +126,41 @@ model AdditionalDriver {
   authorizedReservations ReservationAuthorizedDriver[]
 
   @@map("additional_drivers")
+  @@schema("rental")
+}
+
+// Espejo deliberado de identity.Session (Fase 5 cliente-autogestion, docs/persistence/
+// 10-DECISIONES.md #109) - aggregate root propio, no anidado en Customer, misma razon que
+// Session/User (tasa de escritura por refresh, ordenes de magnitud mayor).
+model CustomerSession {
+  id               String                @id @db.Uuid
+  customerId       String                @map("customer_id") @db.Uuid
+  companyId        String                @map("company_id") @db.Uuid
+  refreshTokenHash String                @unique @map("refresh_token_hash")
+  deviceUserAgent  String?               @map("device_user_agent")
+  deviceIpAddress  String?               @map("device_ip_address")
+  status           CustomerSessionStatus
+  issuedAt         DateTime              @default(now()) @map("issued_at")
+  rotatedAt        DateTime?             @map("rotated_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  version          Int                   @default(1)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, map: "customer_sessions_customer_id_fkey")
+
+  // Mismo motivo que sessions_company_user_status_idx (docs/persistence/10-DECISIONES.md
+  // #106) - findActiveForCustomer() filtra por customerId+status en cada refresh.
+  @@index([companyId, customerId, status], map: "customer_sessions_company_customer_status_idx")
+  @@map("customer_sessions")
+  @@schema("rental")
+}
+
+enum CustomerSessionStatus {
+  Active
+  Rotated
+  Revoked
+
+  @@map("customer_session_status")
   @@schema("rental")
 }
 

@@ -4,11 +4,16 @@ import {
   AdditionalDriverNotFoundError,
   AdditionalDriverRevokedError,
   CustomerNotFoundError,
+  CustomerRefreshTokenReusedError,
   DuplicateActiveIdentityDocumentError,
   IdentityDocumentExpiredError,
   IdentityDocumentNotFoundError,
+  InvalidCustomerRefreshTokenError,
 } from '@rental/customers/domain';
 
+// TOKEN_INVALID: mismo codigo/status/title que IDENTITY_DOMAIN_ERROR_ENTRIES para
+// InvalidRefreshTokenError/RefreshTokenReusedError - el camino de robo de CustomerSession
+// (CustomerRefreshTokenReusedError) tampoco filtra al cliente que se detecto un reuso.
 export const CUSTOMERS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [
     IdentityDocumentExpiredError,
@@ -53,5 +58,13 @@ export const CUSTOMERS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [
     ConcurrentModificationError,
     { status: 409, code: 'CONCURRENT_MODIFICATION', title: 'Modificacion concurrente' },
+  ],
+  [
+    InvalidCustomerRefreshTokenError,
+    { status: 401, code: 'TOKEN_INVALID', title: 'Token invalido' },
+  ],
+  [
+    CustomerRefreshTokenReusedError,
+    { status: 401, code: 'TOKEN_INVALID', title: 'Token invalido' },
   ],
 ];

@@ -30,5 +30,11 @@ import { Sha256RefreshTokenHasher } from './providers/refresh-token-hasher.provi
     RefreshSessionHandler,
     RevokeSessionHandler,
   ],
+  // TOKEN_SIGNER exportado para Fase 5 cliente-autogestion (docs/persistence/
+  // 10-DECISIONES.md #109) - RefreshCustomerSessionHandler (rental/customers/application)
+  // firma el access_token de CustomerSession con el mismo TOKEN_SIGNER que emite los de
+  // staff (misma clave RS256, campo actorType adicional distingue el origen). Primer
+  // consumidor cross-modulo de IdentityModule fuera de si mismo.
+  exports: [TOKEN_SIGNER],
 })
 export class IdentityModule {}
