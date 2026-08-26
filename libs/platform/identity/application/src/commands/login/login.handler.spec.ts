@@ -14,6 +14,7 @@ const activeUser: UserLookupResult = {
   passwordHash: 'stored-hash',
   status: 'Active',
   roles: ['role-1'],
+  mfaEnabled: false,
 };
 
 function buildHandler(overrides?: {

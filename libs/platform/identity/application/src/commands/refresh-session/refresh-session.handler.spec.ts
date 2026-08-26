@@ -31,6 +31,7 @@ const matchingUser: UserLookupResult = {
   status: 'Active',
   passwordHash: 'irrelevant',
   roles: ['role-1'],
+  mfaEnabled: false,
 };
 
 function buildHandler(overrides?: {

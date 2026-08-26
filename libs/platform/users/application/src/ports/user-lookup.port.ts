@@ -10,6 +10,8 @@ export interface UserLookupResult {
   passwordHash: string;
   status: string;
   roles: string[];
+  mfaEnabled: boolean;
+  mfaSecretEncrypted?: string;
 }
 
 export interface UserLookupPort {

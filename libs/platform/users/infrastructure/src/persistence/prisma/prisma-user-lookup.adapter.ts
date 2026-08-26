@@ -33,6 +33,8 @@ export class PrismaUserLookupAdapter implements UserLookupPort {
     passwordHash: string;
     status: string;
     roles: { roleId: string }[];
+    mfaEnabled: boolean;
+    mfaSecretEncrypted: string | null;
   }): UserLookupResult {
     return {
       userId: record.id,
@@ -41,6 +43,8 @@ export class PrismaUserLookupAdapter implements UserLookupPort {
       passwordHash: record.passwordHash,
       status: record.status,
       roles: record.roles.map((r) => r.roleId),
+      mfaEnabled: record.mfaEnabled,
+      mfaSecretEncrypted: record.mfaSecretEncrypted ?? undefined,
     };
   }
 }
