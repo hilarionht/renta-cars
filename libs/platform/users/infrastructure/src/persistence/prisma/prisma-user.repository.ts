@@ -8,7 +8,13 @@ import {
   type UnitOfWorkTransaction,
 } from '@platform/shared-kernel';
 import { asPrismaTransaction, ReadTransaction } from '@platform/persistence-kernel';
-import { PasswordHash, PersonName, User, type UserId } from '@platform/users/domain';
+import {
+  EncryptedMfaSecret,
+  PasswordHash,
+  PersonName,
+  User,
+  type UserId,
+} from '@platform/users/domain';
 import type { UserRepository } from '@platform/users/application';
 
 @Injectable()
@@ -41,6 +47,8 @@ export class PrismaUserRepository implements UserRepository {
       passwordHash: user.passwordHash.toString(),
       name: user.name.toString(),
       status: user.status,
+      mfaEnabled: user.mfaEnabled,
+      mfaSecretEncrypted: user.mfaSecret?.toString() ?? null,
     };
 
     if (user.isNew) {
@@ -93,6 +101,10 @@ export class PrismaUserRepository implements UserRepository {
       name: PersonName.from(record.name),
       status: record.status,
       roles: (record.roles ?? []).map((r) => r.roleId),
+      mfaEnabled: record.mfaEnabled,
+      mfaSecret: record.mfaSecretEncrypted
+        ? EncryptedMfaSecret.fromEncrypted(record.mfaSecretEncrypted)
+        : undefined,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       version: record.version,

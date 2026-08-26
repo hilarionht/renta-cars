@@ -1,6 +1,7 @@
 import { Email } from '@platform/shared-kernel';
 
 import { UserDisabledError } from '../errors/user-disabled.error';
+import { EncryptedMfaSecret } from '../value-objects/encrypted-mfa-secret';
 import { PasswordHash } from '../value-objects/password-hash';
 import { PersonName } from '../value-objects/person-name';
 import { User } from './user';
@@ -29,6 +30,8 @@ describe('User', () => {
       expect(user.status).toBe('Active');
       expect(user.roles).toEqual(['role-1', 'role-2']);
       expect(user.isNew).toBe(true);
+      expect(user.mfaEnabled).toBe(false);
+      expect(user.mfaSecret).toBeUndefined();
       const events = user.pullDomainEvents();
       expect(events).toHaveLength(1);
       expect(events[0]).toMatchObject({ eventType: 'UserCreated.v1', email: 'dup@example.com' });
@@ -117,6 +120,47 @@ describe('User', () => {
         eventType: 'UserPasswordChanged.v1',
         changedBy: 'admin-1',
       });
+    });
+  });
+
+  describe('enableMfa/disableMfa', () => {
+    it('enableMfa() activa mfaEnabled, guarda el secret y emite UserMfaEnabled.v1', () => {
+      const user = createUser();
+      user.pullDomainEvents();
+      const secret = EncryptedMfaSecret.fromEncrypted('encrypted-secret-1');
+
+      user.enableMfa(secret);
+
+      expect(user.mfaEnabled).toBe(true);
+      expect(user.mfaSecret?.toString()).toBe('encrypted-secret-1');
+      const events = user.pullDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ eventType: 'UserMfaEnabled.v1' });
+    });
+
+    it('disableMfa() apaga mfaEnabled, limpia el secret y emite UserMfaDisabled.v1', () => {
+      const user = createUser();
+      user.enableMfa(EncryptedMfaSecret.fromEncrypted('encrypted-secret-1'));
+      user.pullDomainEvents();
+
+      user.disableMfa();
+
+      expect(user.mfaEnabled).toBe(false);
+      expect(user.mfaSecret).toBeUndefined();
+      const events = user.pullDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ eventType: 'UserMfaDisabled.v1' });
+    });
+
+    it('enableMfa()/disableMfa() suben version', () => {
+      const user = createUser();
+      const versionBefore = user.version;
+
+      user.enableMfa(EncryptedMfaSecret.fromEncrypted('encrypted-secret-1'));
+      expect(user.version).toBe(versionBefore + 1);
+
+      user.disableMfa();
+      expect(user.version).toBe(versionBefore + 2);
     });
   });
 });

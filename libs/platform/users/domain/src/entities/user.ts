@@ -4,13 +4,21 @@ import { EntityId } from '@platform/shared-kernel';
 import { UserDisabledError } from '../errors/user-disabled.error';
 import type { UserCreatedEvent } from '../events/user-created.event';
 import type { UserDisabledEvent } from '../events/user-disabled.event';
+import type { UserMfaDisabledEvent } from '../events/user-mfa-disabled.event';
+import type { UserMfaEnabledEvent } from '../events/user-mfa-enabled.event';
 import type { UserPasswordChangedEvent } from '../events/user-password-changed.event';
+import type { EncryptedMfaSecret } from '../value-objects/encrypted-mfa-secret';
 import type { PasswordHash } from '../value-objects/password-hash';
 import type { PersonName } from '../value-objects/person-name';
 import type { UserStatus } from '../value-objects/user-status';
 
 export type UserId = EntityId<'User'>;
-type UserDomainEvent = UserCreatedEvent | UserDisabledEvent | UserPasswordChangedEvent;
+type UserDomainEvent =
+  | UserCreatedEvent
+  | UserDisabledEvent
+  | UserPasswordChangedEvent
+  | UserMfaEnabledEvent
+  | UserMfaDisabledEvent;
 
 export interface UserProps {
   id: UserId;
@@ -24,6 +32,11 @@ export interface UserProps {
   // domain - type:domain no puede importar el domain/ de otro modulo, INV-P02) - nunca una
   // copia del contenido del Role (docs/model/02-AGGREGATES.md SS1).
   roles: string[];
+  // MFA (TOTP) opt-in, docs/persistence/10-DECISIONES.md #111 - mfaSecret solo presente
+  // cuando mfaEnabled es true. El dominio nunca ve el secret en claro ni el algoritmo TOTP,
+  // solo el VO ya cifrado (mismo principio que passwordHash).
+  mfaEnabled: boolean;
+  mfaSecret?: EncryptedMfaSecret;
   createdAt: Date;
   updatedAt: Date;
   version: number;
@@ -55,6 +68,7 @@ export class User {
       name: params.name,
       status: 'Active',
       roles: [...new Set(params.roles)],
+      mfaEnabled: false,
       createdAt: now,
       updatedAt: now,
       version: 1,
@@ -109,6 +123,14 @@ export class User {
     return this.props.roles;
   }
 
+  get mfaEnabled(): boolean {
+    return this.props.mfaEnabled;
+  }
+
+  get mfaSecret(): EncryptedMfaSecret | undefined {
+    return this.props.mfaSecret;
+  }
+
   get version(): number {
     return this.props.version;
   }
@@ -153,6 +175,30 @@ export class User {
       eventType: 'UserPasswordChanged.v1',
       userId: this.props.id.toString(),
       changedBy,
+    });
+  }
+
+  // El secret ya viene cifrado (infrastructure) - domain/ no calcula el algoritmo TOTP ni
+  // cifra nada, mismo principio que changePassword() con el hash ya calculado.
+  enableMfa(secret: EncryptedMfaSecret): void {
+    this.props.mfaEnabled = true;
+    this.props.mfaSecret = secret;
+    this.props.updatedAt = new Date();
+    this.props.version += 1;
+    this.domainEvents.push({
+      eventType: 'UserMfaEnabled.v1',
+      userId: this.props.id.toString(),
+    });
+  }
+
+  disableMfa(): void {
+    this.props.mfaEnabled = false;
+    this.props.mfaSecret = undefined;
+    this.props.updatedAt = new Date();
+    this.props.version += 1;
+    this.domainEvents.push({
+      eventType: 'UserMfaDisabled.v1',
+      userId: this.props.id.toString(),
     });
   }
 

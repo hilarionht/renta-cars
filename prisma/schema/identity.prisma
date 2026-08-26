@@ -5,16 +5,20 @@
 // (companyId/branchId, hacia organization) es un escalar plano sin @relation.
 
 model User {
-  id           String     @id @db.Uuid
-  companyId    String     @map("company_id") @db.Uuid
-  branchId     String?    @map("branch_id") @db.Uuid
-  email        String
-  passwordHash String     @map("password_hash")
-  name         String
-  status       UserStatus
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-  version      Int        @default(1)
+  id                 String     @id @db.Uuid
+  companyId          String     @map("company_id") @db.Uuid
+  branchId           String?    @map("branch_id") @db.Uuid
+  email              String
+  passwordHash       String     @map("password_hash")
+  name               String
+  status             UserStatus
+  // MFA (TOTP) opt-in, docs/persistence/10-DECISIONES.md #111 - mfaSecretEncrypted solo
+  // presente cuando mfaEnabled es true.
+  mfaEnabled         Boolean    @default(false) @map("mfa_enabled")
+  mfaSecretEncrypted String?    @map("mfa_secret_encrypted")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  version            Int        @default(1)
 
   roles    UserRole[]
   sessions Session[]
