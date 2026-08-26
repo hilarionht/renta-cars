@@ -458,6 +458,12 @@ model Reservation {
   // Distinto del parcial WHERE status='Draft' de arriba (ese es solo para el job de
   // expiracion) - este cubre listar por CUALQUIER status.
   @@index([companyId, status], map: "reservations_company_status_idx")
+  // Paginacion por cursor (docs/persistence/10-DECISIONES.md #112) - GET /reservations
+  // ordena por id DESC (UUID v7, ordenable cronologicamente). Solo cubre el acceso SIN
+  // filtros - combinar status/vehicleId/customerId con cursor cae a un sort, limitacion
+  // documentada y aceptada, no resuelta esta tanda (mismo criterio que el gap ya
+  // documentado de audit-log).
+  @@index([companyId, id])
   @@map("reservations")
   @@schema("rental")
 }
