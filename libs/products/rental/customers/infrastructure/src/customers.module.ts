@@ -30,6 +30,7 @@ import { PrismaCustomerLookupAdapter } from './persistence/prisma/prisma-custome
 import { PrismaCustomerOtpChallengeRepository } from './persistence/prisma/prisma-customer-otp-challenge.repository';
 import { PrismaCustomerRepository } from './persistence/prisma/prisma-customer.repository';
 import { PrismaCustomerSessionRepository } from './persistence/prisma/prisma-customer-session.repository';
+import { CustomerAuthController } from './http/customer-auth.controller';
 import { CustomersController } from './http/customers.controller';
 import { GetCustomerHandler } from './queries/get-customer.handler';
 import { ListCustomersHandler } from './queries/list-customers.handler';
@@ -41,7 +42,7 @@ import { ListCustomersHandler } from './queries/list-customers.handler';
 // mismo patron ya usado por ReservationConfirmedNotificationListener).
 @Module({
   imports: [IdentityModule, NotificationsModule],
-  controllers: [CustomersController],
+  controllers: [CustomersController, CustomerAuthController],
   providers: [
     { provide: CUSTOMER_REPOSITORY, useClass: PrismaCustomerRepository },
     { provide: CUSTOMER_LOOKUP_PORT, useClass: PrismaCustomerLookupAdapter },

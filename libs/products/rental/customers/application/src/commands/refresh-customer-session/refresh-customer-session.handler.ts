@@ -111,6 +111,7 @@ export class RefreshCustomerSessionHandler {
 
     const customer = await this.customerRepository.findById(
       EntityId.from<'Customer'>(matchedSession.customerId),
+      matchedSession.companyId,
     );
     if (!customer) {
       throw new InvalidCustomerRefreshTokenError();

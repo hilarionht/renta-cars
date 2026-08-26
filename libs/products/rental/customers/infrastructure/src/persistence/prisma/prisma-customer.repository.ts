@@ -42,15 +42,17 @@ type CustomerWithChildren = PrismaCustomer & {
 export class PrismaCustomerRepository implements CustomerRepository {
   constructor(private readonly readTransaction: ReadTransaction) {}
 
-  async findById(id: CustomerId): Promise<Customer | null> {
-    const record = await this.readTransaction.run((tx) =>
-      tx.customer.findFirst({
-        where: { id: id.toString() },
-        include: {
-          identityDocuments: true,
-          additionalDrivers: { include: { identityDocuments: true } },
-        },
-      }),
+  async findById(id: CustomerId, companyId?: string): Promise<Customer | null> {
+    const record = await this.readTransaction.run(
+      (tx) =>
+        tx.customer.findFirst({
+          where: { id: id.toString() },
+          include: {
+            identityDocuments: true,
+            additionalDrivers: { include: { identityDocuments: true } },
+          },
+        }),
+      companyId,
     );
     return record ? this.toDomain(record) : null;
   }

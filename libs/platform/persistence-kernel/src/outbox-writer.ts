@@ -35,6 +35,10 @@ const AGGREGATE_TYPE_TO_SCHEMA: Record<string, string> = {
   // Agregado proactivamente esta vez, no descubierto por un smoke test fallando (mismo
   // mapa que ya causo bugs reales dos veces: #26/#35 en docs/persistence/10-DECISIONES.md).
   Customer: 'rental',
+  // Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - encontrado por un
+  // smoke test real fallando (mismo mapa que ya causo bugs reales dos veces antes, #26/#35),
+  // no agregado proactivamente esta vez.
+  CustomerSession: 'rental',
   Vehicle: 'rental',
   VehicleCategory: 'rental',
   AvailabilitySlot: 'scheduling',

@@ -7,7 +7,13 @@ export const CUSTOMER_REPOSITORY = Symbol('CustomerRepository');
 // entidades internas de Customer, nunca tienen repositorio propio (DDD estandar). Ver
 // PrismaCustomerRepository para el diseño de persistencia con dirty-tracking.
 export interface CustomerRepository {
-  findById(id: CustomerId): Promise<Customer | null>;
+  // companyId opcional - RefreshCustomerSessionHandler/VerifyCustomerOtpHandler corren en
+  // rutas @Public() (encontrado por un smoke test real fallando: "RequestContext no
+  // inicializado - TenantContextGuard no corrio antes"), sin RequestContext poblado, pero ya
+  // conocen el companyId por otra via (la CustomerSession/CustomerOtpChallenge ya
+  // encontrada) - mismo mecanismo que ReadTransaction.run()/UnitOfWork.run() y que
+  // CustomerLookupPort.getContactInfo(customerId, companyId?) en este mismo modulo.
+  findById(id: CustomerId, companyId?: string): Promise<Customer | null>;
   // Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - lookup interno de
   // auth por telefono (RequestCustomerOtpHandler/VerifyCustomerOtpHandler). Deliberadamente
   // NO en CUSTOMER_LOOKUP_PORT (la superficie publica cross-modulo, keyed solo por

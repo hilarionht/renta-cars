@@ -18,8 +18,18 @@ export class JwtTokenSigner implements TokenSigner {
       accessTtlSeconds: number;
     }>('jwt');
 
+    // actorType: encontrado por un smoke test real fallando (Fase 5 cliente-autogestion,
+    // docs/persistence/10-DECISIONES.md #109) - el payload aca es una lista blanca
+    // explicita, agregar el campo a AccessTokenClaims (token-signer.port.ts) no alcanza por
+    // si solo. undefined (tokens de staff) se omite del JWT via JSON.stringify, sin cambiar
+    // ningun token ya emitido.
     return sign(
-      { companyId: claims.companyId, branchId: claims.branchId, roles: claims.roles },
+      {
+        companyId: claims.companyId,
+        branchId: claims.branchId,
+        roles: claims.roles,
+        actorType: claims.actorType,
+      },
       jwtConfig.privateKey,
       {
         algorithm: 'RS256',
