@@ -2,6 +2,10 @@
 // Exporta explicitamente cada simbolo - prohibido `export *`, docs/technical/
 // 09-CODING-STANDARDS.md SS2.
 export { SESSION_REPOSITORY, type SessionRepository } from './ports/session.repository';
+export {
+  MFA_LOGIN_CHALLENGE_REPOSITORY,
+  type MfaLoginChallengeRepository,
+} from './ports/mfa-login-challenge.repository';
 export { TOKEN_SIGNER, type TokenSigner, type AccessTokenClaims } from './ports/token-signer.port';
 export { REFRESH_TOKEN_HASHER, type RefreshTokenHasher } from './ports/refresh-token-hasher.port';
 

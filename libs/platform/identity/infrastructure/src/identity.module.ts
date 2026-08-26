@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import {
   LoginHandler,
+  MFA_LOGIN_CHALLENGE_REPOSITORY,
   REFRESH_TOKEN_HASHER,
   RefreshSessionHandler,
   RevokeSessionHandler,
@@ -12,6 +13,7 @@ import { UsersModule } from '@platform/users/infrastructure';
 
 import { AuthController } from './http/auth.controller';
 import { JwtTokenSigner } from './providers/jwt-token-signer.provider';
+import { PrismaMfaLoginChallengeRepository } from './persistence/prisma/prisma-mfa-login-challenge.repository';
 import { PrismaSessionRepository } from './persistence/prisma/prisma-session.repository';
 import { Sha256RefreshTokenHasher } from './providers/refresh-token-hasher.provider';
 
@@ -24,6 +26,7 @@ import { Sha256RefreshTokenHasher } from './providers/refresh-token-hasher.provi
   controllers: [AuthController],
   providers: [
     { provide: SESSION_REPOSITORY, useClass: PrismaSessionRepository },
+    { provide: MFA_LOGIN_CHALLENGE_REPOSITORY, useClass: PrismaMfaLoginChallengeRepository },
     { provide: TOKEN_SIGNER, useClass: JwtTokenSigner },
     { provide: REFRESH_TOKEN_HASHER, useClass: Sha256RefreshTokenHasher },
     LoginHandler,

@@ -2,6 +2,13 @@
 // Exporta explicitamente cada simbolo - prohibido `export *`, docs/technical/
 // 09-CODING-STANDARDS.md SS2.
 export { Session, type SessionId, type SessionProps } from './entities/session';
+export {
+  MfaLoginChallenge,
+  type MfaLoginChallengeId,
+  type MfaLoginChallengeProps,
+  type MfaLoginVerificationOutcome,
+} from './entities/mfa-login-challenge';
+export type { MfaLoginChallengeStatus } from './value-objects/mfa-login-challenge-status';
 export { RefreshTokenHash } from './value-objects/refresh-token-hash';
 export type { SessionStatus } from './value-objects/session-status';
 export { DeviceContext } from './value-objects/device-context';

@@ -20,8 +20,9 @@ model User {
   updatedAt          DateTime   @updatedAt @map("updated_at")
   version            Int        @default(1)
 
-  roles    UserRole[]
-  sessions Session[]
+  roles              UserRole[]
+  sessions           Session[]
+  mfaLoginChallenges MfaLoginChallenge[]
 
   @@unique([companyId, email], map: "users_company_id_email_key")
   @@map("users")
@@ -123,5 +124,35 @@ enum SessionStatus {
   Revoked
 
   @@map("session_status")
+  @@schema("identity")
+}
+
+// MFA (TOTP) opt-in, docs/persistence/10-DECISIONES.md #111 - agregado corto y propio, no
+// anidado en User (mismo motivo que Session: efimero, irrelevante despues de su unico uso).
+// Sin code_hash propio: el secret TOTP vive en User.mfaSecretEncrypted, no aca.
+model MfaLoginChallenge {
+  id          String                  @id @db.Uuid
+  companyId   String                  @map("company_id") @db.Uuid
+  userId      String                  @map("user_id") @db.Uuid
+  status      MfaLoginChallengeStatus
+  attempts    Int                     @default(0)
+  maxAttempts Int                     @map("max_attempts")
+  expiresAt   DateTime                @map("expires_at")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  version     Int                     @default(1)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, map: "mfa_login_challenges_user_id_fkey")
+
+  @@index([companyId, userId, createdAt], map: "mfa_login_challenges_company_user_created_idx")
+  @@map("mfa_login_challenges")
+  @@schema("identity")
+}
+
+enum MfaLoginChallengeStatus {
+  Pending
+  Verified
+  Expired
+
+  @@map("mfa_login_challenge_status")
   @@schema("identity")
 }
