@@ -3,7 +3,9 @@ import { Module } from '@nestjs/common';
 import {
   AssignRoleHandler,
   ChangePasswordHandler,
+  ConfirmMfaEnrollmentHandler,
   CreateUserHandler,
+  DisableMfaHandler,
   DisableUserHandler,
   MFA_SECRET_CIPHER_PORT,
   MFA_TOTP_PORT,
@@ -21,7 +23,9 @@ import { Argon2PasswordHasher } from './providers/argon2-password-hasher.provide
 import { OtplibMfaTotpProvider } from './providers/otplib-mfa-totp.provider';
 import { PrismaUserLookupAdapter } from './persistence/prisma/prisma-user-lookup.adapter';
 import { PrismaUserRepository } from './persistence/prisma/prisma-user.repository';
+import { UserMfaController } from './http/user-mfa.controller';
 import { UsersController } from './http/users.controller';
+import { GetMfaStatusHandler } from './queries/get-mfa-status.handler';
 import { GetUserHandler } from './queries/get-user.handler';
 
 // Importa RolesPermissionsModule/CompaniesModule (no solo sus puertos) - necesita que
@@ -33,7 +37,7 @@ import { GetUserHandler } from './queries/get-user.handler';
 // User pertenece a una Company).
 @Module({
   imports: [RolesPermissionsModule, CompaniesModule],
-  controllers: [UsersController],
+  controllers: [UsersController, UserMfaController],
   providers: [
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
     { provide: PASSWORD_HASHER, useClass: Argon2PasswordHasher },
@@ -47,6 +51,9 @@ import { GetUserHandler } from './queries/get-user.handler';
     AssignRoleHandler,
     RevokeRoleHandler,
     GetUserHandler,
+    GetMfaStatusHandler,
+    ConfirmMfaEnrollmentHandler,
+    DisableMfaHandler,
   ],
   // PASSWORD_HASHER se exporta ademas de USER_LOOKUP_PORT - LoginHandler (platform-identity)
   // lo necesita para verificar la contraseña presentada contra el hash guardado, usando el

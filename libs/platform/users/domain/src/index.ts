@@ -11,6 +11,7 @@ export { UserNotFoundError } from './errors/user-not-found.error';
 export { DuplicateEmailError } from './errors/duplicate-email.error';
 export { CompanyNotFoundError } from './errors/company-not-found.error';
 export { InvalidRoleAssignmentError } from './errors/invalid-role-assignment.error';
+export { InvalidMfaCodeError } from './errors/invalid-mfa-code.error';
 export type { UserCreatedEvent } from './events/user-created.event';
 export type { UserDisabledEvent } from './events/user-disabled.event';
 export type { UserPasswordChangedEvent } from './events/user-password-changed.event';

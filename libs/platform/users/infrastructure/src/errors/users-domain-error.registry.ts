@@ -2,6 +2,7 @@ import { ConcurrentModificationError, type DomainErrorEntries } from '@platform/
 import {
   CompanyNotFoundError,
   DuplicateEmailError,
+  InvalidMfaCodeError,
   InvalidRoleAssignmentError,
   UserDisabledError,
   UserNotFoundError,
@@ -13,6 +14,7 @@ export const USERS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [DuplicateEmailError, { status: 409, code: 'RESOURCE_CONFLICT', title: 'Email duplicado' }],
   [CompanyNotFoundError, { status: 422, code: 'VALIDATION_FAILED', title: 'Company inexistente' }],
   [InvalidRoleAssignmentError, { status: 422, code: 'VALIDATION_FAILED', title: 'Role invalido' }],
+  [InvalidMfaCodeError, { status: 401, code: 'MFA_CODE_INVALID', title: 'Codigo MFA invalido' }],
   [
     ConcurrentModificationError,
     { status: 409, code: 'CONCURRENT_MODIFICATION', title: 'Modificacion concurrente' },

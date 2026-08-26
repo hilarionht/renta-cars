@@ -17,6 +17,7 @@ export {
   REQUIRE_CUSTOMER_ACTOR_KEY,
   RequireCustomerActor,
 } from './require-customer-actor.decorator';
+export { REQUIRE_STAFF_ACTOR_KEY, RequireStaffActor } from './require-staff-actor.decorator';
 export {
   AUTH_THROTTLE_PROFILE,
   WRITE_HEAVY_THROTTLE_PROFILE,
