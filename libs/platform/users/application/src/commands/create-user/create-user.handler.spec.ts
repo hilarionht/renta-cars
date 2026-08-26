@@ -39,6 +39,7 @@ function buildHandler(overrides?: {
   };
   const roleLookup: RoleLookupPort = {
     existsAndBelongsToCompanyOrSystem: jest.fn().mockResolvedValue(overrides?.roleValid ?? true),
+    getPermissionsForRoles: jest.fn().mockResolvedValue([]),
   };
   const companyExists: CompanyExistsPort = {
     exists: jest.fn().mockResolvedValue(overrides?.companyExists ?? true),
