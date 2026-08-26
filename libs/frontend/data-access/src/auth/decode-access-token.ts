@@ -13,6 +13,9 @@ export interface AccessTokenClaims {
   companyId: string;
   branchId?: string;
   roles: string[];
+  // Aditivo (Fase 5 cliente-autogestion, docs/persistence/10-DECISIONES.md #109) - ausente
+  // en tokens de staff, 'Customer' en tokens emitidos por /customers/auth/otp/verify.
+  actorType?: 'Customer';
 }
 
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';

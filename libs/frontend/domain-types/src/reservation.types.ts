@@ -45,3 +45,18 @@ export interface CheckInReservationRequest {
   inspectedBy: string;
   damages?: CheckInDamage[];
 }
+
+// Verificado contra libs/products/rental/reservations/infrastructure/src/http/
+// {dto/create-my-reservation-request.dto,me-reservations.controller}.ts - POST devuelve
+// solo {id}, NUNCA ReservationSummary (a diferencia de POST /reservations de staff, que
+// tampoco lo hace, pero se confirma aca porque es facil asumir lo contrario).
+export interface CreateMyReservationRequest {
+  vehicleId: string;
+  startDate: string;
+  endDate: string;
+  authorizedDriverIds?: string[];
+}
+
+export interface CreateMyReservationResponse {
+  id: string;
+}

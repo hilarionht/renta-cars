@@ -1,35 +1,37 @@
-// docs/06-CONVENCIONES-FRONTEND.md SS6: ninguna pantalla llama fetch directo - todo pasa
-// por este cliente. Agrega Authorization + X-Client-Platform: mobile (CLIENT_PLATFORM_HEADER
-// del backend, docs/08-API-CONTRACTS.md SS9.1 - mobile siempre recibe accessToken+
-// refreshToken en el body, nunca cookie) y reintenta una vez con refresh ante 401.
-//
-// Sin estado en modulo (a diferencia de un singleton con tokens en memoria): cada llamada
-// lee SecureStore directo - mas simple que sincronizar con el estado de React del
-// AuthContext, y de todos modos SecureStore ya es la fuente de verdad.
+// Espejo de auth/api-client.ts - duplicado a proposito (mismo criterio que CustomerSession/
+// Session en el backend, docs/persistence/10-DECISIONES.md #109: apiRequest son ~110 lineas,
+// mismo tamaño/riesgo que SessionSecurityService alla - un bug en un mecanismo nunca debe
+// tocar al otro). Reusa (no duplica) ApiError/AuthenticationExpiredError de
+// ../shared/api-errors (clases genericas sin imports propios, ver ese archivo - importarlas
+// desde auth/api-client.ts arrastraria su cadena de imports hasta expo-secure-store) y
+// getApiBaseUrl de ../shared/api-base-url (lectura de env pura). Refresh apunta a
+// /api/v1/customers/auth/refresh, nunca /api/v1/auth/refresh.
 import type { AuthResponse } from '@frontend/domain-types';
 
 import { ApiError, AuthenticationExpiredError } from '../shared/api-errors';
 import { getApiBaseUrl } from '../shared/api-base-url';
-import { clearStoredTokens, getStoredTokens, setStoredTokens } from './secure-token-storage';
+import {
+  clearStoredCustomerTokens,
+  getStoredCustomerTokens,
+  setStoredCustomerTokens,
+} from './customer-secure-token-storage';
 
-export { ApiError, AuthenticationExpiredError };
-
-async function refreshTokens(): Promise<string> {
-  const stored = await getStoredTokens();
+async function refreshCustomerTokens(): Promise<string> {
+  const stored = await getStoredCustomerTokens();
   if (!stored) {
     throw new AuthenticationExpiredError();
   }
-  const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/refresh`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/customers/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Client-Platform': 'mobile' },
     body: JSON.stringify({ refreshToken: stored.refreshToken }),
   });
   if (!response.ok) {
-    await clearStoredTokens();
+    await clearStoredCustomerTokens();
     throw new AuthenticationExpiredError();
   }
   const body = (await response.json()) as { data: AuthResponse };
-  await setStoredTokens(body.data);
+  await setStoredCustomerTokens(body.data);
   return body.data.accessToken;
 }
 
@@ -42,8 +44,8 @@ async function extractErrorMessage(response: Response): Promise<string> {
   }
 }
 
-// requiresAuth: false para login (@Public(), sin token todavia que adjuntar).
-export async function apiRequest<T>(
+// requiresAuth: false para otp/request y otp/verify (@Public(), sin token todavia).
+export async function customerApiRequest<T>(
   path: string,
   options: { method?: string; body?: unknown; requiresAuth?: boolean } = {},
 ): Promise<T> {
@@ -54,7 +56,7 @@ export async function apiRequest<T>(
   };
 
   if (requiresAuth) {
-    const stored = await getStoredTokens();
+    const stored = await getStoredCustomerTokens();
     if (!stored) {
       throw new AuthenticationExpiredError();
     }
@@ -71,7 +73,7 @@ export async function apiRequest<T>(
   let response = await doFetch();
 
   if (response.status === 401 && requiresAuth) {
-    const newAccessToken = await refreshTokens();
+    const newAccessToken = await refreshCustomerTokens();
     headers.Authorization = `Bearer ${newAccessToken}`;
     response = await doFetch();
   }

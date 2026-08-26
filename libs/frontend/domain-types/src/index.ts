@@ -6,6 +6,7 @@
 // un stand-in explicito, no la intencion original del stub. Un futuro pase de codegen real
 // los reemplaza, no los fusiona a ciegas.
 export type { LoginRequest, AuthResponse } from './auth.types';
+export type { RequestCustomerOtpRequest, VerifyCustomerOtpRequest } from './customer-auth.types';
 export type {
   ReservationStatusForOperator,
   ReservationSummary,
@@ -13,6 +14,8 @@ export type {
   DamageSeverity,
   CheckInDamage,
   CheckInReservationRequest,
+  CreateMyReservationRequest,
+  CreateMyReservationResponse,
 } from './reservation.types';
 export type {
   RequestUploadUrlRequest,
