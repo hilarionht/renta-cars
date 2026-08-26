@@ -51,6 +51,7 @@ import storageConfig from '../config/storage.config';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionGuard } from './auth/permission.guard';
+import { CustomerActorGuard } from './auth/customer-actor.guard';
 import { CompanyStatusGuard } from './context/company-status.guard';
 import { TenantContextGuard } from './context/tenant-context.guard';
 import { TenantModuleEnabledGuard } from './context/tenant-module-enabled.guard';
@@ -245,12 +246,16 @@ import { PrismaModule } from './persistence/prisma.module';
     // CompanyStatusGuard -> TenantModuleEnabledGuard (opt-in via @RequiresProductModule()) ->
     // PermissionGuard (opt-in via @RequirePermission(), Fase 4 item 2 RBAC completo - global
     // desde aqui porque resuelve roles[] -> permissions[] via ROLE_LOOKUP_PORT, ya provisto
-    // por RolesPermissionsModule; pasa siempre en rutas sin el decorator) -> ThrottlerGuard.
+    // por RolesPermissionsModule; pasa siempre en rutas sin el decorator) ->
+    // CustomerActorGuard (opt-in via @RequireCustomerActor(), Fase 5 cliente-autogestion
+    // #109 - mismo patron que PermissionGuard, global porque me-reservations.controller.ts
+    // es libs/ y no puede importar el guard directo) -> ThrottlerGuard.
     { provide: APP_GUARD, useExisting: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantContextGuard },
     { provide: APP_GUARD, useClass: CompanyStatusGuard },
     { provide: APP_GUARD, useClass: TenantModuleEnabledGuard },
     { provide: APP_GUARD, useClass: PermissionGuard },
+    { provide: APP_GUARD, useClass: CustomerActorGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

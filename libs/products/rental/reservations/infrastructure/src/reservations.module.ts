@@ -25,6 +25,7 @@ import { VehiclesModule } from '@rental/vehicles/infrastructure';
 
 import { InvoiceIssuedListener } from './events/invoice-issued.listener';
 import { ReservationConfirmedNotificationListener } from './events/reservation-confirmed-notification.listener';
+import { MeReservationsController } from './http/me-reservations.controller';
 import { ReservationsController } from './http/reservations.controller';
 import { PrismaReservationRepository } from './persistence/prisma/prisma-reservation.repository';
 import { GetReservationHandler } from './queries/get-reservation.handler';
@@ -52,7 +53,7 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
     BranchesModule,
     NotificationsModule,
   ],
-  controllers: [ReservationsController],
+  controllers: [ReservationsController, MeReservationsController],
   providers: [
     { provide: RESERVATION_REPOSITORY, useClass: PrismaReservationRepository },
     AvailabilityService,
