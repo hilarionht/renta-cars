@@ -3,6 +3,8 @@
 // 09-CODING-STANDARDS.md SS2.
 export { USER_REPOSITORY, type UserRepository } from './ports/user.repository';
 export { PASSWORD_HASHER, type PasswordHasher } from './ports/password-hasher.port';
+export { MFA_TOTP_PORT, type MfaTotpPort } from './ports/mfa-totp.port';
+export { MFA_SECRET_CIPHER_PORT, type MfaSecretCipher } from './ports/mfa-secret-cipher.port';
 export {
   USER_LOOKUP_PORT,
   type UserLookupPort,

@@ -53,7 +53,12 @@ export default {
       },
     ],
   },
-  transformIgnorePatterns: ['/node_modules/(?!(uuid)/)'],
+  // otplib (MFA TOTP, docs/persistence/10-DECISIONES.md #111): sus paquetes .cjs no vienen
+  // bundleados (tsup los deja como dependencias reales) y uno de sus proveedores por default
+  // (@otplib/plugin-base32-scure -> @scure/base, y transitivamente @otplib/plugin-crypto-noble
+  // -> @noble/hashes) es ESM-only (sin build CJS propio) - un require() sin transformar tira
+  // "Unexpected token 'export'" en cualquier test que instancie `new OTP(...)`.
+  transformIgnorePatterns: ['/node_modules/(?!(uuid|otplib|@otplib|@scure|@noble)/)'],
   moduleFileExtensions: ['ts', 'js', 'json'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access -- ver comentario junto a `tsconfig` arriba

@@ -89,6 +89,14 @@ class EnvironmentVariables {
   @Min(1)
   JWT_REFRESH_TTL?: number;
 
+  // --- mfa (MfaSecretCipher, docs/persistence/10-DECISIONES.md #111) --- Opcional a nivel
+  // de schema (MFA es opt-in por User, no un feature-wide toggle obligatorio al boot como
+  // JWT) - Aes256GcmMfaSecretCipher valida el formato real (32 bytes hex) en su propio
+  // constructor y falla ahi si falta/es invalida. Generar con: openssl rand -hex 32.
+  @IsOptional()
+  @IsString()
+  MFA_SECRET_ENCRYPTION_KEY?: string;
+
   // --- payments (PaymentGatewayPort, docs/11-INTEGRACIONES.md SS6) ---
   // Todas opcionales: "fake" (default en payments.config.ts) no requiere credenciales -
   // Stripe/MercadoPago sin credenciales reales en este entorno de desarrollo.

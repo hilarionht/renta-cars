@@ -5,6 +5,8 @@ import {
   ChangePasswordHandler,
   CreateUserHandler,
   DisableUserHandler,
+  MFA_SECRET_CIPHER_PORT,
+  MFA_TOTP_PORT,
   PASSWORD_HASHER,
   ReactivateUserHandler,
   RevokeRoleHandler,
@@ -14,7 +16,9 @@ import {
 import { RolesPermissionsModule } from '@platform/roles-permissions/infrastructure';
 import { CompaniesModule } from '@platform/companies/infrastructure';
 
+import { Aes256GcmMfaSecretCipher } from './providers/aes256-gcm-mfa-secret-cipher.provider';
 import { Argon2PasswordHasher } from './providers/argon2-password-hasher.provider';
+import { OtplibMfaTotpProvider } from './providers/otplib-mfa-totp.provider';
 import { PrismaUserLookupAdapter } from './persistence/prisma/prisma-user-lookup.adapter';
 import { PrismaUserRepository } from './persistence/prisma/prisma-user.repository';
 import { UsersController } from './http/users.controller';
@@ -34,6 +38,8 @@ import { GetUserHandler } from './queries/get-user.handler';
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
     { provide: PASSWORD_HASHER, useClass: Argon2PasswordHasher },
     { provide: USER_LOOKUP_PORT, useClass: PrismaUserLookupAdapter },
+    { provide: MFA_TOTP_PORT, useClass: OtplibMfaTotpProvider },
+    { provide: MFA_SECRET_CIPHER_PORT, useClass: Aes256GcmMfaSecretCipher },
     CreateUserHandler,
     DisableUserHandler,
     ReactivateUserHandler,

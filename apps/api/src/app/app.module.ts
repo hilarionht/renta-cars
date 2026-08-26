@@ -42,6 +42,7 @@ import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
 import { validate } from '../config/env.validation';
 import jwtConfig from '../config/jwt.config';
+import mfaConfig from '../config/mfa.config';
 import notificationsConfig from '../config/notifications.config';
 import observabilityConfig from '../config/observability.config';
 import paymentsConfig from '../config/payments.config';
@@ -114,6 +115,7 @@ import { PrismaModule } from './persistence/prisma.module';
         redisConfig,
         storageConfig,
         jwtConfig,
+        mfaConfig,
         securityConfig,
         observabilityConfig,
         paymentsConfig,
