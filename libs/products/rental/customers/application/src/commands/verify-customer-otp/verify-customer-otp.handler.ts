@@ -71,7 +71,12 @@ export class VerifyCustomerOtpHandler {
       customer.id.toString(),
       command.companyId,
     );
-    if (!challenge) {
+    // status !== 'Pending' (ya Verified o ya Expired) es un no-op para attemptVerification()
+    // - no sube version (nada que persistir) - cortar aca evita reintentar un challenge ya
+    // resuelto (replay del mismo request) intentando un save() que fallaria con
+    // ConcurrentModificationError (bug real, docs/persistence/10-DECISIONES.md #111 - mismo
+    // shape exacto ya corregido en VerifyMfaLoginHandler).
+    if (!challenge || challenge.status !== 'Pending') {
       throw new OtpChallengeNotFoundError();
     }
 

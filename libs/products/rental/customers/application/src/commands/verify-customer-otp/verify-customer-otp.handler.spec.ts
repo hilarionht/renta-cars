@@ -128,6 +128,15 @@ describe('VerifyCustomerOtpHandler', () => {
     expect(expired.status).toBe('Expired');
   });
 
+  it('reintentar un challenge ya Verified lanza OtpChallengeNotFoundError sin volver a persistir (encontrado via el bug analogo de MFA, docs/persistence/10-DECISIONES.md #111)', async () => {
+    const alreadyVerified = issueChallenge('customer-1');
+    alreadyVerified.attemptVerification(CustomerOtpCodeHash.fromHash('stored-hash'), new Date());
+    const { handler, otpChallengeRepository } = buildHandler({ challenge: alreadyVerified });
+
+    await expect(handler.execute(baseCommand)).rejects.toThrow(OtpChallengeNotFoundError);
+    expect(otpChallengeRepository.save).not.toHaveBeenCalled();
+  });
+
   it('lanza InvalidCustomerOtpCodeError si el codigo no coincide, sin emitir sesion', async () => {
     const { handler, customerSessionRepository } = buildHandler({ presentedHash: 'wrong-hash' });
 
