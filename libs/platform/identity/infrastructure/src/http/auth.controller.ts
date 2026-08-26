@@ -8,6 +8,7 @@ import {
   LoginHandler,
   RefreshSessionHandler,
   RevokeSessionHandler,
+  VerifyMfaLoginHandler,
 } from '@platform/identity/application';
 
 import {
@@ -17,6 +18,8 @@ import {
 } from './client-platform';
 import type { AuthResponseDto } from './dto/auth-response.dto';
 import { LoginRequestDto } from './dto/login-request.dto';
+import { MfaRequiredResponseDto } from './dto/mfa-required-response.dto';
+import { MfaVerifyRequestDto } from './dto/mfa-verify-request.dto';
 import { RefreshRequestDto } from './dto/refresh-request.dto';
 
 type RequestWithCookies = Request & { cookies?: Record<string, string> };
@@ -30,6 +33,7 @@ export class AuthController {
     private readonly loginHandler: LoginHandler,
     private readonly refreshHandler: RefreshSessionHandler,
     private readonly revokeHandler: RevokeSessionHandler,
+    private readonly verifyMfaLoginHandler: VerifyMfaLoginHandler,
     private readonly configService: ConfigService,
   ) {}
 
@@ -44,11 +48,41 @@ export class AuthController {
     @Body() dto: LoginRequestDto,
     @Headers(CLIENT_PLATFORM_HEADER) platformHeader: unknown,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<AuthResponseDto> {
+  ): Promise<AuthResponseDto | MfaRequiredResponseDto> {
     const result = await this.loginHandler.execute({
       companyId: dto.companyId,
       email: dto.email,
       password: dto.password,
+    });
+
+    if (result.status === 'mfa_required') {
+      return { mfaRequired: true, mfaChallengeId: result.mfaChallengeId };
+    }
+
+    return this.respondWithTokens(
+      result.accessToken,
+      result.refreshToken,
+      platformHeader,
+      response,
+    );
+  }
+
+  // MFA TOTP (docs/persistence/10-DECISIONES.md #111) - mismo perfil AUTH que login/refresh:
+  // blanco directo de fuerza bruta de codigos de 6 digitos.
+  @Throttle({
+    default: { limit: AUTH_THROTTLE_PROFILE.limit, ttl: seconds(AUTH_THROTTLE_PROFILE.ttlSeconds) },
+  })
+  @Public()
+  @Post('mfa/verify')
+  async verifyMfa(
+    @Body() dto: MfaVerifyRequestDto,
+    @Headers(CLIENT_PLATFORM_HEADER) platformHeader: unknown,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthResponseDto> {
+    const result = await this.verifyMfaLoginHandler.execute({
+      mfaChallengeId: dto.mfaChallengeId,
+      companyId: dto.companyId,
+      code: dto.code,
     });
 
     return this.respondWithTokens(

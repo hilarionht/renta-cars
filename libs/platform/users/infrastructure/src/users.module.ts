@@ -51,6 +51,9 @@ import { GetUserHandler } from './queries/get-user.handler';
   // PASSWORD_HASHER se exporta ademas de USER_LOOKUP_PORT - LoginHandler (platform-identity)
   // lo necesita para verificar la contraseña presentada contra el hash guardado, usando el
   // mismo hasher que CreateUser/ChangePassword (nunca dos implementaciones de argon2id).
-  exports: [USER_LOOKUP_PORT, PASSWORD_HASHER],
+  // MFA_TOTP_PORT/MFA_SECRET_CIPHER_PORT exportados para MFA TOTP (docs/persistence/
+  // 10-DECISIONES.md #111) - VerifyMfaLoginHandler (platform-identity) los necesita para
+  // descifrar el secret de un User y verificar el codigo presentado en el 2do factor.
+  exports: [USER_LOOKUP_PORT, PASSWORD_HASHER, MFA_TOTP_PORT, MFA_SECRET_CIPHER_PORT],
 })
 export class UsersModule {}

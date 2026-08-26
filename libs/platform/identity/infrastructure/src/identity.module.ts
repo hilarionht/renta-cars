@@ -7,7 +7,9 @@ import {
   RefreshSessionHandler,
   RevokeSessionHandler,
   SESSION_REPOSITORY,
+  SessionIssuer,
   TOKEN_SIGNER,
+  VerifyMfaLoginHandler,
 } from '@platform/identity/application';
 import { UsersModule } from '@platform/users/infrastructure';
 
@@ -29,9 +31,11 @@ import { Sha256RefreshTokenHasher } from './providers/refresh-token-hasher.provi
     { provide: MFA_LOGIN_CHALLENGE_REPOSITORY, useClass: PrismaMfaLoginChallengeRepository },
     { provide: TOKEN_SIGNER, useClass: JwtTokenSigner },
     { provide: REFRESH_TOKEN_HASHER, useClass: Sha256RefreshTokenHasher },
+    SessionIssuer,
     LoginHandler,
     RefreshSessionHandler,
     RevokeSessionHandler,
+    VerifyMfaLoginHandler,
   ],
   // TOKEN_SIGNER exportado para Fase 5 cliente-autogestion (docs/persistence/
   // 10-DECISIONES.md #109) - RefreshCustomerSessionHandler (rental/customers/application)

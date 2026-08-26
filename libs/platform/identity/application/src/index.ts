@@ -8,6 +8,7 @@ export {
 } from './ports/mfa-login-challenge.repository';
 export { TOKEN_SIGNER, type TokenSigner, type AccessTokenClaims } from './ports/token-signer.port';
 export { REFRESH_TOKEN_HASHER, type RefreshTokenHasher } from './ports/refresh-token-hasher.port';
+export { SessionIssuer, type IssuedSession } from './services/session-issuer';
 
 export type { LoginCommand, LoginResult } from './commands/login/login.command';
 export { LoginHandler } from './commands/login/login.handler';
@@ -18,3 +19,8 @@ export type {
 export { RefreshSessionHandler } from './commands/refresh-session/refresh-session.handler';
 export type { RevokeSessionCommand } from './commands/revoke-session/revoke-session.command';
 export { RevokeSessionHandler } from './commands/revoke-session/revoke-session.handler';
+export type {
+  VerifyMfaLoginCommand,
+  VerifyMfaLoginResult,
+} from './commands/verify-mfa-login/verify-mfa-login.command';
+export { VerifyMfaLoginHandler } from './commands/verify-mfa-login/verify-mfa-login.handler';

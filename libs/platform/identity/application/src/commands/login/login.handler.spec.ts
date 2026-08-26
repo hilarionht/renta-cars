@@ -2,9 +2,8 @@ import type { DomainEventPublisher, UnitOfWork } from '@platform/shared-kernel';
 import { InvalidCredentialsError, UserDisabledError } from '@platform/identity/domain';
 import type { UserLookupPort, UserLookupResult, PasswordHasher } from '@platform/users/application';
 
-import type { RefreshTokenHasher } from '../../ports/refresh-token-hasher.port';
-import type { SessionRepository } from '../../ports/session.repository';
-import type { TokenSigner } from '../../ports/token-signer.port';
+import type { MfaLoginChallengeRepository } from '../../ports/mfa-login-challenge.repository';
+import type { IssuedSession, SessionIssuer } from '../../services/session-issuer';
 import { LoginHandler } from './login.handler';
 import type { LoginCommand } from './login.command';
 
@@ -15,6 +14,12 @@ const activeUser: UserLookupResult = {
   status: 'Active',
   roles: ['role-1'],
   mfaEnabled: false,
+};
+
+const issuedSession: IssuedSession = {
+  accessToken: 'signed-access-token',
+  refreshToken: 'plain-refresh-token',
+  sessionId: 'session-1',
 };
 
 function buildHandler(overrides?: {
@@ -30,21 +35,13 @@ function buildHandler(overrides?: {
     hash: jest.fn(),
     verify: jest.fn().mockResolvedValue(overrides?.passwordMatches ?? true),
   };
-  const sessionRepository: SessionRepository = {
+  const mfaLoginChallengeRepository: MfaLoginChallengeRepository = {
     findById: jest.fn(),
-    findByRefreshTokenHash: jest.fn(),
-    findActiveForUser: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
   };
-  const refreshTokenHasher: RefreshTokenHasher = {
-    generate: jest
-      .fn()
-      .mockReturnValue({ plaintext: 'plain-refresh-token', hash: 'hashed-refresh-token' }),
-    hash: jest.fn(),
-  };
-  const tokenSigner: TokenSigner = {
-    signAccessToken: jest.fn().mockReturnValue('signed-access-token'),
-  };
+  const sessionIssuer = {
+    issueForUser: jest.fn().mockResolvedValue(issuedSession),
+  } as unknown as SessionIssuer;
   const unitOfWork: UnitOfWork = {
     run: jest.fn((work) => work({})),
   };
@@ -55,14 +52,20 @@ function buildHandler(overrides?: {
   const handler = new LoginHandler(
     userLookup,
     passwordHasher,
-    sessionRepository,
-    refreshTokenHasher,
-    tokenSigner,
+    mfaLoginChallengeRepository,
+    sessionIssuer,
     unitOfWork,
     eventPublisher,
   );
 
-  return { handler, userLookup, passwordHasher, sessionRepository, unitOfWork, eventPublisher };
+  return {
+    handler,
+    userLookup,
+    mfaLoginChallengeRepository,
+    sessionIssuer,
+    unitOfWork,
+    eventPublisher,
+  };
 }
 
 const baseCommand: LoginCommand = {
@@ -109,18 +112,32 @@ describe('LoginHandler', () => {
     );
   });
 
-  it('en exito: crea una Session Active, la persiste dentro de UnitOfWork.run(companyId) y devuelve los tokens', async () => {
-    const { handler, sessionRepository, unitOfWork, eventPublisher } = buildHandler();
+  it('en exito sin MFA: delega en SessionIssuer y devuelve status authenticated', async () => {
+    const { handler, sessionIssuer } = buildHandler();
 
     const result = await handler.execute(baseCommand);
 
-    expect(result.accessToken).toBe('signed-access-token');
-    expect(result.refreshToken).toBe('plain-refresh-token');
-    expect(sessionRepository.save).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ status: 'authenticated', ...issuedSession });
+    expect(sessionIssuer.issueForUser).toHaveBeenCalledWith(activeUser, {
+      userAgent: undefined,
+      ipAddress: undefined,
+    });
+  });
+
+  it('con MFA habilitado: crea un MfaLoginChallenge, lo persiste y devuelve status mfa_required sin emitir tokens', async () => {
+    const { handler, mfaLoginChallengeRepository, sessionIssuer, unitOfWork } = buildHandler({
+      foundUser: { ...activeUser, mfaEnabled: true },
+    });
+
+    const result = await handler.execute(baseCommand);
+
+    expect(result.status).toBe('mfa_required');
+    if (result.status !== 'mfa_required') {
+      throw new Error('expected mfa_required');
+    }
+    expect(result.mfaChallengeId).toEqual(expect.any(String));
+    expect(mfaLoginChallengeRepository.save).toHaveBeenCalledTimes(1);
     expect(unitOfWork.run).toHaveBeenCalledWith(expect.any(Function), 'company-1');
-    expect(eventPublisher.publish).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ eventType: 'SessionCreated.v1', companyId: 'company-1' }),
-    );
+    expect(sessionIssuer.issueForUser).not.toHaveBeenCalled();
   });
 });

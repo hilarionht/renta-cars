@@ -6,8 +6,9 @@ export interface LoginCommand {
   ipAddress?: string;
 }
 
-export interface LoginResult {
-  accessToken: string;
-  refreshToken: string;
-  sessionId: string;
-}
+// MFA TOTP (docs/persistence/10-DECISIONES.md #111) - union discriminada: password correcta
+// no basta cuando el User tiene MFA habilitado, el caller (AuthController) debe ramificar
+// antes de emitir tokens.
+export type LoginResult =
+  | { status: 'authenticated'; accessToken: string; refreshToken: string; sessionId: string }
+  | { status: 'mfa_required'; mfaChallengeId: string };

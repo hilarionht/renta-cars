@@ -28,6 +28,10 @@ const AGGREGATE_TYPE_TO_SCHEMA: Record<string, string> = {
   User: 'identity',
   Role: 'identity',
   Session: 'identity',
+  // MFA TOTP (docs/persistence/10-DECISIONES.md #111) - agregado proactivamente (mismo mapa
+  // que ya causo bugs reales dos veces, #26/#35): MfaVerificationFailed.v1 publica con este
+  // aggregateType.
+  MfaLoginChallenge: 'identity',
   Company: 'organization',
   Branch: 'organization',
   CompanySettings: 'organization',
