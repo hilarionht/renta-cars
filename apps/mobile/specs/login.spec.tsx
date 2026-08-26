@@ -8,7 +8,7 @@ import Login from '../app/login/index';
 
 // Vive fuera de app/ para que Expo Router no lo trate como una ruta (docs/06-CONVENCIONES-
 // FRONTEND.md SS4) - mismo patron que apps/mobile/specs/index.spec.tsx.
-jest.mock('expo-router', () => ({ router: { replace: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { replace: jest.fn(), push: jest.fn() } }));
 // Solo useAuth() se mockea - ApiError se deja pasar tal cual (jest.requireActual tipado
 // explicito, evita que el spread implicito quede en `any`).
 jest.mock('@frontend/data-access', () => {
@@ -71,5 +71,15 @@ describe('Login', () => {
 
     await waitFor(() => expect(screen.getByText('Credenciales invalidas')).toBeTruthy());
     expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  // Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - /login sigue
+  // siendo la pantalla de entrada de facto de la app, el link lleva al flujo de cliente.
+  it('el link "¿Sos cliente?" navega a /customer/login-phone', () => {
+    render(<Login />);
+
+    fireEvent.press(screen.getByTestId('login-customer-link'));
+
+    expect(router.push).toHaveBeenCalledWith('/customer/login-phone');
   });
 });

@@ -75,4 +75,17 @@ describe('RootLayout / AuthGuard', () => {
     expect(screen.getByTestId('stack')).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
   });
+
+  // Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - el AuthGuard de
+  // staff nunca debe redirigir el subarbol /customer/*, que tiene su propio
+  // CustomerAuthGuard (apps/mobile/app/customer/_layout.tsx).
+  it('sin sesion de staff pero en el subarbol /customer, no redirige a /login', () => {
+    (useAuth as jest.Mock).mockReturnValue({ isLoading: false, isAuthenticated: false });
+    (useSegments as jest.Mock).mockReturnValue(['customer', 'login-phone']);
+
+    render(<RootLayout />);
+
+    expect(screen.getByTestId('stack')).toBeTruthy();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
 });

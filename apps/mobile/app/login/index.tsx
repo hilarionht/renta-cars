@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Text, StyleSheet } from 'react-native';
+import { Pressable, Text, StyleSheet } from 'react-native';
 import { z } from 'zod';
 
 import { ApiError, useAuth } from '@frontend/data-access';
@@ -103,6 +103,18 @@ export default function Login() {
         loading={isSubmitting}
         testID="login-submit"
       />
+
+      {/* Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - /login sigue
+          siendo la pantalla de entrada de facto de la app (sin sesion previa), asi que un
+          link basta para llegar al flujo de cliente en vez de una pantalla "selectora" nueva. */}
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => router.push('/customer/login-phone')}
+        style={styles.customerLink}
+        testID="login-customer-link"
+      >
+        <Text style={styles.customerLinkText}>¿Sos cliente? Ingresá con tu teléfono</Text>
+      </Pressable>
     </Screen>
   );
 }
@@ -118,5 +130,14 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#D92D20',
     marginBottom: 16,
+  },
+  customerLink: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  // #1F6FEB = colors.primary de ui-kit-core, mismo criterio de literal documentado que
+  // errorText de arriba.
+  customerLinkText: {
+    color: '#1F6FEB',
   },
 });

@@ -13,6 +13,11 @@ const queryClient = new QueryClient();
 // Guard de ruta: sin sesion valida, cualquier pantalla fuera de /login redirige ahi.
 // useSegments() (no usePathname()) porque expo-router agrupa rutas por segmento de archivo,
 // mas estable para esta comparacion que el pathname completo.
+//
+// segments[0] === 'customer' queda exento (Fase 5 cliente-autogestion, docs/persistence/
+// 10-DECISIONES.md #109) - ese subarbol tiene su propio CustomerAuthGuard
+// (app/customer/_layout.tsx) con su propia sesion (CustomerAuthProvider, storage/API
+// completamente separados de staff) - este guard de staff nunca debe redirigirlo a /login.
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isLoading, isAuthenticated } = useAuth();
   const segments = useSegments();
@@ -22,7 +27,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
     const inLoginScreen = segments[0] === 'login';
-    if (!isAuthenticated && !inLoginScreen) {
+    const inCustomerArea = segments[0] === 'customer';
+    if (!isAuthenticated && !inLoginScreen && !inCustomerArea) {
       router.replace('/login');
     } else if (isAuthenticated && inLoginScreen) {
       router.replace('/');
