@@ -6,8 +6,10 @@
 # infra-use}.json) - un grupo por dashboard, misma metrica exacta que cada panel ya usa.
 # Todo valor numerico es un placeholder conservador NO calibrado (misma voz que
 # security.config.ts/throttle-profiles.ts) - se ajusta con datos reales de produccion, Fase 6.
-# Sin Alertmanager/receivers/routing - a donde notifica una alerta es una decision de negocio
-# fuera de alcance de esta tanda (docs/persistence/10-DECISIONES.md #105).
+# Ruteo estructural via Alertmanager (docs/persistence/10-DECISIONES.md #115): estas reglas
+# se agrupan/rutean por severity y quedan visibles/silenciables en :9093. El receptor real
+# (a donde se hace paging - Slack/PagerDuty/email) sigue siendo una decision de negocio
+# diferida, ver tooling/observability/alertmanager.yml.
 groups:
   - name: renta.platform-health
     rules:
