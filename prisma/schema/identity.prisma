@@ -20,9 +20,10 @@ model User {
   updatedAt          DateTime   @updatedAt @map("updated_at")
   version            Int        @default(1)
 
-  roles              UserRole[]
-  sessions           Session[]
-  mfaLoginChallenges MfaLoginChallenge[]
+  roles                   UserRole[]
+  sessions                Session[]
+  mfaLoginChallenges      MfaLoginChallenge[]
+  passwordResetChallenges PasswordResetChallenge[]
 
   @@unique([companyId, email], map: "users_company_id_email_key")
   @@map("users")
@@ -154,5 +155,35 @@ enum MfaLoginChallengeStatus {
   Expired
 
   @@map("mfa_login_challenge_status")
+  @@schema("identity")
+}
+
+// Recuperacion de contraseña, docs/persistence/10-DECISIONES.md #113 - agregado corto y
+// propio, mismo motivo que MfaLoginChallenge (efimero, irrelevante despues de su unico uso).
+// Sin attempts/maxAttempts: se busca por tokenHash (32 bytes aleatorios, inadivinable), no
+// por una clave no secreta con un codigo comparado aparte.
+model PasswordResetChallenge {
+  id        String                       @id @db.Uuid
+  companyId String                       @map("company_id") @db.Uuid
+  userId    String                       @map("user_id") @db.Uuid
+  tokenHash String                       @unique @map("token_hash")
+  status    PasswordResetChallengeStatus
+  expiresAt DateTime                     @map("expires_at")
+  createdAt DateTime                     @default(now()) @map("created_at")
+  version   Int                          @default(1)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, map: "password_reset_challenges_user_id_fkey")
+
+  @@index([companyId, userId, createdAt], map: "password_reset_challenges_company_user_created_idx")
+  @@map("password_reset_challenges")
+  @@schema("identity")
+}
+
+enum PasswordResetChallengeStatus {
+  Pending
+  Verified
+  Expired
+
+  @@map("password_reset_challenge_status")
   @@schema("identity")
 }

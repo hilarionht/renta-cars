@@ -32,6 +32,10 @@ const AGGREGATE_TYPE_TO_SCHEMA: Record<string, string> = {
   // que ya causo bugs reales dos veces, #26/#35): MfaVerificationFailed.v1 publica con este
   // aggregateType.
   MfaLoginChallenge: 'identity',
+  // Recuperacion de contraseña (docs/persistence/10-DECISIONES.md #113) - agregado
+  // proactivamente (mismo mapa que ya causo bugs reales dos veces, #26/#35, y un near-miss
+  // en #111): PasswordResetTokenReplayed.v1 publica con este aggregateType.
+  PasswordResetChallenge: 'identity',
   Company: 'organization',
   Branch: 'organization',
   CompanySettings: 'organization',
