@@ -66,7 +66,9 @@ GET /api/v1/reservations?cursor=<opaque>&limit=25
 
 `limit` máximo permitido por endpoint (configurable, default 25, tope 100) para evitar queries no acotadas.
 
-**Gap conocido — `GET /audit-log`**: implementado (Fase 0 ítem 7) como lista plana con límite fijo (`LIST_LIMIT = 100`, `occurredAt DESC`), sin cursor — pese a que esta sección nombra Audit explícitamente como caso de alto volumen. Decisión documentada en [persistence/10-DECISIONES.md](persistence/10-DECISIONES.md): ningún endpoint del codebase implementó todavía el mecanismo de cursor y el volumen real en esta fase es mínimo; se prefirió dejar el gap explícito antes que construir un mecanismo de paginación sin un segundo caso de uso que lo justifique todavía. Pendiente para cuando el volumen real lo exija.
+**`GET /reservations` implementa el mecanismo de cursor** (docs/persistence/10-DECISIONES.md #112) — primer endpoint del codebase en construirlo de verdad.
+
+**Gap conocido, todavía vigente — `GET /audit-log`**: implementado (Fase 0 ítem 7) como lista plana con límite fijo (`LIST_LIMIT = 100`, `occurredAt DESC`), sin cursor — pese a que esta sección nombra Audit explícitamente como caso de alto volumen. Decisión documentada en [persistence/10-DECISIONES.md](persistence/10-DECISIONES.md): el volumen real en esta fase es mínimo; se prefirió dejar el gap explícito antes que replicar el mecanismo (ya construido y disponible, ver `#112`) sin un caso de uso real que lo justifique todavía. Pendiente para cuando el volumen real lo exija.
 
 ## 6. Filtros y ordenamiento
 

@@ -3,10 +3,12 @@ import { Injectable } from '@nestjs/common';
 import { ReadTransaction } from '@platform/persistence-kernel';
 import type { AuditLogSummary, ListAuditLogQuery } from '@platform/audit/application';
 
-// docs de esta tanda (ver plan de implementacion): lista plana con limite fijo, sin cursor -
-// docs/08-API-CONTRACTS.md SS5 exige cursor para listados de alto volumen y nombra Audit
-// explicitamente, pero ningun endpoint del codebase lo implemento todavia y el volumen real
-// en esta fase es minimo. Gap documentado, no una version a medias del estandar.
+// Lista plana con limite fijo, sin cursor - docs/08-API-CONTRACTS.md SS5 exige cursor para
+// listados de alto volumen y nombra Audit explicitamente. El mecanismo ya existe de verdad
+// (GET /reservations lo implemento primero, docs/persistence/10-DECISIONES.md #112,
+// encodeCursor/decodeCursor en @platform/persistence-kernel) - este endpoint no lo adopto
+// todavia porque el volumen real en esta fase es minimo, no porque el mecanismo no exista.
+// Gap documentado, no una version a medias del estandar.
 const LIST_LIMIT = 100;
 
 @Injectable()

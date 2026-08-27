@@ -28,6 +28,7 @@ import { CancelReservationRequestDto } from './dto/cancel-reservation-request.dt
 import { CheckInReservationRequestDto } from './dto/check-in-reservation-request.dto';
 import { CheckOutReservationRequestDto } from './dto/check-out-reservation-request.dto';
 import { CreateReservationRequestDto } from './dto/create-reservation-request.dto';
+import { ListReservationsRequestDto } from './dto/list-reservations-request.dto';
 import { RequestExtensionRequestDto } from './dto/request-extension-request.dto';
 import { RescheduleReservationRequestDto } from './dto/reschedule-reservation-request.dto';
 import { SwapVehicleRequestDto } from './dto/swap-vehicle-request.dto';
@@ -78,20 +79,24 @@ export class ReservationsController {
     return { id: id.toString() };
   }
 
+  // Paginacion por cursor (docs/08-API-CONTRACTS.md SS5, docs/persistence/10-DECISIONES.md
+  // #112) - reservations es el caso paradigmatico de listado de alto volumen, nunca
+  // page/total (esos solo para catalogos pequeños y estables, docs/contracts/
+  // 01-REST-STANDARDS.md SS5).
   @Get()
   async list(
-    @Query('customerId') customerId?: string,
-    @Query('vehicleId') vehicleId?: string,
-    @Query('status') status?: string,
-  ): Promise<ReservationSummary[]> {
+    @Query() dto: ListReservationsRequestDto,
+  ): Promise<{ data: ReservationSummary[]; meta: { nextCursor: string | null; limit: number } }> {
     const { companyId } = this.requestContext.get();
     const result = await this.listReservations.execute({
       companyId,
-      customerId,
-      vehicleId,
-      status,
+      customerId: dto.customerId,
+      vehicleId: dto.vehicleId,
+      status: dto.status,
+      cursor: dto.cursor,
+      limit: dto.limit,
     });
-    return result.items;
+    return { data: result.items, meta: { nextCursor: result.nextCursor, limit: result.limit } };
   }
 
   @Get(':id')
