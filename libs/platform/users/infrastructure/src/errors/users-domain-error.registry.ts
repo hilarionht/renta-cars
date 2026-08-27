@@ -4,6 +4,7 @@ import {
   DuplicateEmailError,
   InvalidMfaCodeError,
   InvalidRoleAssignmentError,
+  PasswordResetTokenInvalidError,
   UserDisabledError,
   UserNotFoundError,
 } from '@platform/users/domain';
@@ -15,6 +16,10 @@ export const USERS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [CompanyNotFoundError, { status: 422, code: 'VALIDATION_FAILED', title: 'Company inexistente' }],
   [InvalidRoleAssignmentError, { status: 422, code: 'VALIDATION_FAILED', title: 'Role invalido' }],
   [InvalidMfaCodeError, { status: 401, code: 'MFA_CODE_INVALID', title: 'Codigo MFA invalido' }],
+  [
+    PasswordResetTokenInvalidError,
+    { status: 401, code: 'PASSWORD_RESET_TOKEN_INVALID', title: 'Token de recuperacion invalido' },
+  ],
   [
     ConcurrentModificationError,
     { status: 409, code: 'CONCURRENT_MODIFICATION', title: 'Modificacion concurrente' },

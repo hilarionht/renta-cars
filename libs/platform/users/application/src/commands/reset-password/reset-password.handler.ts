@@ -73,7 +73,7 @@ export class ResetPasswordHandler {
     }
 
     const userId: UserId = EntityId.from(challenge.userId);
-    const user = await this.userRepository.findById(userId);
+    const user = await this.userRepository.findById(userId, challenge.companyId);
     if (!user) {
       throw new PasswordResetTokenInvalidError();
     }

@@ -21,19 +21,23 @@ import type { UserRepository } from '@platform/users/application';
 export class PrismaUserRepository implements UserRepository {
   constructor(private readonly readTransaction: ReadTransaction) {}
 
-  // Sin companyId explicito - estos dos metodos siempre corren en rutas autenticadas
-  // (TenantContextGuard ya poblo RequestContext), a diferencia de PrismaUserLookupAdapter
-  // (consumido por Login/RefreshSession, sin JWT todavia).
-  async findById(id: UserId): Promise<User | null> {
-    const record = await this.readTransaction.run((tx) =>
-      tx.user.findFirst({ where: { id: id.toString() }, include: { roles: true } }),
+  // companyId opcional - encontrado por un smoke test real (docs/persistence/
+  // 10-DECISIONES.md #113): ResetPasswordHandler corre en una ruta @Public(), sin
+  // RequestContext poblado, y estos 2 metodos antes asumian que siempre habia uno (el
+  // parametro companyId de findByCompanyAndEmail ni se usaba). Mismo mecanismo que
+  // CustomerRepository.findById(id, companyId?).
+  async findById(id: UserId, companyId?: string): Promise<User | null> {
+    const record = await this.readTransaction.run(
+      (tx) => tx.user.findFirst({ where: { id: id.toString() }, include: { roles: true } }),
+      companyId,
     );
     return record ? this.toDomain(record) : null;
   }
 
   async findByCompanyAndEmail(companyId: string, email: string): Promise<User | null> {
-    const record = await this.readTransaction.run((tx) =>
-      tx.user.findFirst({ where: { companyId, email }, include: { roles: true } }),
+    const record = await this.readTransaction.run(
+      (tx) => tx.user.findFirst({ where: { companyId, email }, include: { roles: true } }),
+      companyId,
     );
     return record ? this.toDomain(record) : null;
   }

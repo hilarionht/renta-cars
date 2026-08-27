@@ -10,6 +10,7 @@ import {
   RevokeSessionHandler,
   VerifyMfaLoginHandler,
 } from '@platform/identity/application';
+import { RequestPasswordResetHandler, ResetPasswordHandler } from '@platform/users/application';
 
 import {
   CLIENT_PLATFORM_HEADER,
@@ -17,10 +18,12 @@ import {
   resolveClientPlatform,
 } from './client-platform';
 import type { AuthResponseDto } from './dto/auth-response.dto';
+import { ForgotPasswordRequestDto } from './dto/forgot-password-request.dto';
 import { LoginRequestDto } from './dto/login-request.dto';
 import { MfaRequiredResponseDto } from './dto/mfa-required-response.dto';
 import { MfaVerifyRequestDto } from './dto/mfa-verify-request.dto';
 import { RefreshRequestDto } from './dto/refresh-request.dto';
+import { ResetPasswordRequestDto } from './dto/reset-password-request.dto';
 
 type RequestWithCookies = Request & { cookies?: Record<string, string> };
 
@@ -34,6 +37,8 @@ export class AuthController {
     private readonly refreshHandler: RefreshSessionHandler,
     private readonly revokeHandler: RevokeSessionHandler,
     private readonly verifyMfaLoginHandler: VerifyMfaLoginHandler,
+    private readonly requestPasswordResetHandler: RequestPasswordResetHandler,
+    private readonly resetPasswordHandler: ResetPasswordHandler,
     private readonly configService: ConfigService,
   ) {}
 
@@ -127,6 +132,29 @@ export class AuthController {
     const refreshToken = this.extractRefreshToken(dto, request);
     await this.revokeHandler.execute({ refreshToken, reason: 'logout' });
     response.clearCookie(REFRESH_TOKEN_COOKIE);
+  }
+
+  // Recuperacion de contraseña (docs/persistence/10-DECISIONES.md #113) - mismo perfil AUTH
+  // que login/refresh/mfa-verify: blanco directo de fuerza bruta/spam de emails.
+  @Throttle({
+    default: { limit: AUTH_THROTTLE_PROFILE.limit, ttl: seconds(AUTH_THROTTLE_PROFILE.ttlSeconds) },
+  })
+  @Public()
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordRequestDto): Promise<void> {
+    await this.requestPasswordResetHandler.execute({
+      companyId: dto.companyId,
+      email: dto.email,
+    });
+  }
+
+  @Throttle({
+    default: { limit: AUTH_THROTTLE_PROFILE.limit, ttl: seconds(AUTH_THROTTLE_PROFILE.ttlSeconds) },
+  })
+  @Public()
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordRequestDto): Promise<void> {
+    await this.resetPasswordHandler.execute({ token: dto.token, newPassword: dto.newPassword });
   }
 
   // req.cookies lo puebla cookie-parser (apps/api/src/main.ts) - un refresh_token ausente
