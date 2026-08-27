@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { hashSync } from '@node-rs/argon2';
 import { Client } from 'pg';
+import { v7 as uuidv7 } from 'uuid';
 
 import { PERMISSION_CATALOG } from '@platform/roles-permissions/domain';
 
@@ -31,7 +32,11 @@ export async function seedAdminForCompany(companyId: string): Promise<SeededAdmi
   await client.connect();
   try {
     const systemRoleId = randomUUID();
-    const adminUserId = randomUUID();
+    // v7, no v4 - User.id se reconstituye via EntityId.from<'User'>() (PrismaUserRepository.
+    // toDomain()), que exige UUID v7 (bug real encontrado por el e2e de recuperacion de
+    // contraseña, docs/persistence/10-DECISIONES.md #113 - primer caller de
+    // UserRepository.findByCompanyAndEmail()/findById() contra un admin sembrado aca).
+    const adminUserId = uuidv7();
     const adminEmail = `admin-${randomUUID()}@example.com`;
     const adminPassword = 'Sup3rSecret!123';
     const passwordHash = hashSync(adminPassword, ARGON2_PARAMS);

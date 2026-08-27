@@ -148,3 +148,24 @@ enum NotificationKind {
 
   @@schema("support")
 }
+
+// Infra de TEST unicamente, nunca superficie de produccion (docs/persistence/
+// 10-DECISIONES.md #113) - FakeNotificationSenderAdapter escribe aca lo que "enviaria" solo
+// cuando NOTIFICATION_SENDER_PROVIDER=fake, para que los e2e puedan recuperar secretos que
+// no se pueden fuerza-brutear (un token de reset de 32 bytes, a diferencia de un OTP de 6
+// digitos). Sin RLS: nunca se escribe fuera de un entorno fake/test, ningun controller la
+// lee. Deliberadamente NO se reusa Notification.providerReference (esa tabla es legible via
+// GET /notifications - un NOTIFICATION_SENDER_PROVIDER=fake mal configurado en un ambiente
+// compartido filtraria secretos).
+model FakeNotificationSend {
+  id             String   @id @default(uuid()) @db.Uuid
+  channel        String
+  templateId     String   @map("template_id")
+  recipientEmail String?  @map("recipient_email")
+  recipientPhone String?  @map("recipient_phone")
+  templateParams Json     @map("template_params")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("fake_notification_sends")
+  @@schema("support")
+}
