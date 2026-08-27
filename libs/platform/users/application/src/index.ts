@@ -10,6 +10,14 @@ export {
   type UserLookupPort,
   type UserLookupResult,
 } from './ports/user-lookup.port';
+export {
+  PASSWORD_RESET_TOKEN_HASHER,
+  type PasswordResetTokenHasher,
+} from './ports/password-reset-token-hasher.port';
+export {
+  PASSWORD_RESET_CHALLENGE_REPOSITORY,
+  type PasswordResetChallengeRepository,
+} from './ports/password-reset-challenge.repository';
 
 export type { CreateUserCommand } from './commands/create-user/create-user.command';
 export { CreateUserHandler } from './commands/create-user/create-user.handler';
@@ -27,5 +35,9 @@ export type { ConfirmMfaEnrollmentCommand } from './commands/confirm-mfa-enrollm
 export { ConfirmMfaEnrollmentHandler } from './commands/confirm-mfa-enrollment/confirm-mfa-enrollment.handler';
 export type { DisableMfaCommand } from './commands/disable-mfa/disable-mfa.command';
 export { DisableMfaHandler } from './commands/disable-mfa/disable-mfa.handler';
+export type { RequestPasswordResetCommand } from './commands/request-password-reset/request-password-reset.command';
+export { RequestPasswordResetHandler } from './commands/request-password-reset/request-password-reset.handler';
+export type { ResetPasswordCommand } from './commands/reset-password/reset-password.command';
+export { ResetPasswordHandler } from './commands/reset-password/reset-password.handler';
 
 export type { GetUserQuery, UserSummary } from './queries/get-user/get-user.query';
