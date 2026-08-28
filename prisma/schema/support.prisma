@@ -145,6 +145,12 @@ enum NotificationKind {
   // explicitamente para notificaciones internas de operacion, "no para comunicacion con el
   // Customer" - usarlo aca violaria esa regla ya documentada.
   SecurityCode
+  // Fase de Reservations->Notifications, mitad "cancelacion" del gap diferido en #98
+  // (docs/persistence/10-DECISIONES.md #117) - mismo criterio que SecurityCode: ningun valor
+  // existente encaja para "se cancelo tu reserva" (Confirmation es polaridad opuesta,
+  // Reminder es proactivo antes del evento no reactivo despues, Alert reservado a operacion
+  // interna).
+  Cancellation
 
   @@schema("support")
 }
