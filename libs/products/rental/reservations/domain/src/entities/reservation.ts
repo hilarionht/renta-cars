@@ -231,6 +231,7 @@ export class Reservation {
     this.domainEvents.push({
       eventType: 'ReservationCancelled.v1',
       reservationId: this.props.id.toString(),
+      customerId: this.props.customerId,
       cancelledBy: params.cancelledBy,
       penaltyApplied: penaltyAdjustment ? adjustmentPayload(penaltyAdjustment) : undefined,
     });
