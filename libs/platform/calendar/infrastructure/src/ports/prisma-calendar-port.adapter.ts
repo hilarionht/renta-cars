@@ -68,4 +68,34 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
     );
     return record?.id ?? null;
   }
+
+  // docs/persistence/10-DECISIONES.md #116: misma condicion de solapamiento que
+  // CheckAvailabilityHandler, en batch (resourceId IN candidatos) en vez de uno por uno.
+  async findOccupiedResourceIds(
+    resourceType: string,
+    resourceIds: string[],
+    startDate: Date,
+    endDate: Date,
+  ): Promise<string[]> {
+    if (resourceIds.length === 0) {
+      return [];
+    }
+    const { companyId } = this.requestContext.get();
+    const records = await this.readTransaction.run(
+      (tx) =>
+        tx.availabilitySlot.findMany({
+          where: {
+            resourceType,
+            resourceId: { in: resourceIds },
+            status: 'Active',
+            startDate: { lt: endDate },
+            endDate: { gt: startDate },
+          },
+          select: { resourceId: true },
+          distinct: ['resourceId'],
+        }),
+      companyId,
+    );
+    return records.map((record) => record.resourceId);
+  }
 }

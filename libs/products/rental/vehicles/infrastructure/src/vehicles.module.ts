@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { BranchesModule } from '@platform/branches/infrastructure';
+import { CalendarModule } from '@platform/calendar/infrastructure';
 import {
   AddRateHandler,
   CompleteMaintenanceHandler,
@@ -35,8 +36,11 @@ import { ListVehiclesHandler } from './queries/list-vehicles.handler';
 // importar FilesModule - uploadVehicleDocument confia en el fileId recibido, mismo gap
 // aceptado que Customers. Exporta VEHICLE_STATUS_PORT/VEHICLE_CATEGORY_LOOKUP_PORT -
 // Reservation (Fase 1 item 4, todavia no construido) los consumira cross-modulo.
+// CalendarModule importado (docs/persistence/10-DECISIONES.md #116) - ListVehiclesHandler
+// consulta CALENDAR_PORT.findOccupiedResourceIds() para la busqueda por disponibilidad. Sin
+// ciclo: CalendarModule es scope:platform, no importa nada de negocio.
 @Module({
-  imports: [BranchesModule],
+  imports: [BranchesModule, CalendarModule],
   controllers: [VehiclesController, VehicleCategoriesController],
   providers: [
     { provide: VEHICLE_REPOSITORY, useClass: PrismaVehicleRepository },

@@ -32,4 +32,13 @@ export interface CalendarPort {
   // 02-AGGREGATES.md SS11), asi que necesita resolver el slotId activo antes de poder
   // llamar release(slotId). null = no hay slot Active para ese recurso.
   findActiveSlotId(resourceType: string, resourceId: string): Promise<string | null>;
+  // docs/persistence/10-DECISIONES.md #116: version batch de isAvailable - de una lista de
+  // candidatos, cuales tienen un AvailabilitySlot Active solapando el rango. Consumidor nuevo
+  // y paralelo a AvailabilityService (reservations/application), no la misma ACL - ver #116.
+  findOccupiedResourceIds(
+    resourceType: string,
+    resourceIds: string[],
+    startDate: Date,
+    endDate: Date,
+  ): Promise<string[]>;
 }
