@@ -36,6 +36,11 @@ export interface ListVehiclesQuery {
   companyId: string;
   branchId?: string;
   status?: string;
+  // docs/persistence/10-DECISIONES.md #116: busqueda por disponibilidad - ambos o ninguno
+  // (validado en ListVehiclesHandler, no en el tipo). Cuando estan presentes, status (arriba)
+  // se ignora - se fuerza a la flota operable y se descartan los ocupados en el rango.
+  startDate?: Date;
+  endDate?: Date;
 }
 
 export interface VehicleSummary {

@@ -22,6 +22,7 @@ describe('AvailabilityService', () => {
         occupy: jest.fn(),
         release: jest.fn(),
         findActiveSlotId: jest.fn(),
+        findOccupiedResourceIds: jest.fn(),
       };
       const service = new AvailabilityService(vehicleStatusPort, calendarPort);
 
@@ -42,6 +43,7 @@ describe('AvailabilityService', () => {
         occupy: jest.fn(),
         release: jest.fn(),
         findActiveSlotId: jest.fn(),
+        findOccupiedResourceIds: jest.fn(),
       };
       const service = new AvailabilityService(vehicleStatusPort, calendarPort);
 
@@ -66,6 +68,7 @@ describe('AvailabilityService', () => {
         occupy: jest.fn().mockRejectedValue(overlapError),
         release: jest.fn(),
         findActiveSlotId: jest.fn(),
+        findOccupiedResourceIds: jest.fn(),
       };
       const vehicleStatusPort = {} as VehicleStatusPort;
       const service = new AvailabilityService(vehicleStatusPort, calendarPort);
@@ -81,6 +84,7 @@ describe('AvailabilityService', () => {
         occupy: jest.fn().mockRejectedValue(new Error('infra failure')),
         release: jest.fn(),
         findActiveSlotId: jest.fn(),
+        findOccupiedResourceIds: jest.fn(),
       };
       const vehicleStatusPort = {} as VehicleStatusPort;
       const service = new AvailabilityService(vehicleStatusPort, calendarPort);
@@ -98,6 +102,7 @@ describe('AvailabilityService', () => {
         occupy: jest.fn(),
         release: jest.fn(),
         findActiveSlotId: jest.fn().mockResolvedValue(null),
+        findOccupiedResourceIds: jest.fn(),
       };
       const vehicleStatusPort = {} as VehicleStatusPort;
       const service = new AvailabilityService(vehicleStatusPort, calendarPort);
@@ -113,6 +118,7 @@ describe('AvailabilityService', () => {
         occupy: jest.fn(),
         release: jest.fn().mockResolvedValue(undefined),
         findActiveSlotId: jest.fn().mockResolvedValue('slot-1'),
+        findOccupiedResourceIds: jest.fn(),
       };
       const vehicleStatusPort = {} as VehicleStatusPort;
       const service = new AvailabilityService(vehicleStatusPort, calendarPort);
@@ -140,6 +146,7 @@ describe('AvailabilityService', () => {
           callOrder.push('findActiveSlotId');
           return Promise.resolve('old-slot-id');
         }),
+        findOccupiedResourceIds: jest.fn(),
       };
       const vehicleStatusPort = {} as VehicleStatusPort;
       const service = new AvailabilityService(vehicleStatusPort, calendarPort);
@@ -156,6 +163,7 @@ describe('AvailabilityService', () => {
         occupy: jest.fn().mockResolvedValue('new-slot-id'),
         release: jest.fn(),
         findActiveSlotId: jest.fn().mockResolvedValue(null),
+        findOccupiedResourceIds: jest.fn(),
       };
       const vehicleStatusPort = {} as VehicleStatusPort;
       const service = new AvailabilityService(vehicleStatusPort, calendarPort);

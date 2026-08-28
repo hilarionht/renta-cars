@@ -43,6 +43,7 @@ export { RateOverlapError } from './errors/rate-overlap.error';
 export { DuplicateActiveVehicleDocumentError } from './errors/duplicate-active-vehicle-document.error';
 export { DuplicateVehicleLicensePlateError } from './errors/duplicate-vehicle-license-plate.error';
 export { DuplicateVehicleVinError } from './errors/duplicate-vehicle-vin.error';
+export { InvalidDateRangeError } from './errors/invalid-date-range.error';
 export type { VehicleRegisteredEvent } from './events/vehicle-registered.event';
 export type { VehicleDocumentationLoadedEvent } from './events/vehicle-documentation-loaded.event';
 export type { VehicleEnabledEvent } from './events/vehicle-enabled.event';

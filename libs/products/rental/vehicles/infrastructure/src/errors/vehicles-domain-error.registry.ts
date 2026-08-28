@@ -3,6 +3,7 @@ import {
   DuplicateActiveVehicleDocumentError,
   DuplicateVehicleLicensePlateError,
   DuplicateVehicleVinError,
+  InvalidDateRangeError,
   MaintenanceRecordInvalidStateTransitionError,
   MaintenanceRecordNotFoundError,
   RateNotFoundError,
@@ -85,5 +86,13 @@ export const VEHICLES_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [
     ConcurrentModificationError,
     { status: 409, code: 'CONCURRENT_MODIFICATION', title: 'Modificacion concurrente' },
+  ],
+  [
+    InvalidDateRangeError,
+    {
+      status: 400,
+      code: 'VEHICLE_SEARCH_INVALID_RANGE',
+      title: 'El rango de fechas de busqueda es invalido',
+    },
   ],
 ];
