@@ -24,6 +24,7 @@ import {
 import { VehiclesModule } from '@rental/vehicles/infrastructure';
 
 import { InvoiceIssuedListener } from './events/invoice-issued.listener';
+import { ReservationCancelledNotificationListener } from './events/reservation-cancelled-notification.listener';
 import { ReservationConfirmedNotificationListener } from './events/reservation-confirmed-notification.listener';
 import { MeReservationsController } from './http/me-reservations.controller';
 import { ReservationsController } from './http/reservations.controller';
@@ -73,6 +74,7 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
     ListReservationsHandler,
     InvoiceIssuedListener,
     ReservationConfirmedNotificationListener,
+    ReservationCancelledNotificationListener,
   ],
 })
 export class ReservationsModule {}
