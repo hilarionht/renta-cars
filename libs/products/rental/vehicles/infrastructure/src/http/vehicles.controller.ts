@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 
 import {
   RequestContext,
@@ -20,6 +20,7 @@ import {
 import { GetVehicleHandler } from '../queries/get-vehicle.handler';
 import { ListVehiclesHandler } from '../queries/list-vehicles.handler';
 import { CompleteMaintenanceRequestDto } from './dto/complete-maintenance-request.dto';
+import { ListVehiclesRequestDto } from './dto/list-vehicles-request.dto';
 import { MarkVehicleOutOfServiceRequestDto } from './dto/mark-vehicle-out-of-service-request.dto';
 import { RegisterVehicleRequestDto } from './dto/register-vehicle-request.dto';
 import { ReportDamageRequestDto } from './dto/report-damage-request.dto';
@@ -62,10 +63,17 @@ export class VehiclesController {
     return { id: id.toString() };
   }
 
+  // docs/persistence/10-DECISIONES.md #116: startDate/endDate opcionales - busqueda de
+  // vehiculos disponibles para self-service de customers, mismo endpoint (ver #116 por que
+  // se extiende GET /vehicles en vez de un recurso nuevo).
   @Get()
-  async list(): Promise<VehicleSummaryResponseDto[]> {
+  async list(@Query() dto: ListVehiclesRequestDto): Promise<VehicleSummaryResponseDto[]> {
     const { companyId } = this.requestContext.get();
-    return this.listVehicles.execute({ companyId });
+    return this.listVehicles.execute({
+      companyId,
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+    });
   }
 
   @Get(':id')
