@@ -12,11 +12,23 @@ function uploadDocument(expiryDate = new Date('2030-01-01')): IdentityDocument {
 
 describe('IdentityDocument', () => {
   describe('upload', () => {
-    it('crea el documento en Pending, con extractedByOcr siempre false (OCR diferido)', () => {
+    it('crea el documento en Pending, con extractedByOcr false por defecto', () => {
       const document = uploadDocument();
 
       expect(document.status).toBe('Pending');
       expect(document.extractedByOcr).toBe(false);
+    });
+
+    it('crea el documento con extractedByOcr true si se pasa explicito', () => {
+      const document = IdentityDocument.upload({
+        owner: { type: 'Customer', id: 'customer-1' },
+        documentType: 'NationalId',
+        fileId: 'file-1',
+        expiryDate: new Date('2030-01-01'),
+        extractedByOcr: true,
+      });
+
+      expect(document.extractedByOcr).toBe(true);
     });
   });
 

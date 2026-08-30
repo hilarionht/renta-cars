@@ -175,6 +175,7 @@ export class Customer {
     documentType: DocumentType;
     fileId: string;
     expiryDate: Date;
+    extractedByOcr?: boolean;
   }): IdentityDocument['id'] {
     if (params.owner.type === 'AdditionalDriver' && !this.findDriverOrUndefined(params.owner.id)) {
       throw new AdditionalDriverNotFoundError(params.owner.id);

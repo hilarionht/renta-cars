@@ -31,13 +31,16 @@ export interface IdentityDocumentProps {
 export class IdentityDocument {
   private constructor(private props: IdentityDocumentProps) {}
 
-  // extractedByOcr siempre false - DocumentExtractionPort (OCR) diferido esta tanda (decision
-  // con el usuario), el campo se modela por compatibilidad futura con INV-011 sin ejercitarse.
+  // extractedByOcr: true cuando el operador uso ExtractIdentityDocumentHandler (OCR,
+  // DocumentExtractionPort) y confirmo/edito la sugerencia antes de cargar - la extraccion en
+  // si nunca crea ni verifica un IdentityDocument, solo pre-llena documentType/expiryDate
+  // para este mismo upload(). Default false (captura 100% manual, sin OCR de por medio).
   static upload(params: {
     owner: IdentityDocumentOwner;
     documentType: DocumentType;
     fileId: string;
     expiryDate: Date;
+    extractedByOcr?: boolean;
   }): IdentityDocument {
     const now = new Date();
     return new IdentityDocument({
@@ -47,7 +50,7 @@ export class IdentityDocument {
       fileId: params.fileId,
       expiryDate: params.expiryDate,
       status: 'Pending',
-      extractedByOcr: false,
+      extractedByOcr: params.extractedByOcr ?? false,
       createdAt: now,
       updatedAt: now,
     });
@@ -86,9 +89,11 @@ export class IdentityDocument {
   }
 
   // Requerido siempre como paso explicito (RN-12/INV-011 exige confirmacion humana cuando
-  // extractedByOcr=true; con OCR diferido esta tanda, verify() es de todos modos siempre un
-  // paso manual explicito, nunca automatico al subir - unica lectura consistente del
-  // diagrama de un solo tramo Pending->Verified en docs/model/08-STATE_MACHINES.md SS6.7).
+  // extractedByOcr=true) - verify() no tiene ninguna rama condicional sobre extractedByOcr
+  // a proposito: es siempre un paso manual explicito, nunca automatico al subir, para
+  // CUALQUIER IdentityDocument - eso satisface la regla estructuralmente sin necesitar logica
+  // nueva (unica lectura consistente del diagrama de un solo tramo Pending->Verified en
+  // docs/model/08-STATE_MACHINES.md SS6.7).
   verify(): void {
     if (this.props.status === 'Expired') {
       throw new IdentityDocumentExpiredError(this.props.id.toString());
