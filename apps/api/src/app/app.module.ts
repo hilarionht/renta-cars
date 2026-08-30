@@ -2,13 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import type { Redis } from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 import { ClsModule } from 'nestjs-cls';
 
-import { CACHE_REDIS_CLIENT, RedisCacheModule } from '@platform/persistence-kernel';
 import {
   RolesPermissionsModule,
   ROLES_PERMISSIONS_DOMAIN_ERROR_ENTRIES,
@@ -66,6 +65,9 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { ResponseEnvelopeInterceptor } from './interceptors/response-envelope.interceptor';
 import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 import { PrismaModule } from './persistence/prisma.module';
+import { ThrottlerRedisModule } from './redis/throttler-redis.module';
+import { THROTTLER_REDIS_CLIENT } from './redis/throttler-redis.provider';
+import { FailOpenThrottlerGuard } from './throttler/fail-open-throttler.guard';
 
 // Composicion completa de Fase 0 (docs/01-ROADMAP.md SS2 - los 9 items) + Fase 1 completa
 // (docs/01-ROADMAP.md SS3: Customers, Vehicles, Calendar, Reservations) + Fase 2 completa
@@ -149,14 +151,19 @@ import { PrismaModule } from './persistence/prisma.module';
     // multiples instancias, docs/persistence/10-DECISIONES.md #106) - cierra el gap que
     // este comentario documentaba antes ("storage en memoria, gap conocido").
     ThrottlerModule.forRootAsync({
-      // ThrottlerModule.forRootAsync() crea su propio modulo dinamico - RedisCacheModule
+      // ThrottlerModule.forRootAsync() crea su propio modulo dinamico - ThrottlerRedisModule
       // estar en AppModule.imports no alcanza para que el useFactory de ESTE modulo
-      // resuelva CACHE_REDIS_CLIENT (a diferencia de ConfigService, global via
+      // resuelva THROTTLER_REDIS_CLIENT (a diferencia de ConfigService, global via
       // ConfigModule.forRoot({isGlobal:true})); hay que importarlo explicito aca (bug real
-      // atrapado por el smoke test de servidor real, UnknownDependenciesException).
-      imports: [RedisCacheModule],
-      inject: [ConfigService, CACHE_REDIS_CLIENT],
-      useFactory: (configService: ConfigService, redisClient: Redis) => {
+      // atrapado por el smoke test de servidor real, UnknownDependenciesException, ya
+      // documentado con CACHE_REDIS_CLIENT antes de #114). THROTTLER_REDIS_CLIENT (no
+      // CACHE_REDIS_CLIENT) - docs/persistence/10-DECISIONES.md #114/#119: el cliente
+      // compartido con RolesPermissionsModule usa la politica de reintento default de
+      // ioredis, que ante una caida de Redis colgaba este guard GLOBAL indefinidamente en
+      // vez de fallar rapido.
+      imports: [ThrottlerRedisModule],
+      inject: [ConfigService, THROTTLER_REDIS_CLIENT],
+      useFactory: (configService: ConfigService, throttlerRedisClient: Redis) => {
         const security = configService.getOrThrow<{
           throttle: { limit: number; ttlSeconds: number };
         }>('security');
@@ -168,7 +175,7 @@ import { PrismaModule } from './persistence/prisma.module';
               limit: security.throttle.limit,
             },
           ],
-          storage: new ThrottlerStorageRedisService(redisClient),
+          storage: new ThrottlerStorageRedisService(throttlerRedisClient),
         };
       },
     }),
@@ -262,7 +269,7 @@ import { PrismaModule } from './persistence/prisma.module';
     { provide: APP_GUARD, useClass: PermissionGuard },
     { provide: APP_GUARD, useClass: CustomerActorGuard },
     { provide: APP_GUARD, useClass: StaffActorGuard },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: FailOpenThrottlerGuard },
   ],
 })
 export class AppModule {}
