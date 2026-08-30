@@ -31,6 +31,8 @@ export { UpdateCustomerDetailsHandler } from './commands/update-customer-details
 export type { UpdateCustomerDetailsCommand } from './commands/update-customer-details/update-customer-details.command';
 export { UploadIdentityDocumentHandler } from './commands/upload-identity-document/upload-identity-document.handler';
 export type { UploadIdentityDocumentCommand } from './commands/upload-identity-document/upload-identity-document.command';
+export { ExtractIdentityDocumentHandler } from './commands/extract-identity-document/extract-identity-document.handler';
+export type { ExtractIdentityDocumentCommand } from './commands/extract-identity-document/extract-identity-document.command';
 export { VerifyIdentityDocumentHandler } from './commands/verify-identity-document/verify-identity-document.handler';
 export type { VerifyIdentityDocumentCommand } from './commands/verify-identity-document/verify-identity-document.command';
 export { RegisterAdditionalDriverHandler } from './commands/register-additional-driver/register-additional-driver.handler';

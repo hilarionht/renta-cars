@@ -38,6 +38,7 @@ export class UploadIdentityDocumentHandler {
       documentType: command.documentType as DocumentType,
       fileId: command.fileId,
       expiryDate: command.expiryDate,
+      extractedByOcr: command.extractedByOcr,
     });
 
     // Sin eventos que publicar - "Cargar" no esta en el catalogo (ver Customer.uploadIdentityDocument).
