@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { STORAGE_PROVIDER_PORT } from '@platform/files/application';
+import { DOCUMENT_EXTRACTION_PORT, STORAGE_PROVIDER_PORT } from '@platform/files/application';
 import {
   NOTIFICATION_SENDER_PORT,
   PUSH_NOTIFICATION_SENDER_PORT,
@@ -14,6 +14,7 @@ import {
   type PaymentGatewayPort,
 } from '@platform/payments/application';
 
+import { FakeDocumentExtractionAdapter } from './providers/document-extraction-fake/fake-document-extraction.adapter';
 import { FakePaymentGatewayAdapter } from './providers/payment-fake/fake-payment-gateway.adapter';
 import { MercadoPagoPaymentGatewayAdapter } from './providers/payment-mercadopago/mercadopago-payment-gateway.adapter';
 import { StripePaymentGatewayAdapter } from './providers/payment-stripe/stripe-payment-gateway.adapter';
@@ -38,7 +39,10 @@ import { S3StorageProviderAdapter } from './providers/storage-s3/s3-storage-prov
 // internamente por canal (Hallazgo #9 del plan - los 3 canales de mensajeria estan
 // simultaneamente activos en modo real, a diferencia de Stripe/MercadoPago donde se activa
 // UNO). PUSH_NOTIFICATION_SENDER_PORT se bindea directo (sin useFactory, sin consumidor real
-// esta tanda). Los adaptadores concretos NUNCA se exportan directo - "solo el modulo es
+// esta tanda), mismo criterio que DOCUMENT_EXTRACTION_PORT (OCR) - sin proveedor real
+// decidido (no AWS Textract, no Google Vision, sin credenciales), un solo adaptador fake sin
+// toggle (agregar un DOCUMENT_EXTRACTION_PROVIDER para una unica opcion seria plumbing sin
+// proposito). Los adaptadores concretos NUNCA se exportan directo - "solo el modulo es
 // publico" (docs/technical/09-CODING-STANDARDS.md SS2).
 @Module({
   providers: [
@@ -94,6 +98,7 @@ import { S3StorageProviderAdapter } from './providers/storage-s3/s3-storage-prov
       },
     },
     { provide: PUSH_NOTIFICATION_SENDER_PORT, useExisting: PushSenderAdapter },
+    { provide: DOCUMENT_EXTRACTION_PORT, useClass: FakeDocumentExtractionAdapter },
   ],
   exports: [
     STORAGE_PROVIDER_PORT,
@@ -102,6 +107,7 @@ import { S3StorageProviderAdapter } from './providers/storage-s3/s3-storage-prov
     MERCADOPAGO_WEBHOOK_TRANSLATOR_PORT,
     NOTIFICATION_SENDER_PORT,
     PUSH_NOTIFICATION_SENDER_PORT,
+    DOCUMENT_EXTRACTION_PORT,
   ],
 })
 export class IntegrationProvidersModule {}

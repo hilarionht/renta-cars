@@ -15,6 +15,11 @@ export {
   type DeleteObjectInput,
 } from './ports/storage-provider.port';
 export { STORAGE_LIMITS, type StorageLimits } from './ports/storage-limits';
+export {
+  DOCUMENT_EXTRACTION_PORT,
+  type DocumentExtractionPort,
+  type ExtractedDocumentFields,
+} from './ports/document-extraction.port';
 export { RequestUploadUrlHandler } from './commands/request-upload-url/request-upload-url.handler';
 export type { RequestUploadUrlCommand } from './commands/request-upload-url/request-upload-url.command';
 export { ConfirmUploadHandler } from './commands/confirm-upload/confirm-upload.handler';
