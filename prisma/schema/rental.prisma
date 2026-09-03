@@ -446,6 +446,7 @@ model Reservation {
   priceAdjustments  PriceAdjustment[]
   authorizedDrivers ReservationAuthorizedDriver[]
   invoices          Invoice[]
+  reminderDispatch  ReservationReminderDispatch?
 
   // Indice compuesto adicional parcial (company_id, status) WHERE status='Draft' para el
   // futuro job de expiracion de Draft (RN-05) - no expresable en el DSL de Prisma, se
@@ -465,6 +466,27 @@ model Reservation {
   // documentado de audit-log).
   @@index([companyId, id])
   @@map("reservations")
+  @@schema("rental")
+}
+
+// docs/persistence/10-DECISIONES.md #121 - Reminder de reservas. Estado operativo del job
+// de recordatorios (BullMQ), no una regla de negocio del aggregate Reservation - "duplicacion
+// deliberada" en vez de un campo nuevo en Reservation, mismo criterio ya usado varias veces
+// esta sesion para no mezclar infraestructura con dominio. reservationId UNIQUE - una sola
+// fila por Reservation es tanto la marca de "ya se envio" como el mecanismo real de
+// idempotencia ante redelivery *at-least-once* de BullMQ (INSERT falla si ya existe).
+// Vive en rental (no scheduling, un schema de platform) - docs/persistence/01-SCHEMAS.md
+// (INV-P03) prohibe FKs de platform hacia rental, y esta tabla tiene FK a
+// rental.reservations.id.
+model ReservationReminderDispatch {
+  id            String   @id @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  reservationId String   @unique @map("reservation_id") @db.Uuid
+  dispatchedAt  DateTime @default(now()) @map("dispatched_at")
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+
+  @@map("reservation_reminder_dispatches")
   @@schema("rental")
 }
 

@@ -214,6 +214,14 @@ Total: **31 tablas** en 6 schemas (30 derivadas directamente de un agregado o en
 - **Ciclo de vida**: emitida — estado único y terminal, heredado del estado de su `invoice` contenedora.
 - **Relaciones conceptuales**: pertenece a una `invoice` (FK, mismo schema).
 
+### 4.18 `reservation_reminder_dispatches`
+
+- **Propósito**: registrar que ya se envió el recordatorio proactivo de check-out de una `Reservation` — estado operativo del job de Reminder ([persistence/10-DECISIONES.md #121](10-DECISIONES.md)), no una regla de negocio del aggregate `Reservation`.
+- **Agregado propietario**: ninguno — tabla de infraestructura del job `ReservationReminderScanProcessor`, deliberadamente separada del aggregate `Reservation` (mismo criterio de "duplicación deliberada" ya usado en este repo para no mezclar infraestructura con dominio).
+- **Responsabilidad**: idempotencia real ante redelivery _at-least-once_ de BullMQ — `reservation_id` `UNIQUE`, una fila existente es tanto la marca de "ya enviado" como el mecanismo de dedup (un segundo `INSERT` para la misma `Reservation` falla por la constraint).
+- **Ciclo de vida**: una única fila, creada cuando `send-reminder` procesa el job exitosamente — sin actualización ni eliminación.
+- **Relaciones conceptuales**: referencia `reservation_id` (FK, mismo schema, `onDelete: Restrict`).
+
 ## 5. Schema `commerce`
 
 ### 5.1 `payments`
