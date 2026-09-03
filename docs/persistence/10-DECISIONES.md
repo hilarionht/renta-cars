@@ -1034,6 +1034,26 @@ Leyendo `node_modules/@nestjs/throttler/dist/throttler.guard.js`: `ThrottlerGuar
 
 **Docs actualizados**: `docs/runbooks/03-redis-caido.md` reescrito (el runbook ya no describe un incidente de disponibilidad total activo, sino una degradación controlada — RBAC más lento, throttler temporalmente inactivo).
 
+## #120 — `DocumentExtractionPort` (OCR) fake para `IdentityDocument`
+
+**Contexto**: `IdentityDocument.extractedByOcr` estaba hardcodeado en `false` — sin puerto, sin adapter, sin caso de uso, un gap total de andamiaje pese a que el contrato conceptual ya estaba fijado en `docs/contracts/05-INTEGRATION-CONTRACTS.md §4` (RN-12/INV-011). Sin proveedor real de OCR decidido en ningún doc (no AWS Textract, no Google Vision, sin credenciales) — mismo tipo de gap de credenciales ya aceptado históricamente para Stripe/MercadoPago antes de decidirse a construirlos reales. Mismo criterio ya usado en esta sesión (Alertmanager, notificaciones): se construye la infraestructura estructural real, se difiere el proveedor real como decisión de negocio futura.
+
+**Corrección real de diseño, encontrada por un agente Plan de validación**: `DocumentExtractionPort` NO vive en `customers/application` (el consumidor real) sino en `files/application` (`scope:platform`) — `integration-providers` (donde `ADR-0010` exige que viva el adaptador concreto) es `scope:platform`, y `tooling/eslint/boundaries.mjs` prohíbe a un módulo `scope:platform` depender de `scope:product-rental` (`customers`). Mismo criterio que `StorageProviderPort` (también opera sobre un `fileId` ya subido, también vive en `files/application`). `ExtractedDocumentFields.documentType` es un `string` genérico, no el `DocumentType` cerrado de `customers/domain`, por el mismo motivo de boundaries — el consumidor decide si lo usa como sugerencia sin validar contra su catálogo.
+
+**`FakeDocumentExtractionAdapter`** (`integration-providers/infrastructure`): determinista, sin latencia simulada, mismo criterio que `FakeNotificationSenderAdapter`/`FakePaymentGatewayAdapter`. **Sin toggle** (`DOCUMENT_EXTRACTION_PROVIDER`) — a diferencia de `PAYMENT_GATEWAY_PORT`/`NOTIFICATION_SENDER_PORT`, que siempre tuvieron ≥2 opciones reales desde el día 1, acá no hay ninguna alternativa real que alternar todavía; mismo patrón que `PUSH_NOTIFICATION_SENDER_PORT` (un solo adaptador, `useClass` directo).
+
+**`ExtractIdentityDocumentHandler`** (`customers/application/src/commands/`, pese a no mutar ningún aggregate — en este repo las `queries/*.query.ts` de `application/` son solo interfaces, nunca una clase Handler con puerto inyectado; ese patrón solo existe bajo `commands/`, confirmado por el agente de validación): atrapa cualquier error del puerto y devuelve `null` en vez de propagar — implementa literalmente la semántica de error ya fijada en el contrato ("un fallo de extracción nunca bloquea el registro manual del cliente").
+
+**`IdentityDocument.upload()` gana `extractedByOcr?: boolean`** (default `false`). `verify()` sigue sin ninguna rama condicional sobre el campo a propósito — es siempre un paso manual explícito para cualquier `IdentityDocument`, lo que satisface RN-12/INV-011 estructuralmente sin necesitar lógica nueva (esto no cambió con esta tanda, ya era así).
+
+**Gap encontrado y cerrado en la misma tanda**: `GET /customers/:id` no exponía `extractedByOcr` en ningún `IdentityDocument` de la respuesta pese a que la columna ya se persistía correctamente (confirmado, `PrismaCustomerRepository` ya mapeaba el campo en ambas direcciones) — sin esto, trackear el campo no tenía ningún consumidor real. Agregado a `IdentityDocumentSummary` (`customers/application`) y `IdentityDocumentResponseDto` (HTTP).
+
+**Endpoint nuevo**: `POST customers/:id/identity-documents/extract`, mismo permiso (`customers:manage-documents`) que el upload real — es el paso previo del mismo flujo/operador. Sin `@HttpCode` — `201` por defecto (mismo precedente que `POST files/upload-url`, un `POST` que tampoco crea un recurso persistente).
+
+**Verificación en vivo** (boot real de `apps/api` + Postgres, vía `POST /companies` real + un customer real): `extract` devuelve la sugerencia fake determinista (`NationalId`, confianza `0.95`); el upload real con `extractedByOcr:true` persiste y se ve correctamente en `GET /customers/:id`; un upload sin el campo sigue en `false` por defecto (sin regresión). Los 4 casos confirmados.
+
+**Fuera de alcance, explícito**: el proveedor real de OCR (AWS Textract, Google Vision, u otro) — decisión de negocio/credenciales futura, mismo criterio que el resto de proveedores reales diferidos en este repo. Aplicación a `VehicleDocument` (vehicles) — el contrato lo menciona como "potencialmente" pero el modelo de `vehicles` no tiene ningún campo equivalente hoy, fuera de alcance de esta tanda.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
