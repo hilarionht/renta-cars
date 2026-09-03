@@ -11,7 +11,7 @@ Este documento diseña completamente la estrategia de Row-Level Security (RLS) s
 
 ## 2. Por qué toda tabla lleva su propio `company_id` en vez de resolverlo por `JOIN`
 
-Ya justificado en [04-COLUMNAS-CONCEPTUALES.md §2](04-COLUMNAS-CONCEPTUALES.md): una política RLS se evalúa por tabla, y una política que dependiera de un subquery hacia la tabla padre (p. ej. `rates` resolviendo el tenant a través de `vehicle_categories`) sería estructuralmente más frágil — cualquier `JOIN` faltante en una política mal escrita rompería el aislamiento silenciosamente — y más costosa en el plan de ejecución. La denormalización de `company_id` en cada una de las 31 tablas de [02-TABLAS.md](02-TABLAS.md) es lo que permite que **cada política RLS de este documento sea una única comparación de igualdad, sin excepción, salvo los tres casos especiales de §4**.
+Ya justificado en [04-COLUMNAS-CONCEPTUALES.md §2](04-COLUMNAS-CONCEPTUALES.md): una política RLS se evalúa por tabla, y una política que dependiera de un subquery hacia la tabla padre (p. ej. `rates` resolviendo el tenant a través de `vehicle_categories`) sería estructuralmente más frágil — cualquier `JOIN` faltante en una política mal escrita rompería el aislamiento silenciosamente — y más costosa en el plan de ejecución. La denormalización de `company_id` en cada una de las 32 tablas de [02-TABLAS.md](02-TABLAS.md) es lo que permite que **cada política RLS de este documento sea una única comparación de igualdad, sin excepción, salvo los tres casos especiales de §4**.
 
 ## 3. Rol de aplicación vs. rol propietario de tabla — el requisito que hace RLS efectivo
 
