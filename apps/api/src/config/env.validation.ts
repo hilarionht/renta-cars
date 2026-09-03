@@ -41,6 +41,11 @@ class EnvironmentVariables {
   @IsString()
   APP_DATABASE_URL!: string;
 
+  // Rol BYPASSRLS, usado exclusivamente por PlatformAdminPrismaService - docs/persistence/
+  // 06-RLS.md §5 / 10-DECISIONES.md #121. Nunca el pool normal de apps/api.
+  @IsString()
+  PLATFORM_ADMIN_DATABASE_URL!: string;
+
   // --- redis ---
   @IsString()
   REDIS_URL!: string;

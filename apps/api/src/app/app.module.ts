@@ -45,6 +45,7 @@ import mfaConfig from '../config/mfa.config';
 import notificationsConfig from '../config/notifications.config';
 import observabilityConfig from '../config/observability.config';
 import paymentsConfig from '../config/payments.config';
+import platformAdminDatabaseConfig from '../config/platform-admin-database.config';
 import redisConfig from '../config/redis.config';
 import securityConfig from '../config/security.config';
 import storageConfig from '../config/storage.config';
@@ -115,6 +116,7 @@ import { FailOpenThrottlerGuard } from './throttler/fail-open-throttler.guard';
       load: [
         appConfig,
         databaseConfig,
+        platformAdminDatabaseConfig,
         redisConfig,
         storageConfig,
         jwtConfig,
