@@ -17,6 +17,7 @@ import {
   LateReturnPolicy,
   MaintenanceThresholdPolicy,
   MinimumBookingLeadTime,
+  ReminderLeadTime,
   NotificationChannelPreference,
   PaymentMethod,
 } from '@platform/settings/domain';
@@ -63,6 +64,7 @@ export class PrismaSettingsRepository implements SettingsRepository {
       maintenanceThresholdOdometerKm:
         settings.maintenanceThresholdPolicy.odometerThresholdKm ?? null,
       maintenanceThresholdDays: settings.maintenanceThresholdPolicy.daysThreshold ?? null,
+      reminderLeadTimeMinutes: settings.reminderLeadTime.leadTimeMinutes,
     };
 
     if (settings.isNew) {
@@ -111,6 +113,7 @@ export class PrismaSettingsRepository implements SettingsRepository {
         odometerThresholdKm: record.maintenanceThresholdOdometerKm ?? undefined,
         daysThreshold: record.maintenanceThresholdDays ?? undefined,
       }),
+      reminderLeadTime: ReminderLeadTime.from(record.reminderLeadTimeMinutes),
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       version: record.version,

@@ -9,6 +9,7 @@ import { MaintenanceThresholdPolicy } from '../value-objects/maintenance-thresho
 import { MinimumBookingLeadTime } from '../value-objects/minimum-booking-lead-time';
 import { NotificationChannelPreference } from '../value-objects/notification-channel-preference';
 import { PAYMENT_METHODS, PaymentMethod } from '../value-objects/payment-method';
+import { ReminderLeadTime } from '../value-objects/reminder-lead-time';
 
 type CompanySettingsDomainEvent = CompanySettingsUpdatedEvent;
 
@@ -23,18 +24,20 @@ export interface CompanySettingsProps {
   minimumBookingLeadTime: MinimumBookingLeadTime;
   notificationChannelPreference: NotificationChannelPreference;
   maintenanceThresholdPolicy: MaintenanceThresholdPolicy;
+  reminderLeadTime: ReminderLeadTime;
   createdAt: Date;
   updatedAt: Date;
   version: number;
 }
 
-// Aggregate root - docs/model/02-AGGREGATES.md SS6. Cubre las 9 politicas documentadas
+// Aggregate root - docs/model/02-AGGREGATES.md SS6. Cubre las 10 politicas documentadas
 // (EnabledProductModules, PaymentMethodsEnabled desde Fase 0; CancellationPolicy,
 // LateReturnPolicy, DepositPolicy, DraftExpirationPolicy, MinimumBookingLeadTime agregadas en
 // Reservations, docs/persistence/10-DECISIONES.md #59; NotificationChannelPreference agregada
 // en Notifications, Fase 3 item 1; MaintenanceThresholdPolicy agregada en Fase 4 item 2 -
 // gap de cobertura de Settings, sin consumidor real todavia, mismo patron forward-looking que
-// DepositPolicy antes de Payments - ver el comentario del propio VO). Identidad = companyId
+// DepositPolicy antes de Payments - ver el comentario del propio VO; ReminderLeadTime
+// agregada en #121, consumida por ReservationReminderScanProcessor). Identidad = companyId
 // directo (string plano, sin EntityId propio) - primer aggregate root del modelo cuya
 // identidad es prestada, no generada aca (docs/model/03-ENTITIES.md SS2.3).
 export class CompanySettings {
@@ -64,6 +67,7 @@ export class CompanySettings {
       minimumBookingLeadTime: MinimumBookingLeadTime.default(),
       notificationChannelPreference: NotificationChannelPreference.default(),
       maintenanceThresholdPolicy: MaintenanceThresholdPolicy.default(),
+      reminderLeadTime: ReminderLeadTime.default(),
       createdAt: now,
       updatedAt: now,
       version: 1,
@@ -106,6 +110,10 @@ export class CompanySettings {
 
   get minimumBookingLeadTime(): MinimumBookingLeadTime {
     return this.props.minimumBookingLeadTime;
+  }
+
+  get reminderLeadTime(): ReminderLeadTime {
+    return this.props.reminderLeadTime;
   }
 
   get notificationChannelPreference(): NotificationChannelPreference {
@@ -224,6 +232,18 @@ export class CompanySettings {
       eventType: 'CompanySettingsUpdated.v1',
       companyId: this.props.companyId,
       policyName: 'minimum-booking-lead-time',
+      newValueSummary: JSON.stringify({ leadTimeMinutes: policy.leadTimeMinutes }),
+    });
+  }
+
+  updateReminderLeadTime(policy: ReminderLeadTime): void {
+    this.props.reminderLeadTime = policy;
+    this.props.updatedAt = new Date();
+    this.props.version += 1;
+    this.domainEvents.push({
+      eventType: 'CompanySettingsUpdated.v1',
+      companyId: this.props.companyId,
+      policyName: 'reminder-lead-time',
       newValueSummary: JSON.stringify({ leadTimeMinutes: policy.leadTimeMinutes }),
     });
   }

@@ -9,6 +9,7 @@ export interface CompanySettingsResponseDto {
   depositPercentageOfTotal: number;
   draftExpirationMinutes: number;
   minimumBookingLeadTimeMinutes: number;
+  reminderLeadTimeMinutes: number;
   notificationChannelPreference: string;
   maintenanceThresholdApplies: boolean;
   maintenanceThresholdOdometerKm?: number;

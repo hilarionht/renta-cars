@@ -31,6 +31,7 @@ export class GetCompanySettingsHandler {
         depositPercentageOfTotal: record.depositPercentageOfTotal,
         draftExpirationMinutes: record.draftExpirationMinutes,
         minimumBookingLeadTimeMinutes: record.minimumBookingLeadTimeMinutes,
+        reminderLeadTimeMinutes: record.reminderLeadTimeMinutes,
         notificationChannelPreference: record.notificationChannelPreference,
         maintenanceThresholdApplies: record.maintenanceThresholdApplies,
         maintenanceThresholdOdometerKm: record.maintenanceThresholdOdometerKm ?? undefined,

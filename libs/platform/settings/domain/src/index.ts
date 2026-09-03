@@ -16,6 +16,7 @@ export { LateReturnPolicy, type LateReturnPolicyProps } from './value-objects/la
 export { DepositPolicy, type DepositPolicyProps } from './value-objects/deposit-policy';
 export { DraftExpirationPolicy } from './value-objects/draft-expiration-policy';
 export { MinimumBookingLeadTime } from './value-objects/minimum-booking-lead-time';
+export { ReminderLeadTime } from './value-objects/reminder-lead-time';
 export {
   NotificationChannelPreference,
   NOTIFICATION_CHANNELS,

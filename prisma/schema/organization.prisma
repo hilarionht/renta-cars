@@ -122,6 +122,11 @@ model CompanySettings {
   maintenanceThresholdApplies    Boolean                    @default(false) @map("maintenance_threshold_applies")
   maintenanceThresholdOdometerKm Int?                       @map("maintenance_threshold_odometer_km")
   maintenanceThresholdDays       Int?                       @map("maintenance_threshold_days")
+  // Reminder de reservas, docs/persistence/10-DECISIONES.md #121 - 10ma y ultima policy.
+  // Default 1440 (24h) - placeholder explicito sin calibrar, mismo criterio que los
+  // umbrales de alert-rules.yml (#115). A diferencia de minimumBookingLeadTimeMinutes,
+  // nunca 0 (ver ReminderLeadTime.from()).
+  reminderLeadTimeMinutes        Int                        @default(1440) @map("reminder_lead_time_minutes")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

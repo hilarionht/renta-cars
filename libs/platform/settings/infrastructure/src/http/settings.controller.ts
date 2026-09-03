@@ -11,6 +11,7 @@ import {
   UpdateMinimumBookingLeadTimeHandler,
   UpdateNotificationChannelPreferenceHandler,
   UpdatePaymentMethodsEnabledHandler,
+  UpdateReminderLeadTimeHandler,
 } from '@platform/settings/application';
 
 import { GetCompanySettingsHandler } from '../queries/get-company-settings.handler';
@@ -24,14 +25,15 @@ import { UpdateMaintenanceThresholdPolicyRequestDto } from './dto/update-mainten
 import { UpdateMinimumBookingLeadTimeRequestDto } from './dto/update-minimum-booking-lead-time-request.dto';
 import { UpdateNotificationChannelPreferenceRequestDto } from './dto/update-notification-channel-preference-request.dto';
 import { UpdatePaymentMethodsEnabledRequestDto } from './dto/update-payment-methods-enabled-request.dto';
+import { UpdateReminderLeadTimeRequestDto } from './dto/update-reminder-lead-time-request.dto';
 
 // docs/contracts/02-RESOURCE-CATALOG.md SS2: "company-settings" siempre "la propia" del
-// token (sin {id} en el path). Cubre las 9 politicas documentadas - las 5 de Reservation
+// token (sin {id} en el path). Cubre las 10 politicas documentadas - las 5 de Reservation
 // agregadas en docs/persistence/10-DECISIONES.md #59, NotificationChannelPreference (Fase 3
-// item 1) y MaintenanceThresholdPolicy (Fase 4 item 2), cada una con su propio PATCH (mismo
-// criterio que enabled-product-modules/payment-methods-enabled: "cada actualizacion de una
-// politica individual es una transaccion sobre el agregado completo", docs/model/
-// 02-AGGREGATES.md SS6).
+// item 1), MaintenanceThresholdPolicy (Fase 4 item 2) y ReminderLeadTime (#121), cada una con
+// su propio PATCH (mismo criterio que enabled-product-modules/payment-methods-enabled: "cada
+// actualizacion de una politica individual es una transaccion sobre el agregado completo",
+// docs/model/02-AGGREGATES.md SS6).
 @Controller('company-settings')
 export class SettingsController {
   constructor(
@@ -45,6 +47,7 @@ export class SettingsController {
     private readonly updateMinimumBookingLeadTime: UpdateMinimumBookingLeadTimeHandler,
     private readonly updateNotificationChannelPreference: UpdateNotificationChannelPreferenceHandler,
     private readonly updateMaintenanceThresholdPolicy: UpdateMaintenanceThresholdPolicyHandler,
+    private readonly updateReminderLeadTime: UpdateReminderLeadTimeHandler,
     private readonly requestContext: RequestContext,
   ) {}
 
@@ -146,6 +149,16 @@ export class SettingsController {
       applies: dto.applies,
       odometerThresholdKm: dto.odometerThresholdKm,
       daysThreshold: dto.daysThreshold,
+    });
+  }
+
+  @Patch('reminder-lead-time')
+  @RequirePermission('settings:manage')
+  async updateReminderLead(@Body() dto: UpdateReminderLeadTimeRequestDto): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.updateReminderLeadTime.execute({
+      companyId,
+      leadTimeMinutes: dto.leadTimeMinutes,
     });
   }
 }

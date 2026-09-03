@@ -13,6 +13,7 @@ import {
   UpdateMinimumBookingLeadTimeHandler,
   UpdateNotificationChannelPreferenceHandler,
   UpdatePaymentMethodsEnabledHandler,
+  UpdateReminderLeadTimeHandler,
 } from '@platform/settings/application';
 
 import { PrismaSettingsLookupAdapter } from './persistence/prisma/prisma-settings-lookup.adapter';
@@ -42,6 +43,7 @@ import { GetCompanySettingsHandler } from './queries/get-company-settings.handle
     UpdateMinimumBookingLeadTimeHandler,
     UpdateNotificationChannelPreferenceHandler,
     UpdateMaintenanceThresholdPolicyHandler,
+    UpdateReminderLeadTimeHandler,
     GetCompanySettingsHandler,
   ],
   exports: [SETTINGS_REPOSITORY, SETTINGS_LOOKUP_PORT, CreateDefaultSettingsHandler],
