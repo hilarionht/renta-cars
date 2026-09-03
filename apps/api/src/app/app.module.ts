@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -66,6 +67,8 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { ResponseEnvelopeInterceptor } from './interceptors/response-envelope.interceptor';
 import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 import { PrismaModule } from './persistence/prisma.module';
+import { BullmqRedisModule } from './redis/bullmq-redis.module';
+import { BULLMQ_REDIS_CLIENT } from './redis/bullmq-redis.provider';
 import { ThrottlerRedisModule } from './redis/throttler-redis.module';
 import { THROTTLER_REDIS_CLIENT } from './redis/throttler-redis.provider';
 import { FailOpenThrottlerGuard } from './throttler/fail-open-throttler.guard';
@@ -180,6 +183,23 @@ import { FailOpenThrottlerGuard } from './throttler/fail-open-throttler.guard';
           storage: new ThrottlerStorageRedisService(throttlerRedisClient),
         };
       },
+    }),
+    // Primera instalacion real de BullMQ en este repo (docs/persistence/10-DECISIONES.md
+    // #121) - comprometido arquitectonicamente desde docs/technical/10-DECISIONES.md #6 pero
+    // nunca instalado, ni siquiera OutboxRelayWorker (el consumidor "de ejemplo" de
+    // docs/technical/05-EVENTING.md) existe como codigo real todavia. Mismo motivo que
+    // ThrottlerModule.forRootAsync() para el import explicito de BullmqRedisModule aca -
+    // BULLMQ_REDIS_CLIENT (maxRetriesPerRequest: null, requisito duro de la libreria, no
+    // preferencia) es un cliente dedicado, nunca CACHE_REDIS_CLIENT/THROTTLER_REDIS_CLIENT.
+    // Workers corren dentro de este mismo proceso apps/api (ADR-0001, monolito modular,
+    // docs/technical/03-BACKEND-ARCHITECTURE.md SS11) - sin colas registradas todavia en este
+    // commit, eso llega con ReservationsModule.
+    BullModule.forRootAsync({
+      imports: [BullmqRedisModule],
+      inject: [BULLMQ_REDIS_CLIENT],
+      useFactory: (bullmqRedisClient: Redis) => ({
+        connection: bullmqRedisClient,
+      }),
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
