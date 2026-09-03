@@ -11,6 +11,7 @@ export interface IdentityDocumentSummary {
   fileId: string;
   expiryDate: string;
   status: string;
+  extractedByOcr: boolean;
 }
 
 export interface AdditionalDriverSummary {

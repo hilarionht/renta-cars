@@ -5,8 +5,10 @@ import {
   RequirePermission,
   RequiresProductModule,
 } from '@platform/persistence-kernel';
+import type { ExtractedDocumentFields } from '@platform/files/application';
 import {
   BlockCustomerHandler,
+  ExtractIdentityDocumentHandler,
   RegisterAdditionalDriverHandler,
   RegisterCustomerHandler,
   RevokeAdditionalDriverHandler,
@@ -22,6 +24,7 @@ import { ListCustomersHandler } from '../queries/list-customers.handler';
 import { BlockCustomerRequestDto } from './dto/block-customer-request.dto';
 import type { CustomerResponseDto } from './dto/customer-response.dto';
 import type { CustomerSummaryResponseDto } from './dto/customer-summary-response.dto';
+import { ExtractIdentityDocumentRequestDto } from './dto/extract-identity-document-request.dto';
 import { RegisterAdditionalDriverRequestDto } from './dto/register-additional-driver-request.dto';
 import { RegisterCustomerRequestDto } from './dto/register-customer-request.dto';
 import { UpdateCustomerRequestDto } from './dto/update-customer-request.dto';
@@ -38,6 +41,7 @@ export class CustomersController {
     private readonly registerCustomer: RegisterCustomerHandler,
     private readonly updateCustomerDetails: UpdateCustomerDetailsHandler,
     private readonly uploadIdentityDocument: UploadIdentityDocumentHandler,
+    private readonly extractIdentityDocument: ExtractIdentityDocumentHandler,
     private readonly verifyIdentityDocument: VerifyIdentityDocumentHandler,
     private readonly registerAdditionalDriver: RegisterAdditionalDriverHandler,
     private readonly validateAdditionalDriverLicense: ValidateAdditionalDriverLicenseHandler,
@@ -126,8 +130,22 @@ export class CustomersController {
       fileId: dto.fileId,
       expiryDate: new Date(dto.expiryDate),
       additionalDriverId: dto.additionalDriverId,
+      extractedByOcr: dto.extractedByOcr,
     });
     return { id: documentId };
+  }
+
+  // docs/contracts/05-INTEGRATION-CONTRACTS.md SS4 (OCR): sugerencia editable, nunca crea ni
+  // verifica un IdentityDocument - el operador confirma/edita y despues hace el upload real
+  // (arriba), opcionalmente con extractedByOcr:true. Mismo permiso que el upload real - es el
+  // paso previo del mismo flujo/operador.
+  @Post(':id/identity-documents/extract')
+  @RequirePermission('customers:manage-documents')
+  async extractDocument(
+    @Param('id', ParseUUIDPipe) _id: string,
+    @Body() dto: ExtractIdentityDocumentRequestDto,
+  ): Promise<ExtractedDocumentFields | null> {
+    return this.extractIdentityDocument.execute({ fileId: dto.fileId });
   }
 
   @Post(':id/identity-documents/:documentId/verify')

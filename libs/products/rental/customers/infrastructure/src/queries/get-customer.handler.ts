@@ -38,6 +38,7 @@ export class GetCustomerHandler {
         fileId: document.fileId,
         expiryDate: document.expiryDate.toISOString(),
         status: document.status,
+        extractedByOcr: document.extractedByOcr,
       }),
     );
 
@@ -51,6 +52,7 @@ export class GetCustomerHandler {
           fileId: document.fileId,
           expiryDate: document.expiryDate.toISOString(),
           status: document.status,
+          extractedByOcr: document.extractedByOcr,
         });
       }
       return { id: driver.id, name: driver.name, status: driver.status };

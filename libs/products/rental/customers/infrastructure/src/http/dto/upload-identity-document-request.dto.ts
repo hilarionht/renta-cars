@@ -1,4 +1,4 @@
-import { IsDateString, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 
 const DOCUMENT_TYPES = ['NationalId', 'DriversLicense'] as const;
 
@@ -19,4 +19,10 @@ export class UploadIdentityDocumentRequestDto {
   @IsOptional()
   @IsUUID()
   additionalDriverId?: string;
+
+  // true si el operador uso POST .../identity-documents/extract (OCR) y confirmo/edito la
+  // sugerencia antes de este upload. Omitido = false (captura 100% manual).
+  @IsOptional()
+  @IsBoolean()
+  extractedByOcr?: boolean;
 }

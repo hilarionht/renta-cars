@@ -6,6 +6,7 @@ export class IdentityDocumentResponseDto {
   fileId!: string;
   expiryDate!: string;
   status!: string;
+  extractedByOcr!: boolean;
 }
 
 export class AdditionalDriverResponseDto {

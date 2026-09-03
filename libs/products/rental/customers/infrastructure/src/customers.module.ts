@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { IntegrationProvidersModule } from '@platform/integration-providers/infrastructure';
 import { IdentityModule } from '@platform/identity/infrastructure';
 import { NotificationsModule } from '@platform/notifications/infrastructure';
 import {
@@ -10,6 +11,7 @@ import {
   CUSTOMER_REFRESH_TOKEN_HASHER,
   CUSTOMER_REPOSITORY,
   CUSTOMER_SESSION_REPOSITORY,
+  ExtractIdentityDocumentHandler,
   RefreshCustomerSessionHandler,
   RegisterAdditionalDriverHandler,
   RegisterCustomerHandler,
@@ -39,9 +41,11 @@ import { ListCustomersHandler } from './queries/list-customers.handler';
 // FILE_EXISTS_PORT (decision ya tomada al construir Files, ver files.module.ts). Exporta
 // CUSTOMER_LOOKUP_PORT - Reservation (Fase 1, todavia no construido) lo consumira cross-modulo.
 // NotificationsModule importado para RequestCustomerOtpHandler (SendNotificationHandler,
-// mismo patron ya usado por ReservationConfirmedNotificationListener).
+// mismo patron ya usado por ReservationConfirmedNotificationListener). IntegrationProvidersModule
+// importado para ExtractIdentityDocumentHandler (DOCUMENT_EXTRACTION_PORT, OCR) - mismo patron
+// ya usado por PaymentsModule.
 @Module({
-  imports: [IdentityModule, NotificationsModule],
+  imports: [IdentityModule, NotificationsModule, IntegrationProvidersModule],
   controllers: [CustomersController, CustomerAuthController],
   providers: [
     { provide: CUSTOMER_REPOSITORY, useClass: PrismaCustomerRepository },
@@ -53,6 +57,7 @@ import { ListCustomersHandler } from './queries/list-customers.handler';
     RegisterCustomerHandler,
     UpdateCustomerDetailsHandler,
     UploadIdentityDocumentHandler,
+    ExtractIdentityDocumentHandler,
     VerifyIdentityDocumentHandler,
     RegisterAdditionalDriverHandler,
     ValidateAdditionalDriverLicenseHandler,
