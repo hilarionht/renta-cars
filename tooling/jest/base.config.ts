@@ -58,7 +58,13 @@ export default {
   // (@otplib/plugin-base32-scure -> @scure/base, y transitivamente @otplib/plugin-crypto-noble
   // -> @noble/hashes) es ESM-only (sin build CJS propio) - un require() sin transformar tira
   // "Unexpected token 'export'" en cualquier test que instancie `new OTP(...)`.
-  transformIgnorePatterns: ['/node_modules/(?!(uuid|otplib|@otplib|@scure|@noble)/)'],
+  // @nestjs/bullmq/@nestjs/bull-shared (docs/persistence/10-DECISIONES.md #121, primera
+  // instalacion real de BullMQ): mismo sintoma exacto - `dist/index.js` publica solo ESM
+  // (`export {...}`), sin build CJS propio. `bullmq` en si no necesita esto (dual-publicado
+  // con un entry CJS que funciona con require() normal).
+  transformIgnorePatterns: [
+    '/node_modules/(?!(uuid|otplib|@otplib|@scure|@noble|@nestjs/bullmq|@nestjs/bull-shared)/)',
+  ],
   moduleFileExtensions: ['ts', 'js', 'json'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access -- ver comentario junto a `tsconfig` arriba
