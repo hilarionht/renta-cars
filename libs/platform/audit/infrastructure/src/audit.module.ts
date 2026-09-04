@@ -7,7 +7,11 @@ import { DomainEventAuditListener } from './events/domain-event-audit.listener';
 import { AuditLogController } from './http/audit-log.controller';
 import { ListAuditLogHandler } from './queries/list-audit-log.handler';
 
-// No exporta nada cross-modulo - nadie mas necesita leer AuditLogEntry todavia.
+// RecordAuditLogEntryHandler exportado (docs/persistence/10-DECISIONES.md #121) -
+// ReservationReminderScanProcessor lo llama directo para auditar cada uso del bypass
+// platform_admin/BYPASSRLS (06-RLS.md §5: "registrado con maxima prioridad en
+// AuditLogEntry") - primer consumidor cross-modulo real, antes "invocado exclusivamente
+// por DomainEventAuditListener".
 @Module({
   controllers: [AuditLogController],
   providers: [
@@ -16,5 +20,6 @@ import { ListAuditLogHandler } from './queries/list-audit-log.handler';
     ListAuditLogHandler,
     DomainEventAuditListener,
   ],
+  exports: [RecordAuditLogEntryHandler],
 })
 export class AuditModule {}

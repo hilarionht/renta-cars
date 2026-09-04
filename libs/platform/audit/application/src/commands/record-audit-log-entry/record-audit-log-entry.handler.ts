@@ -5,8 +5,10 @@ import { Action, ActorRef, AuditLogEntry, Subject } from '@platform/audit/domain
 import { AUDIT_LOG_REPOSITORY, type AuditLogRepository } from '../../ports/audit-log.repository';
 import type { RecordAuditLogEntryCommand } from './record-audit-log-entry.command';
 
-// Invocado exclusivamente por DomainEventAuditListener (infrastructure) - nunca expuesto via
-// HTTP, ningun usuario "crea" una fila de auditoria directamente.
+// Invocado por DomainEventAuditListener (infrastructure, catch-all de eventos de dominio) y,
+// desde #121, directo por ReservationReminderScanProcessor (auditoria explicita de cada uso
+// del bypass platform_admin/BYPASSRLS, 06-RLS.md §5) - nunca expuesto via HTTP, ningun
+// usuario "crea" una fila de auditoria directamente.
 @Injectable()
 export class RecordAuditLogEntryHandler {
   constructor(

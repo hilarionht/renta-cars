@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 
+import { AuditModule } from '@platform/audit/infrastructure';
 import { BranchesModule } from '@platform/branches/infrastructure';
 import { CalendarModule } from '@platform/calendar/infrastructure';
 import { NotificationsModule } from '@platform/notifications/infrastructure';
+import { PlatformAdminPrismaModule } from '@platform/persistence-kernel';
 import { SettingsModule } from '@platform/settings/infrastructure';
 import { CustomersModule } from '@rental/customers/infrastructure';
 import {
@@ -28,6 +31,8 @@ import { ReservationCancelledNotificationListener } from './events/reservation-c
 import { ReservationConfirmedNotificationListener } from './events/reservation-confirmed-notification.listener';
 import { MeReservationsController } from './http/me-reservations.controller';
 import { ReservationsController } from './http/reservations.controller';
+import { ReservationReminderScanProcessor } from './jobs/reservation-reminder-scan.processor';
+import { SendReservationReminderProcessor } from './jobs/send-reservation-reminder.processor';
 import { PrismaReservationRepository } from './persistence/prisma/prisma-reservation.repository';
 import { GetReservationHandler } from './queries/get-reservation.handler';
 import { ListReservationsHandler } from './queries/list-reservations.handler';
@@ -45,6 +50,12 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
 // 10-DECISIONES.md #98) - ReservationConfirmedNotificationListener importa
 // SendNotificationHandler directo (servicio de plataforma, no un modulo de negocio par;
 // Notifications no puede alcanzar CustomerLookupPort por si sola, boundaries.mjs).
+// AuditModule/PlatformAdminPrismaModule agregados en #121 (Reminder de reservas) -
+// ReservationReminderScanProcessor es el unico consumidor de PlatformAdminPrismaService
+// (BYPASSRLS) y el primer consumidor cross-modulo real de RecordAuditLogEntryHandler. Las 2
+// colas de BullMQ (reservations.reminder-scan, reservations.send-reminder) se registran aca,
+// nunca en app.module.ts - "un Processor NestJS por cola, en infrastructure/jobs/ del modulo
+// dueno" (docs/technical/03-BACKEND-ARCHITECTURE.md §11).
 @Module({
   imports: [
     CustomersModule,
@@ -53,6 +64,10 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
     SettingsModule,
     BranchesModule,
     NotificationsModule,
+    AuditModule,
+    PlatformAdminPrismaModule,
+    BullModule.registerQueue({ name: 'reservations.reminder-scan' }),
+    BullModule.registerQueue({ name: 'reservations.send-reminder' }),
   ],
   controllers: [ReservationsController, MeReservationsController],
   providers: [
@@ -75,6 +90,8 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
     InvoiceIssuedListener,
     ReservationConfirmedNotificationListener,
     ReservationCancelledNotificationListener,
+    ReservationReminderScanProcessor,
+    SendReservationReminderProcessor,
   ],
 })
 export class ReservationsModule {}
