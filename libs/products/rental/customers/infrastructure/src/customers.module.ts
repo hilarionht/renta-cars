@@ -15,6 +15,7 @@ import {
   RefreshCustomerSessionHandler,
   RegisterAdditionalDriverHandler,
   RegisterCustomerHandler,
+  RegisterCustomerPushTokenHandler,
   RequestCustomerOtpHandler,
   RevokeAdditionalDriverHandler,
   RevokeCustomerSessionHandler,
@@ -34,6 +35,7 @@ import { PrismaCustomerRepository } from './persistence/prisma/prisma-customer.r
 import { PrismaCustomerSessionRepository } from './persistence/prisma/prisma-customer-session.repository';
 import { CustomerAuthController } from './http/customer-auth.controller';
 import { CustomersController } from './http/customers.controller';
+import { MeCustomerController } from './http/me-customer.controller';
 import { GetCustomerHandler } from './queries/get-customer.handler';
 import { ListCustomersHandler } from './queries/list-customers.handler';
 
@@ -44,9 +46,14 @@ import { ListCustomersHandler } from './queries/list-customers.handler';
 // mismo patron ya usado por ReservationConfirmedNotificationListener). IntegrationProvidersModule
 // importado para ExtractIdentityDocumentHandler (DOCUMENT_EXTRACTION_PORT, OCR) - mismo patron
 // ya usado por PaymentsModule.
+// RegisterCustomerPushTokenHandler exportado (docs/persistence/10-DECISIONES.md #122) -
+// SendReservationReminderProcessor (reservations/infrastructure) lo llama directo para limpiar
+// un token invalido tras confirmar DeviceNotRegistered - mismo patron ya usado para
+// SendNotificationHandler (NotificationsModule): un handler exportado, nunca el repository
+// completo cross-modulo.
 @Module({
   imports: [IdentityModule, NotificationsModule, IntegrationProvidersModule],
-  controllers: [CustomersController, CustomerAuthController],
+  controllers: [CustomersController, CustomerAuthController, MeCustomerController],
   providers: [
     { provide: CUSTOMER_REPOSITORY, useClass: PrismaCustomerRepository },
     { provide: CUSTOMER_LOOKUP_PORT, useClass: PrismaCustomerLookupAdapter },
@@ -55,6 +62,7 @@ import { ListCustomersHandler } from './queries/list-customers.handler';
     { provide: CUSTOMER_OTP_CHALLENGE_REPOSITORY, useClass: PrismaCustomerOtpChallengeRepository },
     { provide: CUSTOMER_OTP_CODE_GENERATOR, useClass: Sha256CustomerOtpCodeGenerator },
     RegisterCustomerHandler,
+    RegisterCustomerPushTokenHandler,
     UpdateCustomerDetailsHandler,
     UploadIdentityDocumentHandler,
     ExtractIdentityDocumentHandler,
@@ -71,6 +79,6 @@ import { ListCustomersHandler } from './queries/list-customers.handler';
     RequestCustomerOtpHandler,
     VerifyCustomerOtpHandler,
   ],
-  exports: [CUSTOMER_LOOKUP_PORT],
+  exports: [CUSTOMER_LOOKUP_PORT, RegisterCustomerPushTokenHandler],
 })
 export class CustomersModule {}
