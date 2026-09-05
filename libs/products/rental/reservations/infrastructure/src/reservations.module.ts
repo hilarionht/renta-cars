@@ -56,6 +56,10 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
 // colas de BullMQ (reservations.reminder-scan, reservations.send-reminder) se registran aca,
 // nunca en app.module.ts - "un Processor NestJS por cola, en infrastructure/jobs/ del modulo
 // dueno" (docs/technical/03-BACKEND-ARCHITECTURE.md §11).
+// #122 (Push conectado a Reminder): SendReservationReminderProcessor gana
+// SendPushNotificationHandler (NotificationsModule, ya importado) y
+// RegisterCustomerPushTokenHandler (CustomersModule, ya importado) - ningun import nuevo de
+// modulo, solo 2 providers nuevos exportados desde modulos que ya estaban aca.
 @Module({
   imports: [
     CustomersModule,

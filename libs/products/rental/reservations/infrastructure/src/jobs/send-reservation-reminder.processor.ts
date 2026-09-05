@@ -6,9 +6,17 @@ import type { Job } from 'bullmq';
 import { Prisma } from '@prisma/client';
 
 import { asPrismaTransaction } from '@platform/persistence-kernel';
-import { SendNotificationHandler } from '@platform/notifications/application';
+import {
+  PushTokenInvalidError,
+  SendNotificationHandler,
+  SendPushNotificationHandler,
+} from '@platform/notifications/application';
 import { UNIT_OF_WORK, type UnitOfWork } from '@platform/shared-kernel';
-import { CUSTOMER_LOOKUP_PORT, type CustomerLookupPort } from '@rental/customers/application';
+import {
+  CUSTOMER_LOOKUP_PORT,
+  type CustomerLookupPort,
+  RegisterCustomerPushTokenHandler,
+} from '@rental/customers/application';
 
 interface SendReminderJobData {
   reservationId: string;
@@ -32,6 +40,8 @@ export class SendReservationReminderProcessor extends WorkerHost {
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(CUSTOMER_LOOKUP_PORT) private readonly customerLookupPort: CustomerLookupPort,
     private readonly sendNotification: SendNotificationHandler,
+    private readonly sendPushNotification: SendPushNotificationHandler,
+    private readonly registerCustomerPushToken: RegisterCustomerPushTokenHandler,
   ) {
     super();
   }
@@ -62,6 +72,50 @@ export class SendReservationReminderProcessor extends WorkerHost {
       templateId: 'reservation-reminder',
       templateParams: { customerName: contact.name, reservationId },
     });
+
+    if (contact.pushDeviceToken) {
+      await this.sendPushBestEffort(contact.pushDeviceToken, contact.name, reservationId, {
+        companyId,
+        customerId,
+      });
+    }
+  }
+
+  // Best-effort: nunca lanza, nunca afecta el resultado del job ni la idempotencia ya
+  // registrada arriba (docs/persistence/10-DECISIONES.md #122). Push no crea ninguna fila de
+  // Notification (el aggregate lo excluye desde su diseño original, #89/#95) - distingue
+  // PushTokenInvalidError (Expo confirmo que el token quedo invalido para siempre, se limpia
+  // via RegisterCustomerPushTokenHandler) de cualquier otro fallo (podria ser transitorio, solo
+  // se loguea).
+  private async sendPushBestEffort(
+    deviceToken: string,
+    customerName: string,
+    reservationId: string,
+    owner: { companyId: string; customerId: string },
+  ): Promise<void> {
+    try {
+      await this.sendPushNotification.execute({
+        deviceToken,
+        title: 'Recordatorio de tu reserva',
+        body: `Hola ${customerName}, tu reserva esta por comenzar.`,
+        data: { reservationId },
+      });
+    } catch (error) {
+      if (error instanceof PushTokenInvalidError) {
+        this.logger.log(
+          `Push del recordatorio de la reservation "${reservationId}" fallo con un token invalido, limpiando pushDeviceToken del customer "${owner.customerId}".`,
+        );
+        await this.registerCustomerPushToken.execute({
+          customerId: owner.customerId,
+          companyId: owner.companyId,
+          deviceToken: null,
+        });
+        return;
+      }
+      this.logger.warn(
+        `Push del recordatorio de la reservation "${reservationId}" fallo: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   // true = primer despacho real (procede a enviar). false = ya existia (P2002 sobre
