@@ -19,11 +19,19 @@ export {
   type PushNotificationResult,
   type PushNotificationSenderPort,
 } from './ports/push-notification-sender.port';
+// Re-exportado desde domain (docs/persistence/10-DECISIONES.md #122) - unica forma en que
+// PushSenderAdapter (platform-integration-providers-infrastructure) puede tirarlo: ese
+// proyecto tiene bloqueado boundaries.mjs para depender de "type:domain" de otro modulo,
+// solo de su "type:application" (mismo motivo por el que los puertos de arriba se importan
+// de application, nunca de domain, en cualquier adaptador).
+export { PushTokenInvalidError } from '@platform/notifications/domain';
 
 export { SendNotificationHandler } from './commands/send-notification/send-notification.handler';
 export type { SendNotificationCommand } from './commands/send-notification/send-notification.command';
 export { HandleDeliveryConfirmationHandler } from './commands/handle-delivery-confirmation/handle-delivery-confirmation.handler';
 export type { HandleDeliveryConfirmationCommand } from './commands/handle-delivery-confirmation/handle-delivery-confirmation.command';
+export { SendPushNotificationHandler } from './commands/send-push-notification/send-push-notification.handler';
+export type { SendPushNotificationCommand } from './commands/send-push-notification/send-push-notification.command';
 
 export type {
   GetNotificationQuery,

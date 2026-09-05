@@ -6,6 +6,7 @@ import {
   HandleDeliveryConfirmationHandler,
   NOTIFICATION_REPOSITORY,
   SendNotificationHandler,
+  SendPushNotificationHandler,
 } from '@platform/notifications/application';
 
 import { UserWelcomeNotificationListener } from './events/user-welcome-notification.listener';
@@ -25,17 +26,22 @@ import { ListNotificationsHandler } from './queries/list-notifications.handler';
 // patron ya usado para SettingsModule. Las otras 4 dependencias de SendNotificationHandler
 // (NOTIFICATION_REPOSITORY, NOTIFICATION_SENDER_PORT, SETTINGS_LOOKUP_PORT, UNIT_OF_WORK/
 // DOMAIN_EVENT_PUBLISHER via @Global() PrismaModule) ya resuelven completas sin exportarlas.
+// SendPushNotificationHandler exportado igual (docs/persistence/10-DECISIONES.md #122) -
+// unico camino permitido hacia PUSH_NOTIFICATION_SENDER_PORT para cualquier consumidor
+// cross-modulo (docs/contracts/05-INTEGRATION-CONTRACTS.md SS2), primer consumidor real:
+// SendReservationReminderProcessor (reservations/infrastructure).
 @Module({
   imports: [SettingsModule, IntegrationProvidersModule],
   controllers: [NotificationsController, WhatsAppWebhookController],
   providers: [
     { provide: NOTIFICATION_REPOSITORY, useClass: PrismaNotificationRepository },
     SendNotificationHandler,
+    SendPushNotificationHandler,
     HandleDeliveryConfirmationHandler,
     GetNotificationHandler,
     ListNotificationsHandler,
     UserWelcomeNotificationListener,
   ],
-  exports: [SendNotificationHandler],
+  exports: [SendNotificationHandler, SendPushNotificationHandler],
 })
 export class NotificationsModule {}
