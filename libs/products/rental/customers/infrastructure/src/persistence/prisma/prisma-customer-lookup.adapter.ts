@@ -61,13 +61,23 @@ export class PrismaCustomerLookupAdapter implements CustomerLookupPort {
       (tx) =>
         tx.customer.findFirst({
           where: { id: customerId },
-          select: { contactEmail: true, contactPhone: true, name: true },
+          select: {
+            contactEmail: true,
+            contactPhone: true,
+            name: true,
+            pushDeviceToken: true,
+          },
         }),
       companyId,
     );
     if (!record) {
       return null;
     }
-    return { email: record.contactEmail, phone: record.contactPhone, name: record.name };
+    return {
+      email: record.contactEmail,
+      phone: record.contactPhone,
+      name: record.name,
+      pushDeviceToken: record.pushDeviceToken ?? undefined,
+    };
   }
 }

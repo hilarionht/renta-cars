@@ -11,6 +11,9 @@ export interface CustomerContactInfo {
   email: string;
   phone: string;
   name: string;
+  // Agregado para conectar Push a Reminder (docs/persistence/10-DECISIONES.md #122) -
+  // undefined si el customer nunca registro un deviceToken.
+  pushDeviceToken?: string;
 }
 
 export interface CustomerLookupPort {

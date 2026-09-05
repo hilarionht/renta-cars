@@ -20,6 +20,9 @@ model Customer {
   status            CustomerStatus
   blockStatus       CustomerBlockStatus @map("block_status")
   blockReason       String?             @map("block_reason")
+  // Expo push token del dispositivo movil del customer (docs/persistence/10-DECISIONES.md
+  // #122) - opaco, sin formato propio validable (Recipient VO, notifications/domain).
+  pushDeviceToken   String?             @map("push_device_token")
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
   version           Int                 @default(1)

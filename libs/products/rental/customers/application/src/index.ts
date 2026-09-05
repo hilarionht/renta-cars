@@ -29,6 +29,8 @@ export { RegisterCustomerHandler } from './commands/register-customer/register-c
 export type { RegisterCustomerCommand } from './commands/register-customer/register-customer.command';
 export { UpdateCustomerDetailsHandler } from './commands/update-customer-details/update-customer-details.handler';
 export type { UpdateCustomerDetailsCommand } from './commands/update-customer-details/update-customer-details.command';
+export { RegisterCustomerPushTokenHandler } from './commands/register-customer-push-token/register-customer-push-token.handler';
+export type { RegisterCustomerPushTokenCommand } from './commands/register-customer-push-token/register-customer-push-token.command';
 export { UploadIdentityDocumentHandler } from './commands/upload-identity-document/upload-identity-document.handler';
 export type { UploadIdentityDocumentCommand } from './commands/upload-identity-document/upload-identity-document.command';
 export { ExtractIdentityDocumentHandler } from './commands/extract-identity-document/extract-identity-document.handler';

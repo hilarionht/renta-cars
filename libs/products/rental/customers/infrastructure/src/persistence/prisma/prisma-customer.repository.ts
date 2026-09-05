@@ -86,6 +86,7 @@ export class PrismaCustomerRepository implements CustomerRepository {
       status: customer.status,
       blockStatus: customer.blockStatus,
       blockReason: customer.blockReason ?? null,
+      pushDeviceToken: customer.pushDeviceToken ?? null,
     };
 
     if (customer.isNew) {
@@ -189,6 +190,7 @@ export class PrismaCustomerRepository implements CustomerRepository {
         status: record.status,
         blockStatus: record.blockStatus,
         blockReason: record.blockReason ?? undefined,
+        pushDeviceToken: record.pushDeviceToken ?? undefined,
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
         version: record.version,

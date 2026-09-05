@@ -39,6 +39,7 @@ export interface CustomerProps {
   status: CustomerStatus;
   blockStatus: CustomerBlockStatusValue;
   blockReason?: string;
+  pushDeviceToken?: string;
   createdAt: Date;
   updatedAt: Date;
   version: number;
@@ -136,6 +137,10 @@ export class Customer {
     return this.props.blockReason;
   }
 
+  get pushDeviceToken(): string | undefined {
+    return this.props.pushDeviceToken;
+  }
+
   get version(): number {
     return this.props.version;
   }
@@ -163,6 +168,16 @@ export class Customer {
     if (params.contactInfo) {
       this.props.contactInfo = params.contactInfo;
     }
+    this.props.updatedAt = new Date();
+    this.props.version += 1;
+  }
+
+  // Sin evento propio, mismo criterio que uploadIdentityDocument() de abajo - "Registrar un
+  // device token" no esta en el catalogo cerrado de docs/model/06-DOMAIN_EVENTS.md SS6.2, y
+  // nada reacciona a esto. deviceToken null = limpiar (SendReservationReminderProcessor lo usa
+  // cuando Expo confirma que el token quedo invalido, docs/persistence/10-DECISIONES.md #122).
+  registerPushToken(deviceToken: string | null): void {
+    this.props.pushDeviceToken = deviceToken ?? undefined;
     this.props.updatedAt = new Date();
     this.props.version += 1;
   }
