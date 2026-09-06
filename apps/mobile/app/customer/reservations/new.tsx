@@ -1,12 +1,12 @@
 // Feature "customer/reservations/new" - docs/06-CONVENCIONES-FRONTEND.md SS2. Fase 5
-// cliente-autogestion (docs/persistence/10-DECISIONES.md #109). vehicleId es un campo de
-// texto plano (UUID) a proposito - no existe un endpoint de listado/busqueda de vehiculos
-// para clientes todavia, mismo gap ya aceptado en customer/index.tsx (y en el index.tsx de
-// staff, "lo unico disponible sin un endpoint de enriquecimiento que no existe todavia").
+// cliente-autogestion (docs/persistence/10-DECISIONES.md #109). vehicleId sigue siendo un
+// campo de texto editable (UUID) - desde #123, customer/vehicles/search.tsx es el punto de
+// entrada normal y precompleta los 3 campos via route params (mismo mecanismo que
+// login-otp.tsx), pero la edicion manual se conserva como via de escape explicita.
 // POST /me/reservations devuelve solo {id}, nunca un ReservationSummary completo - se
 // navega al detalle (que si hace su propio GET) al terminar.
 import { zodResolver } from '@hookform/resolvers/zod';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Text, StyleSheet } from 'react-native';
@@ -24,6 +24,11 @@ const newReservationSchema = z.object({
 type NewReservationFormValues = z.infer<typeof newReservationSchema>;
 
 export default function NewMyReservation() {
+  const params = useLocalSearchParams<{
+    vehicleId?: string;
+    startDate?: string;
+    endDate?: string;
+  }>();
   const createReservation = useCreateMyReservation();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
@@ -32,7 +37,11 @@ export default function NewMyReservation() {
     formState: { errors, isSubmitting },
   } = useForm<NewReservationFormValues>({
     resolver: zodResolver(newReservationSchema),
-    defaultValues: { vehicleId: '', startDate: '', endDate: '' },
+    defaultValues: {
+      vehicleId: params.vehicleId ?? '',
+      startDate: params.startDate ?? '',
+      endDate: params.endDate ?? '',
+    },
   });
 
   const onSubmit = handleSubmit(async (values) => {

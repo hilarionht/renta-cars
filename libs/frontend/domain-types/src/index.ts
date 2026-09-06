@@ -23,3 +23,4 @@ export type {
   ConfirmUploadRequest,
   ConfirmUploadResponse,
 } from './file.types';
+export type { VehicleCategoryRef, VehicleSummary } from './vehicle.types';

@@ -60,7 +60,7 @@ export default function CustomerHome() {
 
       <Button
         label="Nueva reserva"
-        onPress={() => router.push('/customer/reservations/new')}
+        onPress={() => router.push('/customer/vehicles/search')}
         testID="customer-new-reservation"
       />
       <Button
