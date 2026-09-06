@@ -14,6 +14,7 @@ export {
 export { useUploadPhoto } from './files/use-upload-photo';
 export { customerApiRequest } from './customer-auth/customer-api-client';
 export { CustomerAuthProvider, useCustomerAuth } from './customer-auth/customer-auth-context';
+export { registerDevicePushToken } from './customer-auth/register-device-push-token';
 export {
   useMyReservations,
   useMyReservation,

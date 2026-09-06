@@ -1,7 +1,11 @@
 import { router, Stack, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 
-import { CustomerAuthProvider, useCustomerAuth } from '@frontend/data-access';
+import {
+  CustomerAuthProvider,
+  registerDevicePushToken,
+  useCustomerAuth,
+} from '@frontend/data-access';
 import { LoadingSpinner } from '@frontend/ui-kit-mobile';
 
 // Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - espejo del
@@ -26,6 +30,15 @@ function CustomerAuthGuard({ children }: { children: React.ReactNode }) {
       router.replace('/customer');
     }
   }, [isLoading, isAuthenticated, segments]);
+
+  // Conectar Push a Reminder (docs/persistence/10-DECISIONES.md #122) - fire-and-forget, nunca
+  // bloquea el guard. registerDevicePushToken() resuelve en silencio ante cualquier fallo
+  // (permiso denegado, sin projectId de EAS) - el .catch() de aca es solo una red adicional.
+  useEffect(() => {
+    if (isAuthenticated) {
+      void registerDevicePushToken().catch(() => {});
+    }
+  }, [isAuthenticated]);
 
   if (isLoading) {
     return <LoadingSpinner testID="customer-auth-loading" />;
