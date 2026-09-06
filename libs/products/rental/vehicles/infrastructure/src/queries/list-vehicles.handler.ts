@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { VehicleStatus } from '@prisma/client';
 
 import { ReadTransaction } from '@platform/persistence-kernel';
+import { UnsupportedExpandError } from '@platform/shared-kernel';
 import { CALENDAR_PORT, type CalendarPort } from '@platform/calendar/application';
 import { InvalidDateRangeError } from '@rental/vehicles/domain';
 import type { ListVehiclesQuery, VehicleSummary } from '@rental/vehicles/application';
@@ -11,6 +12,11 @@ import type { ListVehiclesQuery, VehicleSummary } from '@rental/vehicles/applica
 // excluida de la busqueda aca, mismo criterio, duplicado deliberado (sin constante
 // compartida entre reports y vehicles, modulos distintos).
 const UNAVAILABLE_VEHICLE_STATUSES = ['OutOfService', 'Maintenance'] as const;
+
+// docs/persistence/10-DECISIONES.md #123 - primera implementacion real de `?expand=`, un
+// solo valor soportado hoy. Sin parser generico (un solo endpoint, un solo valor) - agregar
+// un 2do valor es un `.split(',')` en el DTO/controller, no una migracion de contrato.
+const SUPPORTED_EXPAND_VALUES = ['vehicleCategory'] as const;
 
 @Injectable()
 export class ListVehiclesHandler {
@@ -23,6 +29,11 @@ export class ListVehiclesHandler {
     const searchingAvailability = query.startDate !== undefined && query.endDate !== undefined;
     if (searchingAvailability && query.startDate! >= query.endDate!) {
       throw new InvalidDateRangeError(query.startDate!.toISOString(), query.endDate!.toISOString());
+    }
+    for (const value of query.expand ?? []) {
+      if (!SUPPORTED_EXPAND_VALUES.includes(value as (typeof SUPPORTED_EXPAND_VALUES)[number])) {
+        throw new UnsupportedExpandError(value, [...SUPPORTED_EXPAND_VALUES]);
+      }
     }
 
     const records = await this.readTransaction.run(
@@ -56,6 +67,23 @@ export class ListVehiclesHandler {
         query.endDate!,
       );
       summaries = summaries.filter((summary) => !occupiedIds.includes(summary.id));
+    }
+
+    if (query.expand?.includes('vehicleCategory') && summaries.length > 0) {
+      const categoryIds = [...new Set(summaries.map((summary) => summary.vehicleCategoryId))];
+      const categories = await this.readTransaction.run(
+        (tx) =>
+          tx.vehicleCategory.findMany({
+            where: { id: { in: categoryIds } },
+            select: { id: true, name: true },
+          }),
+        query.companyId,
+      );
+      const categoryById = new Map(categories.map((category) => [category.id, category]));
+      return summaries.map((summary) => ({
+        ...summary,
+        vehicleCategory: categoryById.get(summary.vehicleCategoryId),
+      }));
     }
 
     return summaries;

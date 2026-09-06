@@ -65,7 +65,8 @@ export class VehiclesController {
 
   // docs/persistence/10-DECISIONES.md #116: startDate/endDate opcionales - busqueda de
   // vehiculos disponibles para self-service de customers, mismo endpoint (ver #116 por que
-  // se extiende GET /vehicles en vez de un recurso nuevo).
+  // se extiende GET /vehicles en vez de un recurso nuevo). #123: expand opcional, primera
+  // implementacion real de docs/contracts/10-DECISIONES.md #3.
   @Get()
   async list(@Query() dto: ListVehiclesRequestDto): Promise<VehicleSummaryResponseDto[]> {
     const { companyId } = this.requestContext.get();
@@ -73,6 +74,7 @@ export class VehiclesController {
       companyId,
       startDate: dto.startDate ? new Date(dto.startDate) : undefined,
       endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      expand: dto.expand ? [dto.expand] : undefined,
     });
   }
 

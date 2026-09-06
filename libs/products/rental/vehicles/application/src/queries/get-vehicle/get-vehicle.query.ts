@@ -41,6 +41,9 @@ export interface ListVehiclesQuery {
   // se ignora - se fuerza a la flota operable y se descartan los ocupados en el rango.
   startDate?: Date;
   endDate?: Date;
+  // docs/contracts/10-DECISIONES.md #3, primera implementacion real de `?expand=` - unico
+  // valor soportado hoy: 'vehicleCategory' (docs/persistence/10-DECISIONES.md #123).
+  expand?: string[];
 }
 
 export interface VehicleSummary {
@@ -50,4 +53,8 @@ export interface VehicleSummary {
   licensePlate: string;
   vin: string;
   status: string;
+  // Presente solo si se pidio expand: ['vehicleCategory'] (docs/persistence/
+  // 10-DECISIONES.md #123) - proyeccion minima, no VehicleCategorySummary (get-vehicle-
+  // category.query.ts, que incluye description y es una query distinta).
+  vehicleCategory?: { id: string; name: string };
 }

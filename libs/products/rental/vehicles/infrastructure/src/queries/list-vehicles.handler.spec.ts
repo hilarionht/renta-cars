@@ -1,4 +1,5 @@
 import type { CalendarPort } from '@platform/calendar/application';
+import { UnsupportedExpandError } from '@platform/shared-kernel';
 import { InvalidDateRangeError } from '@rental/vehicles/domain';
 
 import { ListVehiclesHandler } from './list-vehicles.handler';
@@ -96,5 +97,83 @@ describe('ListVehiclesHandler', () => {
     );
     expect(findMany).not.toHaveBeenCalled();
     expect(calendarPort.findOccupiedResourceIds).not.toHaveBeenCalled();
+  });
+
+  it('sin expand, VehicleSummary no trae vehicleCategory', async () => {
+    const findMany = jest.fn().mockResolvedValue([vehicleRecord()]);
+    const readTransaction = {
+      run: (fn: (tx: unknown) => unknown) => fn({ vehicle: { findMany } }),
+    };
+    const calendarPort: CalendarPort = {
+      isAvailable: jest.fn(),
+      occupy: jest.fn(),
+      release: jest.fn(),
+      findActiveSlotId: jest.fn(),
+      findOccupiedResourceIds: jest.fn(),
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler = new ListVehiclesHandler(readTransaction as any, calendarPort);
+
+    const result = await handler.execute({ companyId: 'company-1' });
+
+    expect(result[0].vehicleCategory).toBeUndefined();
+  });
+
+  it('con expand=["vehicleCategory"], embebe la categoria de cada vehicle', async () => {
+    const findManyVehicles = jest
+      .fn()
+      .mockResolvedValue([vehicleRecord({ id: 'vehicle-1', vehicleCategoryId: 'category-1' })]);
+    const findManyCategories = jest
+      .fn()
+      .mockResolvedValue([{ id: 'category-1', name: 'Economico' }]);
+    const readTransaction = {
+      run: (fn: (tx: unknown) => unknown) =>
+        fn({
+          vehicle: { findMany: findManyVehicles },
+          vehicleCategory: { findMany: findManyCategories },
+        }),
+    };
+    const calendarPort: CalendarPort = {
+      isAvailable: jest.fn(),
+      occupy: jest.fn(),
+      release: jest.fn(),
+      findActiveSlotId: jest.fn(),
+      findOccupiedResourceIds: jest.fn(),
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler = new ListVehiclesHandler(readTransaction as any, calendarPort);
+
+    const result = await handler.execute({ companyId: 'company-1', expand: ['vehicleCategory'] });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: 'vehicle-1',
+        vehicleCategory: { id: 'category-1', name: 'Economico' },
+      }),
+    ]);
+    expect(findManyCategories).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['category-1'] } } }),
+    );
+  });
+
+  it('con expand no soportado, lanza UnsupportedExpandError sin consultar Prisma ni CalendarPort', async () => {
+    const findMany = jest.fn();
+    const readTransaction = {
+      run: (fn: (tx: unknown) => unknown) => fn({ vehicle: { findMany } }),
+    };
+    const calendarPort: CalendarPort = {
+      isAvailable: jest.fn(),
+      occupy: jest.fn(),
+      release: jest.fn(),
+      findActiveSlotId: jest.fn(),
+      findOccupiedResourceIds: jest.fn(),
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler = new ListVehiclesHandler(readTransaction as any, calendarPort);
+
+    await expect(handler.execute({ companyId: 'company-1', expand: ['bogus'] })).rejects.toThrow(
+      UnsupportedExpandError,
+    );
+    expect(findMany).not.toHaveBeenCalled();
   });
 });

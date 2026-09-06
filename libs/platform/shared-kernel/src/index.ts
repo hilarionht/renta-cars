@@ -2,6 +2,7 @@
 // prohibido `export *` (docs/technical/09-CODING-STANDARDS.md SS2).
 export { DomainError } from './errors/domain-error';
 export { ConcurrentModificationError } from './errors/concurrent-modification.error';
+export { UnsupportedExpandError } from './errors/unsupported-expand.error';
 export type {
   DomainErrorConstructor,
   DomainErrorEntries,

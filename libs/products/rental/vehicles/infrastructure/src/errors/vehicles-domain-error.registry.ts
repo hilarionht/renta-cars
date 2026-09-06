@@ -1,4 +1,8 @@
-import { ConcurrentModificationError, type DomainErrorEntries } from '@platform/shared-kernel';
+import {
+  ConcurrentModificationError,
+  type DomainErrorEntries,
+  UnsupportedExpandError,
+} from '@platform/shared-kernel';
 import {
   DuplicateActiveVehicleDocumentError,
   DuplicateVehicleLicensePlateError,
@@ -94,5 +98,9 @@ export const VEHICLES_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
       code: 'VEHICLE_SEARCH_INVALID_RANGE',
       title: 'El rango de fechas de busqueda es invalido',
     },
+  ],
+  [
+    UnsupportedExpandError,
+    { status: 400, code: 'UNSUPPORTED_EXPAND', title: 'El valor de expand no esta soportado' },
   ],
 ];
