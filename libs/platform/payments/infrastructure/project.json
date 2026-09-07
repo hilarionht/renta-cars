@@ -1,0 +1,18 @@
+{
+  "name": "platform-payments-infrastructure",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/payments/infrastructure/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:infrastructure", "module:payments"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/payments/infrastructure"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

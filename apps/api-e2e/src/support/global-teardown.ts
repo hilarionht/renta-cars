@@ -5,4 +5,5 @@ export default async function globalTeardown(): Promise<void> {
   stopApiProcess();
   await stopRegisteredContainer('api-e2e-postgres');
   await stopRegisteredContainer('api-e2e-redis');
+  await stopRegisteredContainer('api-e2e-minio');
 }

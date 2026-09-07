@@ -1,3 +1,177 @@
 // @@schema("support") — File, Notification, AuditLogEntry, outbox_event
 // (docs/technical/02-PROYECTOS.md §2.5, docs/technical/04-PERSISTENCE.md §4).
-// Vacio a proposito: Fase 0 de docs/01-ROADMAP.md §2 agrega los primeros modelos.
+// Sin OutboxRelayWorker todavia (BullMQ) - gap de durabilidad documentado en
+// docs/persistence/10-DECISIONES.md, reconfirmado ahora que Audit (el primer consumidor
+// real) ya existe.
+
+model OutboxEvent {
+  // A diferencia de User/Role/Session (agregados de dominio, id generado por EntityId.
+  // generate() en domain/), OutboxEvent es un envelope tecnico sin identidad de negocio -
+  // aca si tiene sentido dejar que la base genere el id.
+  id            String    @id @default(uuid()) @db.Uuid
+  eventId       String    @unique @map("event_id") @db.Uuid
+  eventType     String    @map("event_type")
+  aggregateType String    @map("aggregate_type")
+  // Opaco a proposito (docs/persistence/02-TABLAS.md SS6: "nunca FK hacia el agregado que lo
+  // origino"), no @db.Uuid - LoginFailed.v1 no tiene Session/User real que referenciar
+  // (login con email desconocido), usa el email tal cual como identificador del intento.
+  aggregateId   String    @map("aggregate_id")
+  companyId     String?   @map("company_id") @db.Uuid
+  sourceSchema  String    @map("source_schema")
+  payload       Json
+  occurredAt    DateTime  @map("occurred_at")
+  publishedAt   DateTime? @map("published_at")
+
+  @@index([publishedAt], map: "outbox_event_published_at_idx")
+  @@map("outbox_event")
+  @@schema("support")
+}
+
+model AuditLogEntry {
+  // Generado en domain/ (EntityId.generate<'AuditLogEntry'>()) - AuditLogEntry es un
+  // aggregate root real (docs/model/02-AGGREGATES.md §17), a diferencia de OutboxEvent
+  // (envelope tecnico sin identidad de negocio).
+  id          String   @id @db.Uuid
+  // Nulable - ausente solo en eventos verdaderamente globales de Plataforma (docs/
+  // persistence/06-RLS.md §4.3), mismo patron que outbox_event.company_id.
+  companyId   String?  @map("company_id") @db.Uuid
+  actorRef    String   @map("actor_ref")
+  action      String
+  subjectType String   @map("subject_type")
+  // Opaco (docs/persistence/02-TABLAS.md §6.3: "sin relacion tipada") - mismo criterio que
+  // outbox_event.aggregate_id.
+  subjectId   String   @map("subject_id")
+  payload     Json
+  occurredAt  DateTime @map("occurred_at")
+
+  // Sin version (INV-024: append-only, nunca hay una segunda escritura que pueda entrar en
+  // conflicto con la primera) - unica excepcion a docs/persistence/10-DECISIONES.md #5.
+  // Sin createdAt/updatedAt - occurredAt es el unico instante que le importa a esta tabla.
+  @@index([companyId, occurredAt(sort: Desc)], map: "audit_log_company_occurred_idx")
+  @@index([subjectType, subjectId, occurredAt(sort: Desc)], map: "audit_log_subject_occurred_idx")
+  @@map("audit_log")
+  @@schema("support")
+}
+
+model File {
+  // Generado en domain/ (EntityId.generate<'File'>()) - aggregate root real (docs/model/
+  // 02-AGGREGATES.md §15), mismo criterio que AuditLogEntry.
+  id           String       @id @db.Uuid
+  companyId    String       @map("company_id") @db.Uuid
+  // Unico - dos File nunca comparten el mismo puntero de storage (docs/persistence/
+  // 05-INDICES-Y-CONSTRAINTS.md, refuerzo de INV-025). Reforzado tambien en
+  // PrismaFileRepository.save() (P2002 -> FileAlreadyConfirmedError).
+  storageRef   String       @unique @map("storage_ref")
+  contentType  String       @map("content_type")
+  uploadStatus UploadStatus @map("upload_status")
+  // Opaco, cross-schema, sin FK - mismo criterio que audit_log.actor_ref.
+  uploadedBy   String       @map("uploaded_by")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  version      Int          @default(1)
+
+  @@index([companyId, createdAt(sort: Desc)], map: "files_company_created_idx")
+  @@map("files")
+  @@schema("support")
+}
+
+// Enum nativo de Postgres (2 valores cerrados) - mismo criterio que CompanyStatus/
+// BranchStatus (docs/persistence/10-DECISIONES.md #12).
+enum UploadStatus {
+  Uploaded
+  Deleted
+
+  @@schema("support")
+}
+
+model Notification {
+  // Generado en domain/ (EntityId.generate<'Notification'>()) - aggregate root real
+  // (docs/model/02-AGGREGATES.md §16), mismo criterio que AuditLogEntry/File.
+  id                   String               @id @db.Uuid
+  companyId            String               @map("company_id") @db.Uuid
+  kind                 NotificationKind
+  status               NotificationStatus
+  // Snapshot del Recipient al momento de create() - sin FK a User/Customer (docs/persistence/
+  // 03-RELACIONES.md: "sin columna de correlacion tipada"), coherente con que ningun otro
+  // dato de Notification referencia un agregado origen.
+  recipientEmail       String?              @map("recipient_email")
+  recipientPhone       String?              @map("recipient_phone")
+  recipientDeviceToken String?              @map("recipient_device_token")
+  templateId           String               @map("template_id")
+  channel              NotificationChannel?
+  providerReference    String?              @map("provider_reference")
+  failureReason        String?              @map("failure_reason")
+  channelsExhausted    Boolean              @default(false) @map("channels_exhausted")
+  deliveredAt          DateTime?            @map("delivered_at")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  version              Int                  @default(1)
+
+  @@index([companyId, createdAt(sort: Desc)], map: "notifications_company_created_idx")
+  @@map("notifications")
+  @@schema("support")
+}
+
+// Catalogo cerrado de 4 valores (docs/model/04-VALUE_OBJECTS.md §7) - nombre distinto de
+// NotificationChannelDefault (organization.prisma, 3 valores, sin Push) - mismo criterio que
+// CommercePaymentMethod vs PaymentMethod (docs/persistence/10-DECISIONES.md #71-78).
+enum NotificationChannel {
+  WhatsApp
+  Email
+  SMS
+  Push
+
+  @@schema("support")
+}
+
+enum NotificationStatus {
+  Pending
+  Sent
+  Delivered
+  Failed
+
+  @@schema("support")
+}
+
+enum NotificationKind {
+  Confirmation
+  Reminder
+  Receipt
+  Alert
+  // Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - extension
+  // deliberada del catalogo antes cerrado en 4 valores (docs/domain/02-LENGUAJE-UBICUO.md
+  // SS8, docs/model/04-VALUE_OBJECTS.md SS7). Ninguno de los 4 valores existentes encaja: un
+  // OTP de login no es una Confirmation/Reminder/Receipt, y "Alert" esta reservado
+  // explicitamente para notificaciones internas de operacion, "no para comunicacion con el
+  // Customer" - usarlo aca violaria esa regla ya documentada.
+  SecurityCode
+  // Fase de Reservations->Notifications, mitad "cancelacion" del gap diferido en #98
+  // (docs/persistence/10-DECISIONES.md #117) - mismo criterio que SecurityCode: ningun valor
+  // existente encaja para "se cancelo tu reserva" (Confirmation es polaridad opuesta,
+  // Reminder es proactivo antes del evento no reactivo despues, Alert reservado a operacion
+  // interna).
+  Cancellation
+
+  @@schema("support")
+}
+
+// Infra de TEST unicamente, nunca superficie de produccion (docs/persistence/
+// 10-DECISIONES.md #113) - FakeNotificationSenderAdapter escribe aca lo que "enviaria" solo
+// cuando NOTIFICATION_SENDER_PROVIDER=fake, para que los e2e puedan recuperar secretos que
+// no se pueden fuerza-brutear (un token de reset de 32 bytes, a diferencia de un OTP de 6
+// digitos). Sin RLS: nunca se escribe fuera de un entorno fake/test, ningun controller la
+// lee. Deliberadamente NO se reusa Notification.providerReference (esa tabla es legible via
+// GET /notifications - un NOTIFICATION_SENDER_PROVIDER=fake mal configurado en un ambiente
+// compartido filtraria secretos).
+model FakeNotificationSend {
+  id             String   @id @default(uuid()) @db.Uuid
+  channel        String
+  templateId     String   @map("template_id")
+  recipientEmail String?  @map("recipient_email")
+  recipientPhone String?  @map("recipient_phone")
+  templateParams Json     @map("template_params")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("fake_notification_sends")
+  @@schema("support")
+}

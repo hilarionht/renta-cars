@@ -10,6 +10,9 @@ out-tsc
 .nx/cache
 .nx/workspace-data
 
+# Test coverage output (por-proyecto, generado por `jest --coverage`)
+coverage
+
 # environment
 .env
 .env.local
@@ -45,3 +48,7 @@ web-build/
 cache/
 
 storybook-static
+
+# Load testing (tooling/load-testing) - contiene accessTokens reales y la password en claro
+# del admin sembrado, aunque sean datos sinteticos (docs/persistence/10-DECISIONES.md #107).
+tooling/load-testing/.output/

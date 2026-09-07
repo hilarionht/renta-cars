@@ -12,6 +12,10 @@ const WORKSPACE_ROOT = join(__dirname, '..', '..', '..');
 export interface PostgresTestContainer {
   container: StartedPostgreSqlContainer;
   connectionUri: string;
+  // Conexion con el rol app_runtime (creado por la migracion identity_rls,
+  // docs/persistence/06-RLS.md §3) - la que debe usar apps/api en runtime (APP_DATABASE_URL),
+  // nunca `connectionUri` (rol dueño de las tablas, exento de RLS).
+  appRuntimeConnectionUri: string;
 }
 
 // docs/engineering/04-TESTING-FOUNDATION.md SS2: aplica el historial de Prisma Migrate
@@ -34,7 +38,9 @@ export async function startPostgresContainer(): Promise<PostgresTestContainer> {
     shell: true,
   });
 
-  return { container, connectionUri };
+  const appRuntimeConnectionUri = `postgresql://app_runtime:app_runtime@127.0.0.1:${container.getMappedPort(5432)}/${container.getDatabase()}`;
+
+  return { container, connectionUri, appRuntimeConnectionUri };
 }
 
 export async function stopPostgresContainer(instance: PostgresTestContainer): Promise<void> {

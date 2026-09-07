@@ -37,8 +37,27 @@ services:
     image: prom/prometheus:latest
     volumes:
       - ./tooling/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # docs/persistence/10-DECISIONES.md #105: reglas de alerta - montado aparte porque
+      # rule_files (prometheus.yml) resuelve rutas relativas al directorio de trabajo del
+      # proceso dentro del contenedor, no al host.
+      - ./tooling/observability/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
     ports:
       - '9090:9090'
+    networks:
+      - renta-dev
+    depends_on:
+      - alertmanager
+
+  # docs/persistence/10-DECISIONES.md #115: ruteo estructural de alertas - prometheus.yml
+  # apunta acá vía su sección alerting/alertmanagers. Receiver sin integración externa
+  # todavía (ver tooling/observability/alertmanager.yml) - a dónde hace paging es una
+  # decisión de negocio diferida, no una omisión.
+  alertmanager:
+    image: prom/alertmanager:latest
+    volumes:
+      - ./tooling/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - '9093:9093'
     networks:
       - renta-dev
 

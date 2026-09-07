@@ -1,0 +1,26 @@
+# docs/persistence/10-DECISIONES.md #115: ruteo estructural de alertas - agrupa y rutea por
+# severity (label ya presente en las 5 reglas de alert-rules.yml), queda visible/silenciable
+# via UI/API (:9093). El receiver "default" no tiene slack_configs/email_configs/webhook_configs
+# a proposito: a quien se le hace paging es una decision de negocio que requiere credenciales
+# reales (URL de Slack, API key de PagerDuty, email de guardia) - mismo criterio que
+# NOTIFICATION_SENDER_PROVIDER=fake en este repo, se construye la infraestructura real primero,
+# se difiere el destino externo. Ver #115 para el detalle completo.
+
+route:
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: default
+  routes:
+    - match:
+        severity: critical
+      receiver: default
+      group_wait: 10s
+      repeat_interval: 1h
+    - match:
+        severity: warning
+      receiver: default
+
+receivers:
+  - name: default

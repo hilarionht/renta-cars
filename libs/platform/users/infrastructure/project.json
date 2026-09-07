@@ -1,0 +1,18 @@
+{
+  "name": "platform-users-infrastructure",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/users/infrastructure/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:infrastructure", "module:users"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/users/infrastructure"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

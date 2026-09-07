@@ -4,11 +4,88 @@
     "rootDir": ".",
     "paths": {
       "@platform/shared-kernel": ["./libs/platform/shared-kernel/src/index.ts"],
+      "@platform/persistence-kernel": ["./libs/platform/persistence-kernel/src/index.ts"],
       "@frontend/domain-types": ["./libs/frontend/domain-types/src/index.ts"],
       "@frontend/ui-kit-core": ["./libs/frontend/ui-kit-core/src/index.ts"],
       "@frontend/data-access": ["./libs/frontend/data-access/src/index.ts"],
       "@frontend/ui-kit-web": ["./libs/frontend/ui-kit-web/src/index.ts"],
-      "@frontend/ui-kit-mobile": ["./libs/frontend/ui-kit-mobile/src/index.ts"]
+      "@frontend/ui-kit-mobile": ["./libs/frontend/ui-kit-mobile/src/index.ts"],
+      "@platform/roles-permissions/domain": [
+        "./libs/platform/roles-permissions/domain/src/index.ts"
+      ],
+      "@platform/roles-permissions/application": [
+        "./libs/platform/roles-permissions/application/src/index.ts"
+      ],
+      "@platform/roles-permissions/infrastructure": [
+        "./libs/platform/roles-permissions/infrastructure/src/index.ts"
+      ],
+      "@platform/users/domain": ["./libs/platform/users/domain/src/index.ts"],
+      "@platform/users/application": ["./libs/platform/users/application/src/index.ts"],
+      "@platform/users/infrastructure": ["./libs/platform/users/infrastructure/src/index.ts"],
+      "@platform/identity/domain": ["./libs/platform/identity/domain/src/index.ts"],
+      "@platform/identity/application": ["./libs/platform/identity/application/src/index.ts"],
+      "@platform/identity/infrastructure": ["./libs/platform/identity/infrastructure/src/index.ts"],
+      "@platform/companies/domain": ["./libs/platform/companies/domain/src/index.ts"],
+      "@platform/companies/application": ["./libs/platform/companies/application/src/index.ts"],
+      "@platform/companies/infrastructure": [
+        "./libs/platform/companies/infrastructure/src/index.ts"
+      ],
+      "@platform/branches/domain": ["./libs/platform/branches/domain/src/index.ts"],
+      "@platform/branches/application": ["./libs/platform/branches/application/src/index.ts"],
+      "@platform/branches/infrastructure": ["./libs/platform/branches/infrastructure/src/index.ts"],
+      "@platform/audit/domain": ["./libs/platform/audit/domain/src/index.ts"],
+      "@platform/audit/application": ["./libs/platform/audit/application/src/index.ts"],
+      "@platform/audit/infrastructure": ["./libs/platform/audit/infrastructure/src/index.ts"],
+      "@platform/files/domain": ["./libs/platform/files/domain/src/index.ts"],
+      "@platform/files/application": ["./libs/platform/files/application/src/index.ts"],
+      "@platform/files/infrastructure": ["./libs/platform/files/infrastructure/src/index.ts"],
+      "@platform/integration-providers/infrastructure": [
+        "./libs/platform/integration-providers/infrastructure/src/index.ts"
+      ],
+      "@platform/settings/domain": ["./libs/platform/settings/domain/src/index.ts"],
+      "@platform/settings/application": ["./libs/platform/settings/application/src/index.ts"],
+      "@platform/settings/infrastructure": ["./libs/platform/settings/infrastructure/src/index.ts"],
+      "@rental/customers/domain": ["./libs/products/rental/customers/domain/src/index.ts"],
+      "@rental/customers/application": [
+        "./libs/products/rental/customers/application/src/index.ts"
+      ],
+      "@rental/customers/infrastructure": [
+        "./libs/products/rental/customers/infrastructure/src/index.ts"
+      ],
+      "@rental/vehicles/domain": ["./libs/products/rental/vehicles/domain/src/index.ts"],
+      "@rental/vehicles/application": ["./libs/products/rental/vehicles/application/src/index.ts"],
+      "@rental/vehicles/infrastructure": [
+        "./libs/products/rental/vehicles/infrastructure/src/index.ts"
+      ],
+      "@platform/calendar/domain": ["./libs/platform/calendar/domain/src/index.ts"],
+      "@platform/calendar/application": ["./libs/platform/calendar/application/src/index.ts"],
+      "@platform/calendar/infrastructure": ["./libs/platform/calendar/infrastructure/src/index.ts"],
+      "@rental/reservations/domain": ["./libs/products/rental/reservations/domain/src/index.ts"],
+      "@rental/reservations/application": [
+        "./libs/products/rental/reservations/application/src/index.ts"
+      ],
+      "@rental/reservations/infrastructure": [
+        "./libs/products/rental/reservations/infrastructure/src/index.ts"
+      ],
+      "@platform/payments/domain": ["./libs/platform/payments/domain/src/index.ts"],
+      "@platform/payments/application": ["./libs/platform/payments/application/src/index.ts"],
+      "@platform/payments/infrastructure": ["./libs/platform/payments/infrastructure/src/index.ts"],
+      "@rental/invoices/domain": ["./libs/products/rental/invoices/domain/src/index.ts"],
+      "@rental/invoices/application": ["./libs/products/rental/invoices/application/src/index.ts"],
+      "@rental/invoices/infrastructure": [
+        "./libs/products/rental/invoices/infrastructure/src/index.ts"
+      ],
+      "@platform/notifications/domain": ["./libs/platform/notifications/domain/src/index.ts"],
+      "@platform/notifications/application": [
+        "./libs/platform/notifications/application/src/index.ts"
+      ],
+      "@platform/notifications/infrastructure": [
+        "./libs/platform/notifications/infrastructure/src/index.ts"
+      ],
+      "@rental/reports/application": ["./libs/products/rental/reports/application/src/index.ts"],
+      "@rental/reports/infrastructure": [
+        "./libs/products/rental/reports/infrastructure/src/index.ts"
+      ]
     },
     "target": "es2022",
     "module": "esnext",

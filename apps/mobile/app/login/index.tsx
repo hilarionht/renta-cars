@@ -2,50 +2,142 @@
 // Regla de dependencia: esta feature -> @frontend/data-access + ui-kit -> @frontend/domain-types.
 // Nunca al reves, y nunca importa '@frontend/ui-kit-core' directamente (solo la variante de plataforma).
 //
-// Pantalla minima del bootstrap (docs/engineering/10-BOOTSTRAP-PLAN.md, paso 13) - sin
-// logica de negocio real todavia (Identity no existe hasta Fase 0). fetch nativo de React
-// Native no aplica CORS (no hay same-origin policy fuera del navegador). Cuando exista
-// @frontend/data-access real, este fetch directo se reemplaza por su hook correspondiente.
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+// Fase 5 (operador de sucursal, docs/persistence/10-DECISIONES.md #108) - primera pantalla
+// real, reemplaza el placeholder de health-check del bootstrap. react-hook-form + zod
+// (docs/06-CONVENCIONES-FRONTEND.md SS9), schema espeja LoginRequest 1:1.
+import { zodResolver } from '@hookform/resolvers/zod';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { Pressable, Text, StyleSheet } from 'react-native';
+import { z } from 'zod';
 
-type ApiStatus = 'loading' | 'ok' | 'error';
+import { ApiError, useAuth } from '@frontend/data-access';
+import { Button, Screen, TextField } from '@frontend/ui-kit-mobile';
+
+const loginSchema = z.object({
+  companyId: z.string().uuid('companyId debe ser un UUID valido.'),
+  email: z.string().email('Ingresa un email valido.'),
+  password: z.string().min(1, 'La contraseña es obligatoria.'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const [status, setStatus] = useState<ApiStatus>('loading');
+  const { login } = useAuth();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { companyId: '', email: '', password: '' },
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-
-    fetch(`${process.env.EXPO_PUBLIC_API_URL}/health/ready`)
-      .then((response) => {
-        if (!cancelled) {
-          setStatus(response.ok ? 'ok' : 'error');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStatus('error');
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const onSubmit = handleSubmit(async (values) => {
+    setSubmitError(null);
+    try {
+      await login(values);
+      router.replace('/');
+    } catch (error) {
+      setSubmitError(
+        error instanceof ApiError ? error.message : 'No se pudo iniciar sesion. Intenta de nuevo.',
+      );
+    }
+  });
 
   return (
-    <View style={styles.container}>
-      <Text role="heading">Iniciar sesión</Text>
-      <Text testID="api-status">Estado de la API: {status}</Text>
-    </View>
+    <Screen scrollable testID="login-screen">
+      <Text role="heading" style={styles.heading}>
+        Iniciar sesión
+      </Text>
+
+      <Controller
+        control={control}
+        name="companyId"
+        render={({ field }) => (
+          <TextField
+            label="ID de compañía"
+            value={field.value}
+            onChangeText={field.onChange}
+            errorMessage={errors.companyId?.message}
+            testID="login-company-id"
+          />
+        )}
+      />
+      <Controller
+        control={control}
+        name="email"
+        render={({ field }) => (
+          <TextField
+            label="Email"
+            value={field.value}
+            onChangeText={field.onChange}
+            keyboardType="email-address"
+            errorMessage={errors.email?.message}
+            testID="login-email"
+          />
+        )}
+      />
+      <Controller
+        control={control}
+        name="password"
+        render={({ field }) => (
+          <TextField
+            label="Contraseña"
+            value={field.value}
+            onChangeText={field.onChange}
+            secureTextEntry
+            errorMessage={errors.password?.message}
+            testID="login-password"
+          />
+        )}
+      />
+
+      {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
+
+      <Button
+        label="Ingresar"
+        onPress={() => void onSubmit()}
+        loading={isSubmitting}
+        testID="login-submit"
+      />
+
+      {/* Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - /login sigue
+          siendo la pantalla de entrada de facto de la app (sin sesion previa), asi que un
+          link basta para llegar al flujo de cliente en vez de una pantalla "selectora" nueva. */}
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => router.push('/customer/login-phone')}
+        style={styles.customerLink}
+        testID="login-customer-link"
+      >
+        <Text style={styles.customerLinkText}>¿Sos cliente? Ingresá con tu teléfono</Text>
+      </Pressable>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  heading: {
+    fontSize: 22,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  // #D92D20 = colors.danger de ui-kit-core (literal, no importado directo - esta capa solo
+  // puede pasar por ui-kit-mobile, que no re-exporta tokens crudos).
+  errorText: {
+    color: '#D92D20',
+    marginBottom: 16,
+  },
+  customerLink: {
+    marginTop: 16,
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  // #1F6FEB = colors.primary de ui-kit-core, mismo criterio de literal documentado que
+  // errorText de arriba.
+  customerLinkText: {
+    color: '#1F6FEB',
   },
 });

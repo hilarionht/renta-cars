@@ -1,0 +1,18 @@
+{
+  "name": "platform-branches-application",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/branches/application/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:application", "module:branches"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/branches/application"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

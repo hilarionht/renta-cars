@@ -4,7 +4,7 @@
   "features": {
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
   },
-  "postCreateCommand": "npm install && cp .env.example .env && npm run db:migrate",
+  "postCreateCommand": "npm install && npm run db:generate && cp .env.example .env && npm run security:generate-jwt-keys >> .env && npm run db:migrate",
   "forwardPorts": [3000, 3001, 5432, 6379, 9001],
   "portsAttributes": {
     "3000": { "label": "apps/api" },

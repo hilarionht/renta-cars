@@ -21,7 +21,8 @@
 - Hashing con `argon2id` (parámetros calibrados a hardware de producción, revisados en Fase 6/Hardening).
 - Políticas mínimas: longitud mínima 12, sin composición forzada arbitraria (siguiendo NIST 800-63B: preferir longitud y verificación contra listas de contraseñas filtradas antes que reglas de complejidad artificial).
 - Rate limiting específico y más agresivo en endpoints de autenticación (login, refresh, recuperación de contraseña) que en el resto de la API — ver §6.
-- MFA (TOTP) soportado a nivel de plataforma desde v1.0 para roles administrativos; opcional para el resto, evaluable por política de Company.
+- Recuperación de contraseña (`POST /auth/forgot-password` + `POST /auth/reset-password`) construida (docs/persistence/10-DECISIONES.md #113): token opaco de 32 bytes enviado por Email (único canal de un `User` staff, a diferencia de `Customer`), vigencia 30 min, un único uso. Gap ya cerrado — antes documentado como pendiente en la decisión `#104`.
+- MFA (TOTP, RFC 6238) construido como mecanismo opt-in para cualquier `User` (docs/persistence/10-DECISIONES.md #111): enroll/confirmar/deshabilitar en `users/me/mfa/*`, verificación de 2do factor en `POST /auth/mfa/verify` cuando `LoginHandler` detecta `mfaEnabled`. **Mandato "obligatorio para roles administrativos" explícitamente diferido**: no existe hoy ningún concepto de "rol administrativo" en el dominio (`RoleScope` es `System`/`Custom`, sin relación con adminship) — definir esa noción y forzar MFA sobre ella es una tanda propia, no resuelta en #111. Sin recovery codes ni deshabilitado asistido por un admin (gap real, documentado en #111): un usuario que pierde el dispositivo autenticador no tiene hoy una vía de autoservicio para desactivar MFA.
 
 ## 4. Auditoría
 
@@ -46,18 +47,18 @@ Ver diseño completo en [ADR-0004](ADR/0004-multitenancy.md) y [04-MODELO-DATOS.
 
 ## 8. OWASP Top 10 — mapeo a decisiones ya tomadas
 
-| Riesgo OWASP | Mitigación en esta arquitectura |
-|---|---|
-| Broken Access Control | RBAC de dos niveles (§2) + RLS + scoping de tenant obligatorio en repositorios (§7 de [05-CONVENCIONES-BACKEND.md](05-CONVENCIONES-BACKEND.md)) |
-| Cryptographic Failures | `argon2id` para contraseñas, TLS obligatorio, secretos fuera de código (gestor de secretos, no `.env` en repo) |
-| Injection | Prisma parametriza queries por diseño; prohibido SQL crudo interpolado (`$queryRawUnsafe` prohibido salvo excepción documentada y revisada) |
-| Insecure Design | Este documento y [02-ARQUITECTURA.md](02-ARQUITECTURA.md) son, en sí mismos, la respuesta a este ítem — seguridad modelada desde el diseño, no parchada después |
-| Security Misconfiguration | CORS/CSP explícitos (§7), sin defaults permisivos, Swagger deshabilitado/protegido en producción |
-| Vulnerable Components | Actualización de dependencias auditada en CI (`npm audit`/equivalente), política de parcheo definida en Fase 6 |
-| Auth Failures | Refresh rotativo con detección de reutilización (§1), rate limiting agresivo en auth (§6), MFA disponible |
-| Software/Data Integrity | Migraciones versionadas y revisadas ([04-MODELO-DATOS.md §6](04-MODELO-DATOS.md)), CI con build reproducible |
-| Logging/Monitoring Failures | Auditoría estructurada (§4) + logging estructurado transversal (interceptor, [05-CONVENCIONES-BACKEND.md §6](05-CONVENCIONES-BACKEND.md)) |
-| SSRF | Todo acceso a servicios externos pasa por adaptadores de `integration-providers` con destinos conocidos y validados, nunca URLs arbitrarias provistas por el usuario final |
+| Riesgo OWASP                | Mitigación en esta arquitectura                                                                                                                                            |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Broken Access Control       | RBAC de dos niveles (§2) + RLS + scoping de tenant obligatorio en repositorios (§7 de [05-CONVENCIONES-BACKEND.md](05-CONVENCIONES-BACKEND.md))                            |
+| Cryptographic Failures      | `argon2id` para contraseñas, TLS obligatorio, secretos fuera de código (gestor de secretos, no `.env` en repo)                                                             |
+| Injection                   | Prisma parametriza queries por diseño; prohibido SQL crudo interpolado (`$queryRawUnsafe` prohibido salvo excepción documentada y revisada)                                |
+| Insecure Design             | Este documento y [02-ARQUITECTURA.md](02-ARQUITECTURA.md) son, en sí mismos, la respuesta a este ítem — seguridad modelada desde el diseño, no parchada después            |
+| Security Misconfiguration   | CORS/CSP explícitos (§7), sin defaults permisivos, Swagger deshabilitado/protegido en producción                                                                           |
+| Vulnerable Components       | Actualización de dependencias auditada en CI (`npm audit`/equivalente), política de parcheo definida en Fase 6                                                             |
+| Auth Failures               | Refresh rotativo con detección de reutilización (§1), rate limiting agresivo en auth (§6), MFA disponible                                                                  |
+| Software/Data Integrity     | Migraciones versionadas y revisadas ([04-MODELO-DATOS.md §6](04-MODELO-DATOS.md)), CI con build reproducible                                                               |
+| Logging/Monitoring Failures | Auditoría estructurada (§4) + logging estructurado transversal (interceptor, [05-CONVENCIONES-BACKEND.md §6](05-CONVENCIONES-BACKEND.md))                                  |
+| SSRF                        | Todo acceso a servicios externos pasa por adaptadores de `integration-providers` con destinos conocidos y validados, nunca URLs arbitrarias provistas por el usuario final |
 
 ## 9. Qué se define en Fase 6, no aquí
 

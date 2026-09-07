@@ -1,0 +1,72 @@
+# docs/technical/06-OBSERVABILITY.md SS6 / docs/engineering/08-OBSERVABILITY-BOOTSTRAP.md SS3:
+# los UMBRALES de alerta se calibran en Fase 6 contra trafico real - pero esa misma tabla
+# lista "umbrales de alerta" como lo que se calibra en Fase 6, no como algo que Fase 6 deba
+# inventar desde cero. Estas 5 reglas son la contraparte estructural de los 3 dashboards ya
+# provisionados (tooling/observability/grafana/dashboards/json/{golden-signals,health,
+# infra-use}.json) - un grupo por dashboard, misma metrica exacta que cada panel ya usa.
+# Todo valor numerico es un placeholder conservador NO calibrado (misma voz que
+# security.config.ts/throttle-profiles.ts) - se ajusta con datos reales de produccion, Fase 6.
+# Ruteo estructural via Alertmanager (docs/persistence/10-DECISIONES.md #115): estas reglas
+# se agrupan/rutean por severity y quedan visibles/silenciables en :9093. El receptor real
+# (a donde se hace paging - Slack/PagerDuty/email) sigue siendo una decision de negocio
+# diferida, ver tooling/observability/alertmanager.yml.
+groups:
+  - name: renta.platform-health
+    rules:
+      # docs/technical/06-OBSERVABILITY.md SS5: platform_health_ready distingue "el proceso
+      # esta caido" de "esta vivo pero degradado" - health.json ya grafica esta metrica.
+      - alert: PlatformHealthCheckFailing
+        expr: platform_health_ready == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: '/health/ready reporta no-listo'
+          description: 'platform_health_ready esta en 0 desde hace 2m o mas. Ver docs/runbooks/03-redis-caido.md si Redis es la causa, o revisar logs/traces del proceso.'
+
+  - name: renta.golden-signals
+    rules:
+      # Ratio real errores/total (a diferencia del panel de golden-signals.json, que grafica
+      # la tasa cruda de 5xx sin dividir por el total de requests).
+      - alert: HighHttpErrorRate
+        expr: |
+          sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+          /
+          sum(rate(http_server_request_duration_seconds_count{}[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Tasa de error 5xx elevada (placeholder no calibrado: 5%)'
+      - alert: HighHttpLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'p95 de latencia HTTP elevado (placeholder no calibrado: 1s)'
+
+  - name: renta.infra-use
+    rules:
+      # Sin metrica de tamano maximo del pool expuesta hoy - el placeholder es un conteo
+      # absoluto de conexiones activas, no un porcentaje calibrable contra un limite real.
+      - alert: DbConnectionPoolNearSaturation
+        expr: sum(db_client_connection_count{db_system_name="postgresql"}) > 40
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Conexiones activas del pool Postgres elevadas (placeholder no calibrado: 40)'
+      # Dormante: BullMQ es una decision arquitectonica ya comprometida
+      # (docs/technical/10-DECISIONES.md #6) pero todavia no instalada (sin dependencia
+      # "bullmq" en package.json) - bullmq_queue_depth nunca se emite hoy, mismo criterio que
+      # el panel ya vacio de infra-use.json: la observabilidad de una pieza nace junto con la
+      # pieza, no despues. Esta regla no dispara hasta el primer Processor real.
+      - alert: QueueDepthGrowing
+        expr: bullmq_queue_depth > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Profundidad de cola BullMQ creciendo (placeholder no calibrado: 1000, dormante hasta que exista BullMQ)'
