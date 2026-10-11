@@ -63,7 +63,7 @@ export class ReservationReminderScanProcessor extends WorkerHost implements OnMo
     await this.recordAuditLogEntry.execute({
       companyId: null,
       actorRef: 'system:reservation-reminder-scan',
-      action: 'PlatformAdminBypassUsed',
+      action: 'PlatformAdminBypassUsed.v1',
       subjectType: 'Company',
       subjectId: 'all',
       payload: { companiesEnumerated: companies.length },

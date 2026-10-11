@@ -78,7 +78,7 @@ describe('ReservationReminderScanProcessor', () => {
       expect.objectContaining({
         companyId: null,
         actorRef: 'system:reservation-reminder-scan',
-        action: 'PlatformAdminBypassUsed',
+        action: 'PlatformAdminBypassUsed.v1',
         subjectType: 'Company',
         subjectId: 'all',
         payload: { companiesEnumerated: 2 },
