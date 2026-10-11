@@ -61,6 +61,17 @@ function buildHandler(reservation: Reservation, policyOverride?: object | null) 
 }
 
 describe('CancelReservationHandler', () => {
+  // El handler calcula hoursBeforeStart con Date.now(): sin reloj fijo, el test dependia de la
+  // fecha real y empezo a fallar cuando 2026-09-01 (inicio de buildDraft) quedo en el pasado
+  // (sin tier aplicable -> 100% de penalidad). docs/persistence/10-DECISIONES.md #124.
+  beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-08-25T10:00:00Z').getTime());
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('Draft -> Cancelled sin liberar ningun slot (RN-05, nunca se ocupo)', async () => {
     const reservation = buildDraft();
     const { handler, availabilityService } = buildHandler(reservation);
