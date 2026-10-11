@@ -17,6 +17,8 @@ jest.mock('expo-router', () => ({
 jest.mock('@frontend/data-access', () => ({
   CustomerAuthProvider: ({ children }: { children: ReactNode }) => children,
   useCustomerAuth: jest.fn(),
+  // #122: CustomerAuthGuard registra el push token (fire-and-forget) al autenticarse.
+  registerDevicePushToken: jest.fn().mockResolvedValue(undefined),
 }));
 
 describe('CustomerLayout / CustomerAuthGuard', () => {

@@ -31,7 +31,11 @@ const checkInSchema = z.object({
   damages: z.array(damageSchema),
 });
 
-type CheckInFormValues = z.infer<typeof checkInSchema>;
+// zod 4: z.coerce tiene entrada `unknown` y salida `number`, asi que el form se tipa con
+// ambos (useForm<Entrada, Contexto, Salida>). Con un solo generico, handleSubmit recibia `any`
+// (docs/persistence/10-DECISIONES.md #125).
+type CheckInFormInput = z.input<typeof checkInSchema>;
+type CheckInFormValues = z.output<typeof checkInSchema>;
 
 export default function CheckIn() {
   const { id: reservationId } = useLocalSearchParams<{ id: string }>();
@@ -45,7 +49,7 @@ export default function CheckIn() {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<CheckInFormValues>({
+  } = useForm<CheckInFormInput, unknown, CheckInFormValues>({
     resolver: zodResolver(checkInSchema),
     defaultValues: { odometer: 0, fuelLevelPercentage: 100, damages: [] },
   });
@@ -63,7 +67,7 @@ export default function CheckIn() {
   const handlePickDamagePhoto = async (
     damageIndex: number,
     uri: string,
-    damage: CheckInFormValues['damages'][number],
+    damage: CheckInFormInput['damages'][number],
   ) => {
     const fileId = await uploadPhoto.mutateAsync(uri);
     setDamagePhotoUris((current) => ({
@@ -76,7 +80,7 @@ export default function CheckIn() {
   const handleRemoveDamagePhoto = (
     damageIndex: number,
     photoIndex: number,
-    damage: CheckInFormValues['damages'][number],
+    damage: CheckInFormInput['damages'][number],
   ) => {
     setDamagePhotoUris((current) => ({
       ...current,

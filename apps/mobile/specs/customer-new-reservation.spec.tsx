@@ -6,7 +6,11 @@ import { ApiError, useCreateMyReservation } from '@frontend/data-access';
 
 import NewMyReservation from '../app/customer/reservations/new';
 
-jest.mock('expo-router', () => ({ router: { replace: jest.fn() } }));
+// #123: new.tsx lee vehicleId/startDate/endDate de los route params (sin params = carga manual).
+jest.mock('expo-router', () => ({
+  router: { replace: jest.fn() },
+  useLocalSearchParams: jest.fn(() => ({})),
+}));
 jest.mock('@frontend/data-access', () => {
   const actual = jest.requireActual<typeof DataAccess>('@frontend/data-access');
   return { ...actual, useCreateMyReservation: jest.fn() };
@@ -37,7 +41,7 @@ describe('NewMyReservation', () => {
 
     fireEvent.changeText(
       screen.getByTestId('new-reservation-vehicle-id'),
-      '22222222-2222-2222-2222-222222222222',
+      '22222222-2222-4222-8222-222222222222',
     );
     fireEvent.changeText(
       screen.getByTestId('new-reservation-start-date'),
@@ -51,7 +55,7 @@ describe('NewMyReservation', () => {
 
     await waitFor(() =>
       expect(mutateAsync).toHaveBeenCalledWith({
-        vehicleId: '22222222-2222-2222-2222-222222222222',
+        vehicleId: '22222222-2222-4222-8222-222222222222',
         startDate: '2026-09-01T10:00:00.000Z',
         endDate: '2026-09-04T10:00:00.000Z',
       }),
@@ -67,7 +71,7 @@ describe('NewMyReservation', () => {
 
     fireEvent.changeText(
       screen.getByTestId('new-reservation-vehicle-id'),
-      '22222222-2222-2222-2222-222222222222',
+      '22222222-2222-4222-8222-222222222222',
     );
     fireEvent.changeText(
       screen.getByTestId('new-reservation-start-date'),

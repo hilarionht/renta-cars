@@ -38,14 +38,14 @@ describe('CustomerLoginPhone', () => {
 
     fireEvent.changeText(
       screen.getByTestId('customer-login-company-id'),
-      '11111111-1111-1111-1111-111111111111',
+      '11111111-1111-4111-8111-111111111111',
     );
     fireEvent.changeText(screen.getByTestId('customer-login-phone'), '+525512345678');
     fireEvent.press(screen.getByTestId('customer-login-phone-submit'));
 
     await waitFor(() =>
       expect(requestOtp).toHaveBeenCalledWith({
-        companyId: '11111111-1111-1111-1111-111111111111',
+        companyId: '11111111-1111-4111-8111-111111111111',
         phone: '+525512345678',
       }),
     );
@@ -53,7 +53,7 @@ describe('CustomerLoginPhone', () => {
       expect(router.push).toHaveBeenCalledWith({
         pathname: '/customer/login-otp',
         params: {
-          companyId: '11111111-1111-1111-1111-111111111111',
+          companyId: '11111111-1111-4111-8111-111111111111',
           phone: '+525512345678',
         },
       }),
@@ -66,7 +66,7 @@ describe('CustomerLoginPhone', () => {
 
     fireEvent.changeText(
       screen.getByTestId('customer-login-company-id'),
-      '11111111-1111-1111-1111-111111111111',
+      '11111111-1111-4111-8111-111111111111',
     );
     fireEvent.changeText(screen.getByTestId('customer-login-phone'), '+525512345678');
     fireEvent.press(screen.getByTestId('customer-login-phone-submit'));

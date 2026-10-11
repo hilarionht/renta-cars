@@ -70,12 +70,14 @@ describe('CustomerHome ("Mis reservas")', () => {
     );
   });
 
-  it('boton "Nueva reserva" navega al form de creacion', () => {
+  // #123: 'Nueva reserva' arranca por la busqueda de vehiculos (flujo forward-only), ya no
+  // va directo al form de creacion.
+  it('boton "Nueva reserva" navega a la busqueda de vehiculos', () => {
     (useMyReservations as jest.Mock).mockReturnValue({ data: [], isLoading: false });
 
     renderCustomerHome();
     fireEvent.press(screen.getByTestId('customer-new-reservation'));
 
-    expect(router.push).toHaveBeenCalledWith('/customer/reservations/new');
+    expect(router.push).toHaveBeenCalledWith('/customer/vehicles/search');
   });
 });

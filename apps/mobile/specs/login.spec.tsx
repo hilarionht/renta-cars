@@ -41,7 +41,7 @@ describe('Login', () => {
 
     fireEvent.changeText(
       screen.getByTestId('login-company-id'),
-      '11111111-1111-1111-1111-111111111111',
+      '11111111-1111-4111-8111-111111111111',
     );
     fireEvent.changeText(screen.getByTestId('login-email'), 'operador@example.com');
     fireEvent.changeText(screen.getByTestId('login-password'), 'password123');
@@ -49,7 +49,7 @@ describe('Login', () => {
 
     await waitFor(() =>
       expect(login).toHaveBeenCalledWith({
-        companyId: '11111111-1111-1111-1111-111111111111',
+        companyId: '11111111-1111-4111-8111-111111111111',
         email: 'operador@example.com',
         password: 'password123',
       }),
@@ -63,7 +63,7 @@ describe('Login', () => {
 
     fireEvent.changeText(
       screen.getByTestId('login-company-id'),
-      '11111111-1111-1111-1111-111111111111',
+      '11111111-1111-4111-8111-111111111111',
     );
     fireEvent.changeText(screen.getByTestId('login-email'), 'operador@example.com');
     fireEvent.changeText(screen.getByTestId('login-password'), 'password123');

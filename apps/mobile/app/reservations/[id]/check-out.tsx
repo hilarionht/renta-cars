@@ -18,14 +18,16 @@ import { ApiError, useAuth, useCheckOutReservation, useUploadPhoto } from '@fron
 import { Button, PhotoPicker, Screen, TextField } from '@frontend/ui-kit-mobile';
 
 const checkOutSchema = z.object({
-  odometer: z.coerce.number().min(0, 'El odometro no puede ser negativo.'),
+  odometer: z.coerce.number().min(0, 'El odómetro no puede ser negativo.'),
   fuelLevelPercentage: z.coerce
     .number()
     .min(0, 'El nivel de combustible debe estar entre 0 y 100.')
     .max(100, 'El nivel de combustible debe estar entre 0 y 100.'),
 });
 
-type CheckOutFormValues = z.infer<typeof checkOutSchema>;
+// Mismo motivo que check-in.tsx: zod 4 separa entrada y salida de z.coerce (#125).
+type CheckOutFormInput = z.input<typeof checkOutSchema>;
+type CheckOutFormValues = z.output<typeof checkOutSchema>;
 
 export default function CheckOut() {
   const { id: reservationId } = useLocalSearchParams<{ id: string }>();
@@ -38,7 +40,7 @@ export default function CheckOut() {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<CheckOutFormValues>({
+  } = useForm<CheckOutFormInput, unknown, CheckOutFormValues>({
     resolver: zodResolver(checkOutSchema),
     defaultValues: { odometer: 0, fuelLevelPercentage: 100 },
   });
