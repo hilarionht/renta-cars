@@ -6,18 +6,19 @@ No se implementa ningún módulo de negocio en esta fase. No hay Login, no hay e
 
 ## Índice
 
-| Doc | Contenido |
-|---|---|
-| [01-WORKSPACE.md](01-WORKSPACE.md) | Estructura Nx completa: árbol de carpetas, plugins, `nx.json`, alias, generadores, boundaries ejecutables |
-| [02-DEVELOPER-EXPERIENCE.md](02-DEVELOPER-EXPERIENCE.md) | Bootstrap local, scripts, VS Code, Dev Containers, debug, hot reload |
-| [03-CODE-QUALITY.md](03-CODE-QUALITY.md) | ESLint, Prettier, Commitlint, Husky, lint-staged, gates de calidad |
-| [04-TESTING-FOUNDATION.md](04-TESTING-FOUNDATION.md) | Jest por tipo de proyecto, Testcontainers, Test Data Builders, fakes, Playwright |
-| [05-CI-CD.md](05-CI-CD.md) | Workflows de GitHub Actions, cache remoto de Nx, versionado (Changesets), artefactos |
-| [06-DOCKER.md](06-DOCKER.md) | Dockerfiles multi-stage, Docker Compose de desarrollo, paridad con producción |
-| [07-CONFIGURATION.md](07-CONFIGURATION.md) | Catálogo de variables de entorno, secretos, jerarquía de fuentes, validación, feature flags |
-| [08-OBSERVABILITY-BOOTSTRAP.md](08-OBSERVABILITY-BOOTSTRAP.md) | Perfil local de OpenTelemetry/Prometheus/Grafana/Loki/Tempo, dashboards iniciales |
-| [09-CONTRIBUTING.md](09-CONTRIBUTING.md) | Flujo de Git, Pull Requests, revisión, Definition of Done, flujo de ADR |
-| [10-BOOTSTRAP-PLAN.md](10-BOOTSTRAP-PLAN.md) | Plan de construcción paso a paso, cada paso depende solo de los anteriores |
+| Doc                                                            | Contenido                                                                                                                                     |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| [01-WORKSPACE.md](01-WORKSPACE.md)                             | Estructura Nx completa: árbol de carpetas, plugins, `nx.json`, alias, generadores, boundaries ejecutables                                     |
+| [02-DEVELOPER-EXPERIENCE.md](02-DEVELOPER-EXPERIENCE.md)       | Bootstrap local, scripts, VS Code, Dev Containers, debug, hot reload                                                                          |
+| [03-CODE-QUALITY.md](03-CODE-QUALITY.md)                       | ESLint, Prettier, Commitlint, Husky, lint-staged, gates de calidad                                                                            |
+| [04-TESTING-FOUNDATION.md](04-TESTING-FOUNDATION.md)           | Jest por tipo de proyecto, Testcontainers, Test Data Builders, fakes, Playwright                                                              |
+| [05-CI-CD.md](05-CI-CD.md)                                     | Workflows de GitHub Actions, cache remoto de Nx, versionado (Changesets), artefactos                                                          |
+| [06-DOCKER.md](06-DOCKER.md)                                   | Dockerfiles multi-stage, Docker Compose de desarrollo, paridad con producción                                                                 |
+| [07-CONFIGURATION.md](07-CONFIGURATION.md)                     | Catálogo de variables de entorno, secretos, jerarquía de fuentes, validación, feature flags                                                   |
+| [08-OBSERVABILITY-BOOTSTRAP.md](08-OBSERVABILITY-BOOTSTRAP.md) | Perfil local de OpenTelemetry/Prometheus/Grafana/Loki/Tempo, dashboards iniciales                                                             |
+| [09-CONTRIBUTING.md](09-CONTRIBUTING.md)                       | Flujo de Git, Pull Requests, revisión, Definition of Done, flujo de ADR                                                                       |
+| [10-BOOTSTRAP-PLAN.md](10-BOOTSTRAP-PLAN.md)                   | Plan de construcción paso a paso, cada paso depende solo de los anteriores                                                                    |
+| [11-ENTORNO-LOCAL-NATIVO.md](11-ENTORNO-LOCAL-NATIVO.md)       | Entorno local en Windows sin Docker: Node 20.19.4, PostgreSQL 16, Memurai/Redis, arranque, qué verificación corre dónde, bitácora por máquina |
 
 ## Cómo leer esta documentación
 

@@ -1108,6 +1108,38 @@ Leyendo `node_modules/@nestjs/throttler/dist/throttler.guard.js`: `ThrottlerGuar
 
 **Mobile — flujo forward-only, no ida-y-vuelta**: corrección real de un agente Plan de validación — este repo no tiene ningún precedente de "pantalla B le devuelve un resultado a la pantalla A que la abrió" (único patrón existente: paso de datos hacia adelante vía route params, `login-phone.tsx`→`login-otp.tsx`). El diseño original (una pantalla de búsqueda empujando de vuelta a una `new.tsx` ya abierta) habría apilado una segunda instancia de `new.tsx` y roto el botón atrás. Diseño corregido: `customer/index.tsx` redirige su botón "Nueva reserva" a `customer/vehicles/search.tsx` (antes iba directo a `reservations/new.tsx`); esa pantalla nueva pide fechas, lista resultados, y al tocar uno empuja hacia adelante a `reservations/new.tsx` con `vehicleId`/`startDate`/`endDate` como route params (mismo mecanismo que `login-otp.tsx`, usado en la dirección para la que fue pensado). Un link secundario "Ingresar ID manualmente" conserva la vía de escape sin romper el flujo forward-only.
 
+## #124 — Reentrada: auditoría, entorno local nativo sin Docker, CI del PR #2 y bug real del scan de recordatorios
+
+**Contexto**: sesión de reentrada en una máquina nueva (2026-10-10). Primero se hizo una auditoría de solo lectura del estado real del repo ([`docs/audits/2026-10-10-reentry-audit.md`](../audits/2026-10-10-reentry-audit.md)). Encontró tres cosas: el CI del PR #2 (`sync/local-work-2026-09-07`) estaba en rojo en `ci / lint-typecheck` y `ci / test`; el Node local (22.12) no coincidía con `.nvmrc` (20.19.4); y las pruebas de integración dependen de Docker vía testcontainers.
+
+**Decisiones del usuario** (respuesta explícita a las preguntas de la auditoría):
+
+- **Pruebas sin Docker → opción (c)**: los tests `*-infrastructure` (17 proyectos, testcontainers) y `apps/api-e2e` **corren solo en CI**. Localmente se verifica con lint, typecheck, tests unitarios y smoke tests HTTP contra `apps/api` real. No se construye un modo de "base externa" para testcontainers.
+- **Instalaciones nativas autorizadas**: Node 20.19.4, PostgreSQL 16 y Redis 7. El usuario no eligió variante de Redis. Se intentó Redis 7 dentro de WSL Ubuntu, pero en esta máquina WSL no tiene salida a internet. Se usó **Memurai Developer 4.1.2** (API de Redis 7.2.5, nativo de Windows). La compatibilidad con BullMQ, antes `UNKNOWN`, quedó verificada en vivo (ver abajo).
+- **Todo documentado en el repo y portable entre máquinas**: el estado vive en `docs/` y `CLAUDE.md`, no en la memoria local de Claude ni en `.claude/` (ignorado por git). Guía nueva: [`docs/engineering/11-ENTORNO-LOCAL-NATIVO.md`](../engineering/11-ENTORNO-LOCAL-NATIVO.md), con bitácora por máquina en su §8.
+
+**Causa real del CI en rojo** (los logs del run de 2026-09-07 ya habían expirado y GitHub no deja re-ejecutar runs de más de 30 días; se reprodujo localmente con Node 20.19.4 y `nx affected --base=origin/master --parallel=1`):
+
+1. `frontend-data-access:lint`: `expo-notifications` (#122) trae los tipos globales de `expo-modules-core`, que fusionan `[key: string]: any` en `NodeJS.ProcessEnv`. Desde entonces, `process.env.EXPO_PUBLIC_API_URL` se tipa `any` y rompe `no-unsafe-assignment`/`no-unsafe-return`. Falla igual con Node 22, no es un problema de versión. Fix: se lee como `unknown` y se valida en runtime, sin desactivar la regla. La expresión literal se conserva, porque `babel-preset-expo` la reemplaza al bundlear.
+2. `rental-reservations-application:test`: `cancel-reservation.handler.spec.ts` usaba una reserva fija del 2026-09-01 y el handler calcula `hoursBeforeStart` con `Date.now()`. Cuando esa fecha quedó en el pasado, ningún tier aplicaba y la penalidad pasaba a 100% (era una bomba de tiempo, no una regresión). Fix: `jest.spyOn(Date, 'now')` en el spec, sin tocar la lógica de negocio. **Riesgo abierto**: hay ~37 specs con fechas fijas (`new Date('202x-…')`). Hoy pasan, pero cualquiera que compare contra el reloj real puede romperse igual más adelante.
+3. `mobile:test`: los 11 specs fallan localmente con `Cannot find module '@frontend/data-access'`. Es el bug conocido de #108 (`apps/mobile/node_modules` duplicado). En CI ese árbol no existe (`npm ci` solo instala la raíz), así que **no se sabe todavía si en CI falla**. Se decide con la corrida del CI tras este push, no por suposición.
+
+**Bug real encontrado en el primer arranque de `apps/api`** (el smoke test que #121 dejó pendiente): `ReservationReminderScanProcessor` auditaba con `action: 'PlatformAdminBypassUsed'`, que no cumple la forma `Nombre.vN` del value object `Action` (`docs/model/04-VALUE_OBJECTS.md`). Como la auditoría corre **antes** de recorrer las companies, **cada corrida del scan fallaba y nunca se enviaba ningún recordatorio**. Los unit tests no lo detectaban porque mockean `RecordAuditLogEntryHandler`. Fix: `PlatformAdminBypassUsed.v1`. Verificado en vivo: un job encolado a mano en `reservations.reminder-scan` termina `COMPLETED` y deja la fila en `support.audit_log`. Esto confirma también BullMQ sobre Memurai (scheduler, colas, jobs).
+
+**Verificación de esta tanda** (Node 20.19.4):
+
+- `nx affected --target=lint,typecheck --base=origin/master --parallel=1`: 62 proyectos. El único fallo era `frontend-data-access:lint`, que ya pasa.
+- `nx run-many -t test` sobre los 41 proyectos que no usan Docker: los únicos fallos eran `rental-reservations-application`, que ya pasa (13 suites, 42 tests), y `mobile` (#108, ver arriba).
+- `lint,typecheck,test` de `frontend-data-access` (11 suites, 52 tests) y `lint,typecheck` de `rental-reservations-infrastructure`, en verde. El `test` de este último usa testcontainers y queda para CI (decisión (c)).
+- Entorno nativo: `prisma migrate deploy` aplica las 51 migraciones; `app_runtime` y `platform_admin` (con `BYPASSRLS`) existen; `/health/live` y `/health/ready` devuelven 200 con Postgres y Redis `up`.
+
+**Gaps aceptados, explícitos**:
+
+- La prueba completa de Reminder (company real, reserva `Confirmed` dentro de la ventana, `Notification` creada, sin duplicado en una segunda corrida) sigue pendiente: el scan se probó con 0 companies.
+- Bug de Jest en mobile (#108) sin resolver.
+- El PR #2 sigue necesitando la aprobación de un CODEOWNER (`enforce_admins=true`). Esa decisión es del usuario.
+- La gobernanza de Claude Code (versionar `.claude/`, hooks, skills) quedó propuesta en la auditoría §5, sin implementar.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

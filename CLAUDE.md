@@ -6,9 +6,20 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#123` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#124` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
-## Estado actual (al 2026-09-07)
+## Última sesión (2026-10-10) — leer primero
+
+- Se hizo una **auditoría de reentrada**: [`docs/audits/2026-10-10-reentry-audit.md`](docs/audits/2026-10-10-reentry-audit.md). Tiene el estado verificado, la matriz de gobernanza SDD propuesta y el backlog priorizado.
+- Lo que se decidió y se hizo después está en **`docs/persistence/10-DECISIONES.md #124`**:
+  - pruebas de integración y e2e **solo en CI**;
+  - entorno local **sin Docker** (Node 20.19.4, PostgreSQL 16, Memurai);
+  - 2 bugs reales de CI corregidos;
+  - bug que impedía enviar **cualquier** recordatorio (#121), corregido y verificado en vivo.
+- Todo el trabajo va en la rama **`sync/local-work-2026-09-07`** (PR #2). Para seguir en otra máquina: `git fetch origin && git checkout sync/local-work-2026-09-07 && git pull`, y después seguir [`docs/engineering/11-ENTORNO-LOCAL-NATIVO.md`](docs/engineering/11-ENTORNO-LOCAL-NATIVO.md). Agregá la máquina nueva a su §8 (bitácora por máquina).
+- **Regla del usuario**: todo lo que se hace en una máquina queda documentado en el repo (`docs/` + este archivo), nunca solo en la memoria local de Claude ni en `.claude/` (está en `.gitignore`).
+
+## Estado actual (al 2026-09-07, ver arriba lo posterior)
 
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
@@ -19,7 +30,8 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir cuál atacar es una decisión del usuario, no algo a asumir — preguntale primero, mismo criterio usado en toda la sesión anterior (vía la herramienta de preguntas, ofreciendo 2-4 opciones concretas en vez de una pregunta abierta).
 
-1. **Smoke test end-to-end vía HTTP** de Reminder de reservas (`#121`) y de Push (`#122`) — nunca se corrió contra un boot completo de `apps/api` por restricciones de RAM en la máquina de desarrollo original. Los unit tests sí corrieron y pasan; falta la verificación real de punta a punta.
+0. **CI del PR #2**: los 2 fallos reales están corregidos (#124). Falta ver la corrida nueva de CI, incluido si `mobile:test` falla también ahí (#108), y la aprobación de un CODEOWNER (la decide el usuario).
+1. **Smoke test end-to-end vía HTTP** de Reminder de reservas (`#121`) y de Push (`#122`). Avance en #124: el API ya arranca en esta máquina y el scan corre bien, pero **con 0 companies**. Falta el escenario completo: company, reserva `Confirmed` dentro de la ventana, `Notification` creada y sin duplicado.
 2. **OCR con proveedor real** (AWS Textract / Google Vision) — hoy `DocumentExtractionPort` es un fake. Requiere que el usuario decida proveedor + credenciales, no es una decisión técnica.
 3. **Bug del test-runner de Jest en `apps/mobile`** (`#108`) — pre-existente, no causado por ninguna tanda. `node_modules` duplicado entre la raíz y `apps/mobile` (patrón `@nx/expo`+EAS) rompe la resolución de `react-native`/`@testing-library/react-native` de forma no determinística. Verificación real disponible en su lugar: `tsc --build` + `eslint`, ambos limpios en cada commit. Arreglar la causa raíz es su propia tanda dedicada.
 4. **Escalamiento humano** cuando una `Notification` `Confirmation` agota todos los canales (`#94`) — mecanismo sin diseñar todavía.
@@ -28,6 +40,8 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 7. **Validación visual manual** (levantar Docker + `apps/api` + `apps/mobile` en modo web para clickear la app) — se intentó en la máquina original y se abortó por RAM insuficiente (ver runbook citado abajo). Nunca se llegó a sembrar una company + admin de prueba. Si esta máquina nueva tiene más RAM, es un buen primer paso para confirmar que todo lo de arriba realmente funciona de punta a punta.
 
 ## Entorno — cómo levantar todo
+
+**Sin Docker (vigente desde #124)**: seguir [`docs/engineering/11-ENTORNO-LOCAL-NATIVO.md`](docs/engineering/11-ENTORNO-LOCAL-NATIVO.md). Usar siempre **Node 20.19.4** (`.nvmrc`, el mismo que CI). Con otra versión, un resultado local no es evidencia válida. Los tests `*-infrastructure` y `api-e2e` no corren localmente (testcontainers), solo en CI. Los pasos de abajo son el camino original con Docker; siguen válidos si Docker está disponible.
 
 1. `npm install` en la raíz.
 2. Copiar `.env.example` → `.env` (los valores por defecto ya coinciden con `docker-compose.yml`, son credenciales triviales de desarrollo, no secretos reales).
