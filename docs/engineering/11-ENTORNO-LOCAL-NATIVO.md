@@ -125,13 +125,14 @@ Mobile: `cd apps/mobile && npx expo start --web`.
 
 ## 6. Qué verificación corre dónde
 
-| Verificación                                                      | Local (sin Docker)                                     | CI                 |
-| ----------------------------------------------------------------- | ------------------------------------------------------ | ------------------ |
-| lint, typecheck                                                   | Sí: `npx nx run-many -t lint,typecheck -p <proyectos>` | Sí (`nx affected`) |
-| Tests unitarios (`domain`, `application`, `frontend/*`, `apps/*`) | Sí: `npx nx run-many -t test -p <proyectos>`           | Sí                 |
-| Tests `*-infrastructure` (testcontainers)                         | **No**                                                 | Sí                 |
-| `apps/api-e2e`                                                    | **No**                                                 | Sí                 |
-| Smoke test HTTP contra `apps/api` real                            | Sí (§5)                                                | No                 |
+| Verificación                                                      | Local (sin Docker)                                                                                                                    | CI                 |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| lint, typecheck                                                   | Sí: `npx nx run-many -t lint,typecheck -p <proyectos>`                                                                                | Sí (`nx affected`) |
+| Tests unitarios (`domain`, `application`, `frontend/*`, `apps/*`) | Sí: `npx nx run-many -t test -p <proyectos>`                                                                                          | Sí                 |
+| Tests y lint de `apps/mobile`                                     | Sí, pero **moviendo `apps/mobile/node_modules` fuera del repo** mientras corren (si no, se resuelven otras versiones que en CI; #125) | Sí                 |
+| Tests `*-infrastructure` (testcontainers)                         | **No**                                                                                                                                | Sí                 |
+| `apps/api-e2e`                                                    | **No**                                                                                                                                | Sí                 |
+| Smoke test HTTP contra `apps/api` real                            | Sí (§5)                                                                                                                               | No                 |
 
 Para reproducir el job `ci / lint-typecheck` completo: `npx nx affected --target=lint,typecheck --base=origin/master --parallel=1` con Node 20.19.4. `--parallel=1` es para no quedarse sin RAM; en máquinas con poca memoria tarda más de 10 minutos.
 

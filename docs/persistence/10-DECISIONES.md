@@ -1148,6 +1148,45 @@ Leyendo `node_modules/@nestjs/throttler/dist/throttler.guard.js`: `ThrottlerGuar
 
 Los puntos 2 y 3 hacen que el bug de #108 deje de ser un gap aceptado: **bloquea el merge del PR #2**.
 
+## #125 — CI del PR #2: MinIO por Chainguard, causa raíz real de #108 (mobile) y entorno autocontenido de `api-e2e`
+
+**Contexto**: los 4 fallos que quedaron tras #124. El usuario eligió atacar "MinIO y mobile, empezando por MinIO".
+
+**1. MinIO — decisión del usuario: `cgr.dev/chainguard/minio`**. Primero se verificó, consultando los registries de forma anónima (sin Docker), qué existe hoy:
+
+- `minio/minio` y `minio/mc` responden 401 en Docker Hub y en Quay (el repositorio no existe o es privado).
+- `bitnami/minio` da 404; `bitnamilegacy/minio` quedó congelada en 2025-08.
+- Sí existen `cgr.dev/chainguard/minio`/`minio-client`, `pgsty/minio`/`mc`, `rustfs/rustfs` y `adobe/s3mock`.
+
+Chainguard compila el mismo binario de MinIO. Su plan gratuito solo publica `latest`, así que la imagen se **fija por digest** (`sha256:7df55d00…`, publicada el 2026-10-10). Actualizarla es un cambio manual y deliberado. La inspección de sus capas (sin Docker, script sobre la API del registry) mostró `/usr/bin/minio`, `/usr/bin/mc`, `/usr/bin/sh` y `/data` en modo 0777, con usuario 65532. En consecuencia:
+
+- testcontainers solo cambia el nombre de la imagen;
+- en el compose, el healthcheck `mc ready local` queda igual, y `minio-init` usa la **misma** imagen, porque `chainguard/minio-client` no trae shell.
+
+Verificado en CI: `platform-integration-providers-infrastructure:test` pasó de ❌ a ✅. **No verificado**: `docker compose up` con la imagen nueva, porque la decisión (c) de #124 deja Docker fuera de esta máquina.
+
+**2. Mobile — causa raíz real de #108, no "no determinística"**: `apps/mobile/node_modules` (local, ignorado por git) hace que mobile resuelva **otras versiones** que el workspace. Por ejemplo, `zod` 3.25.76 (transitiva) en vez de 4.4.3 (la declarada). Eso oculta errores reales y genera fallos que solo aparecen localmente. En CI ese árbol no existe. Para reproducir el CI, se movió temporalmente `apps/mobile/node_modules` fuera del repo (y se restauró al terminar). Con el código real del workspace salieron 4 grupos de problemas, todos corregidos:
+
+- **Tipos de formulario con zod 4**: `z.coerce.number()` tiene entrada `unknown` y salida `number`. `useForm<T>` con un solo genérico dejaba `values` como `any` en `handleSubmit`. Fix: `useForm<z.input<…>, unknown, z.output<…>>` en `check-in.tsx` y `check-out.tsx`.
+- **UUIDs de prueba**: `z.string().uuid()` de zod 4 exige versión y variante del RFC, y `11111111-1111-1111-1111-111111111111` no las cumple. Los IDs reales (UUIDv7) sí pasan, así que **se corrigen los datos de prueba** (`…-4111-8111-…`), sin aflojar la validación.
+- **Mocks desactualizados**: `registerDevicePushToken` (#122) y `useLocalSearchParams` (#123); además, la ruta de "Nueva reserva" pasó a `/customer/vehicles/search` (#123).
+- **Texto de la app**: "El odometro…" sin tilde en `check-out.tsx`.
+
+Resultado con el layout de CI: lint limpio, `tsc` limpio, 11/11 suites y 47/47 tests.
+
+**Cómo correr mobile localmente de forma fiel a CI**: mover `apps/mobile/node_modules` fuera del repo mientras se corren lint y test, y restaurarlo después. Moverlo a otra carpeta **dentro** de `apps/mobile` no sirve, porque ESLint pasa a recorrerla. **No se borró en forma permanente**: #108 lo considera necesario para EAS Build y quizás para Metro, y eso no se verificó. Decidir si se elimina o se alinea es una tanda propia.
+
+**3. `api-e2e` — el API no podía arrancar en CI desde #111**: `globalSetup` lanza `dist/apps/api/main.js` con el `.env` del CI, que es `.env.example` más las claves JWT generadas. Ahí `MFA_SECRET_ENCRYPTION_KEY` está vacía a propósito, y `Aes256GcmMfaSecretCipher` tira la excepción al construirse. Además, `PLATFORM_ADMIN_DATABASE_URL` se heredaba de `.env` (localhost:5432), una base ajena al contenedor efímero. Fix: `globalSetup` pasa una clave MFA fija **solo de test** y la URI del rol `platform_admin` del contenedor (`platformAdminConnectionUri`, nuevo en `tooling/testing/testcontainers/postgres.ts`). Mismo criterio de e2e autocontenido que ya se aplicaba a `STORAGE_*`.
+
+**Verificación**: lint, typecheck y `tsc` de `mobile` y `api-e2e` en verde con Node 20.19.4; los tests de mobile, con el layout de CI. Que `api-e2e` y los `*-infrastructure` queden en verde lo confirma la corrida de CI posterior a este commit (testcontainers, decisión (c)). El resultado se agrega abajo.
+
+**CI run `38132266814` (commit `6e5b3b9`)**:
+
+- `ci / lint-typecheck` **en verde** por primera vez.
+- En `ci / test`, 57 de 59 tareas en verde, incluidos todos los `*-infrastructure` con la MinIO nueva. Quedaron dos:
+  - (a) `mobile:test`: 3 timeouts, siempre en el primer test de cada suite (unos 17 s de carga inicial de React Native en el runner contra 5 s de timeout por defecto). Fix: `testTimeout: 20000` en `apps/mobile/jest.config.cts`.
+  - (b) `api-e2e:test`: el API **ya arranca** (el fix de MFA funcionó), pero el resumen de Jest no llegaba al log, porque el log INFO por request del API lanzado con `stdio: 'inherit'` lo tapaba (la salida se cortaba en medio de un request). Fix: `LOG_LEVEL=warn` en el proceso que lanza `globalSetup`. Con eso, la próxima corrida muestra qué spec falla, si falla alguno.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
