@@ -1213,6 +1213,14 @@ Los límites productivos siguen aplicándose **dentro** de cada archivo de specs
 
 **Costo aceptado**: el job de e2e tarda más. **Verificación**: lint y `tsc` de `api-e2e` en verde con Node 20.19.4. El resultado de los specs lo da el CI (testcontainers, decisión (c) de #124) y se agrega abajo.
 
+**CI run `38137352847` (commit `8aa2fc6`)**:
+
+- **Desaparecieron los 429**.
+- Pasan **19 de 20** specs de e2e (37 de 38 tests); `mobile:test` y todos los `*-infrastructure` siguen en verde.
+- El único fallo era `invoices-lifecycle`: total 2.932.500 en lugar de 162.500. Otra **bomba de tiempo**, mismo patrón que el spec de cancelación de #124. La reserva tenía fechas fijas (2026-09-15 a 2026-09-18) y el check-in ocurre "hoy". Cuando esas fechas quedaron en el pasado, el check-in sumó `LateReturnPenalty`. Fix: fechas relativas a `Date.now()` (inicio en +30 días, 3 días de alquiler), que conservan la semántica original.
+
+**Riesgo abierto, no corregido**: otros specs e2e con check-in/check-out (`payments-lifecycle`, `reservations-lifecycle`, `reservation-invoice-notifications`, `reports`) también usan fechas fijas. Hoy pasan porque no validan montos, pero conviene migrarlos a fechas relativas en una tanda propia.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

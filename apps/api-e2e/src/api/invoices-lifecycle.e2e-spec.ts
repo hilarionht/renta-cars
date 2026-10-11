@@ -162,8 +162,15 @@ describe('Invoices: emision event-driven + cierre automatico de Reservation', ()
     );
     await auth(request(baseUrl).post(`/api/v1/vehicles/${vehicleId}/enable`));
 
-    const startDate = '2026-09-15T10:00:00.000Z';
-    const endDate = '2026-09-18T10:00:00.000Z';
+    // Relativas a "ahora", no fijas: check-out/check-in ocurren hoy, y con un endDate ya
+    // pasado el check-in sumaba LateReturnPenalty y rompia el total esperado (antes
+    // '2026-09-15'..'2026-09-18', docs/persistence/10-DECISIONES.md #126). Inicio en +30 dias
+    // y 3 dias de alquiler -> RentalFee sigue siendo 3 x 50000 = 150000.
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const start = new Date(Date.now() + 30 * DAY_MS);
+    start.setUTCHours(10, 0, 0, 0);
+    const startDate = start.toISOString();
+    const endDate = new Date(start.getTime() + 3 * DAY_MS).toISOString();
 
     const createReservationResponse = await auth(
       request(baseUrl).post('/api/v1/reservations'),
