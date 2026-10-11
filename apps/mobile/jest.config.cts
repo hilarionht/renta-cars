@@ -33,4 +33,7 @@ module.exports = {
       require.resolve('jest-expo/src/preset/assetFileTransformer.js'),
   },
   coverageDirectory: '../../coverage/apps/mobile',
+  // 20s, no 5s: en el runner de CI el primer test de cada suite paga la carga inicial de
+  // React Native/expo (~17s por suite) y vencia el default; localmente pasan (#125).
+  testTimeout: 20000,
 };

@@ -60,6 +60,10 @@ export default async function globalSetup(): Promise<void> {
     env: {
       ...process.env,
       PORT: String(API_PORT),
+      // warn, no info: con stdio heredado, el log por request de pino tapaba el resumen de
+      // Jest en CI (la salida se cortaba en medio de un log). Los errores de arranque siguen
+      // apareciendo (#125).
+      LOG_LEVEL: 'warn',
       DATABASE_URL: postgres.connectionUri,
       APP_DATABASE_URL: postgres.appRuntimeConnectionUri,
       // Sin esto se heredaba de .env (localhost:5432), ajeno al contenedor efimero (#125).
