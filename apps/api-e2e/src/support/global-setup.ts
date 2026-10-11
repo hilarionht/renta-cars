@@ -91,4 +91,6 @@ export default async function globalSetup(): Promise<void> {
   await waitForHealth(`http://localhost:${API_PORT}/health/live`, 45000);
 
   process.env.API_E2E_BASE_URL = `http://localhost:${API_PORT}`;
+  // reset-throttler.ts borra los contadores del rate limiter entre archivos de specs (#126).
+  process.env.API_E2E_REDIS_URL = redis.connectionUri;
 }

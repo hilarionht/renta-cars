@@ -1196,6 +1196,23 @@ Resultado con el layout de CI: lint limpio, `tsc` limpio, 11/11 suites y 47/47 t
 - También hay `ECONNREFUSED 127.0.0.1:32800` (ioredis) en el log. No se encontró ningún spec que pare Redis; probablemente es ruido del teardown. Se re-evalúa cuando se resuelva el 429.
 - **Pendiente: decisión del usuario sobre cómo correr `api-e2e` en CI** (opciones en la conversación del 2026-10-11).
 
+## #126 — `api-e2e` en serie y contadores del rate limiter reseteados entre archivos
+
+**Decisión del usuario** (entre 3 opciones): "serie + limpiar límites". Se descartaron:
+
+- volver configurables por env los perfiles de throttling: toca la configuración de seguridad del producto y abre la puerta a desactivar el rate limiting por error;
+- sacar e2e del CI de PR: `e2e` es un check obligatorio de la protección de `master`.
+
+**Qué cambia (solo el harness de test, nada del producto)**:
+
+- `apps/api-e2e/jest.config.ts`: `maxWorkers: 1`, un archivo de specs a la vez (equivale a `--runInBand`). Alinea el CI con la regla de CLAUDE.md "specs e2e individuales, nunca en batch".
+- `apps/api-e2e/src/support/reset-throttler.ts` (`setupFilesAfterEnv`): antes de cada archivo, borra en el Redis de test solo las claves de `@nest-lab/throttler-storage-redis` (`{*}:hits`, `{*}:blocked`). Nunca toca `bull:*` ni la caché. Los patrones se verificaron contra Memurai local (base 9, vaciada al terminar).
+- `global-setup.ts` exporta `API_E2E_REDIS_URL`, igual que `API_E2E_BASE_URL`.
+
+Los límites productivos siguen aplicándose **dentro** de cada archivo de specs.
+
+**Costo aceptado**: el job de e2e tarda más. **Verificación**: lint y `tsc` de `api-e2e` en verde con Node 20.19.4. El resultado de los specs lo da el CI (testcontainers, decisión (c) de #124) y se agrega abajo.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
