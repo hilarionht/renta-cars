@@ -1223,6 +1223,20 @@ Los límites productivos siguen aplicándose **dentro** de cada archivo de specs
 
 **Riesgo abierto, no corregido**: otros specs e2e con check-in/check-out (`payments-lifecycle`, `reservations-lifecycle`, `reservation-invoice-notifications`, `reports`) también usan fechas fijas. Hoy pasan porque no validan montos, pero conviene migrarlos a fechas relativas en una tanda propia.
 
+## #127 — Audit gate: `npm audit fix`, override de axios y excepción con vencimiento para image-size
+
+**Contexto**: el check `audit` del PR #2 bloqueaba por 16 vulnerabilidades altas o críticas con parche disponible (#126). El usuario eligió primero `npm audit fix` sin `--force` y, para lo que quedara, la opción "(a)": forzar solo axios y dejar image-size como excepción documentada.
+
+**Qué se hizo**:
+
+1. **`npm audit fix`** (sin `--force`, Node 20.19.4 / npm 10.8.2): solo cambió `package-lock.json`, sin tocar ningún rango de `package.json`. Las críticas bajaron de 5 a 0 y el total de 134 a 117. El gate pasó de 16 a 2 bloqueantes.
+2. **axios**: `nx` fija `axios` en `1.18.1` exacto, y SendGrid y Twilio aceptan `^1.x`. Se agrega `"overrides": { "axios": "^1.20.0" }` en `package.json`, un cambio menor dentro de 1.x que deja `axios@1.20.0` en todo el árbol. Riesgo aceptado: `nx` no declara compatibilidad con esa versión, aunque es la misma major.
+3. **image-size**: solo llega vía `metro` (`^1.0.2`), y el parche existe únicamente en 2.x, lo que sería un salto de major dentro del bundler de mobile. Se agrega `ACCEPTED_EXCEPTIONS` en `tooling/scripts/ci/audit-gate.ts`: cada excepción lleva motivo y fecha de revisión (`reviewBy: 2027-01-31`). **Vencida la fecha, vuelve a bloquear**: nunca es una excepción permanente. El gate imprime cada excepción aplicada como advertencia.
+
+**Verificación local**: `npm run ci:audit-gate` → "Sin vulnerabilidades bloqueantes" (con la excepción visible); `nx run api:build` en verde; arranque real de `dist/apps/api/main.js` con `/health/ready` 200 (Postgres 16 y Memurai). El resto (lint, typecheck, tests, e2e, build y docker con el lockfile nuevo) lo verifica el CI del PR, y su resultado se agrega abajo.
+
+**Fuera de alcance, explícito**: las 117 vulnerabilidades restantes son moderadas, solo de desarrollo o con parche únicamente vía major (Expo, React Native, Prisma). El gate las excluye a propósito (`docs/engineering/05-CI-CD.md §2`). Una migración de majors es su propia tanda.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
