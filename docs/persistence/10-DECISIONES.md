@@ -1263,6 +1263,8 @@ Los límites productivos siguen aplicándose **dentro** de cada archivo de specs
 
 El resto lo valida el CI.
 
+**Resultado del CI (run `38180795669`, commit `922da6c`)**: **6 de 6 checks en verde** con Nx 23.3.0 y sin override de axios. El PR #2 queda técnicamente listo; solo falta la aprobación de un CODEOWNER, decisión del usuario.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
