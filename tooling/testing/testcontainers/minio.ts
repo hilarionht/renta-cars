@@ -4,7 +4,11 @@ import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainer
 // Misma imagen que docker-compose.yml (paso 5) - no hay paquete Testcontainers dedicado
 // para MinIO (a diferencia de @testcontainers/postgresql / @testcontainers/redis), asi que
 // se usa el GenericContainer generico ya presente como dependencia directa (testcontainers).
-const MINIO_IMAGE = 'minio/minio';
+// minio/minio dejo de existir en Docker Hub/Quay: build de Chainguard del mismo binario,
+// fijado por digest porque el plan gratuito solo publica `latest` (docs/persistence/
+// 10-DECISIONES.md #125). Entrypoint /usr/bin/minio, usuario 65532, /data con modo 0777.
+const MINIO_IMAGE =
+  'cgr.dev/chainguard/minio@sha256:7df55d002b698e4494a131b848dd553361bbe58b7e19f62d9623c29af1ba9ccf';
 const MINIO_PORT = 9000;
 const ROOT_USER = 'renta-test';
 const ROOT_PASSWORD = 'renta-test-1234';

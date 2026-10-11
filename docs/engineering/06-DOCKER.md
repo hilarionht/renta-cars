@@ -36,12 +36,12 @@ docs/
 
 ## 3. `docker-compose.yml` — servicios base
 
-| Servicio     | Imagen               | Puerto host                    | Propósito                                                                                                                                                |
-| ------------ | -------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `postgres`   | `postgres:16-alpine` | `5432`                         | Base de datos única multi-schema ([04-MODELO-DATOS.md §2](../04-MODELO-DATOS.md))                                                                        |
-| `redis`      | `redis:7-alpine`     | `6379`                         | Cache, `ThrottlerGuard` (Redis storage), backing de BullMQ                                                                                               |
-| `minio`      | `minio/minio`        | `9000` (API), `9001` (consola) | `StorageProviderPort` local ([11-INTEGRACIONES.md §11](../11-INTEGRACIONES.md))                                                                          |
-| `minio-init` | `minio/mc`           | —                              | Job de un solo uso: crea el bucket por defecto y credenciales de acceso al arrancar por primera vez; `depends_on: minio` con condición `service_healthy` |
+| Servicio     | Imagen                                        | Puerto host                    | Propósito                                                                                                                                                |
+| ------------ | --------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postgres`   | `postgres:16-alpine`                          | `5432`                         | Base de datos única multi-schema ([04-MODELO-DATOS.md §2](../04-MODELO-DATOS.md))                                                                        |
+| `redis`      | `redis:7-alpine`                              | `6379`                         | Cache, `ThrottlerGuard` (Redis storage), backing de BullMQ                                                                                               |
+| `minio`      | `cgr.dev/chainguard/minio` (por digest, #125) | `9000` (API), `9001` (consola) | `StorageProviderPort` local ([11-INTEGRACIONES.md §11](../11-INTEGRACIONES.md))                                                                          |
+| `minio-init` | misma imagen que `minio` (trae `mc` y `sh`)   | —                              | Job de un solo uso: crea el bucket por defecto y credenciales de acceso al arrancar por primera vez; `depends_on: minio` con condición `service_healthy` |
 
 - **Volúmenes nombrados**: `postgres-data`, `minio-data` — persisten entre `docker compose down`/`up`, se eliminan explícitamente con `docker compose down -v` cuando un desarrollador necesita un estado limpio (documentado en [02-DEVELOPER-EXPERIENCE.md](02-DEVELOPER-EXPERIENCE.md) como comando de "reset total", no en el flujo estándar).
 - **Red**: una única red bridge por defecto (`renta-dev`) — todos los servicios se resuelven por nombre de servicio (`postgres`, `redis`, `minio`) desde `apps/api` corriendo en el host o desde su propio contenedor si se decide containerizar también el dev loop (no es el caso por defecto, §5 de [02-DEVELOPER-EXPERIENCE.md](02-DEVELOPER-EXPERIENCE.md): `apps/api` corre nativo en modo watch, no en contenedor, durante desarrollo diario).
