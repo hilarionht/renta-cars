@@ -1140,6 +1140,14 @@ Leyendo `node_modules/@nestjs/throttler/dist/throttler.guard.js`: `ThrottlerGuar
 - El PR #2 sigue necesitando la aprobación de un CODEOWNER (`enforce_admins=true`). Esa decisión es del usuario.
 - La gobernanza de Claude Code (versionar `.claude/`, hooks, skills) quedó propuesta en la auditoría §5, sin implementar.
 
+**Resultado del CI tras el push (2026-10-11, run `38105986705`)**: `frontend-data-access:lint` y `rental-reservations-application:test` **ya pasan en CI**. Siguen en rojo `ci / lint-typecheck` y `ci / test`, por 4 fallos nuevos que no aparecían en la corrida de 2026-09-07 (aquella cortó antes de llegar a ellos o no los distinguía). Ninguno es de lógica de negocio:
+
+1. `platform-integration-providers-infrastructure:test` y `api-e2e:test`: `pull access denied for minio/minio, repository does not exist`. La imagen de MinIO usada por `tooling/testing/testcontainers/minio.ts` (y por `docker-compose.yml`) ya no está disponible en Docker Hub. **Pendiente: decisión del usuario sobre la imagen de reemplazo.**
+2. `mobile:lint`: 6 errores `no-unsafe-*` en `apps/mobile/app/reservations/[id]/check-in.tsx` y `check-out.tsx` (`values.*` se tipa `any`). Localmente pasa: los tipos vienen de `apps/mobile/node_modules`, que en CI no existe (`npm ci` solo instala la raíz).
+3. `mobile:test`: los specs fallan por timeout (5 s) en CI. Localmente fallan distinto (`Cannot find module`). Es el mismo problema de fondo que #108.
+
+Los puntos 2 y 3 hacen que el bug de #108 deje de ser un gap aceptado: **bloquea el merge del PR #2**.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
