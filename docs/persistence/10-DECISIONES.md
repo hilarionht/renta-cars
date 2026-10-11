@@ -1187,6 +1187,15 @@ Resultado con el layout de CI: lint limpio, `tsc` limpio, 11/11 suites y 47/47 t
   - (a) `mobile:test`: 3 timeouts, siempre en el primer test de cada suite (unos 17 s de carga inicial de React Native en el runner contra 5 s de timeout por defecto). Fix: `testTimeout: 20000` en `apps/mobile/jest.config.cts`.
   - (b) `api-e2e:test`: el API **ya arranca** (el fix de MFA funcionó), pero el resumen de Jest no llegaba al log, porque el log INFO por request del API lanzado con `stdio: 'inherit'` lo tapaba (la salida se cortaba en medio de un request). Fix: `LOG_LEVEL=warn` en el proceso que lanza `globalSetup`. Con eso, la próxima corrida muestra qué spec falla, si falla alguno.
 
+**CI run `38132784223` (commit `a144150`)**:
+
+- `lint-typecheck` en verde; `mobile:test` **en verde**.
+- En `ci / test`, la única tarea en rojo es `api-e2e:test`: pasan 3 specs (`payments-lifecycle`, `audit-log`, `reservations-lifecycle`) y fallan unos 10.
+- **Causa común, no de negocio**: todos los specs le pegan a **un mismo** `apps/api` desde la misma IP, en paralelo (workers de Jest), y el rate limiter devuelve **429**. Hubo 17 respuestas `Expected: 201 / Received: 429`, y los demás errores (`reading 'accessToken'` de undefined, etc.) son cascada de esos 429. Los perfiles de throttling (`GENERAL_THROTTLE_PROFILE`/`AUTH_THROTTLE_PROFILE`) son constantes, no configurables por env.
+- Coincide con la regla operativa de CLAUDE.md ("specs e2e siempre se corren individuales, nunca en batch"), pero el CI los corre en batch: `api-e2e` **nunca estuvo en verde en CI**.
+- También hay `ECONNREFUSED 127.0.0.1:32800` (ioredis) en el log. No se encontró ningún spec que pare Redis; probablemente es ruido del teardown. Se re-evalúa cuando se resuelva el 429.
+- **Pendiente: decisión del usuario sobre cómo correr `api-e2e` en CI** (opciones en la conversación del 2026-10-11).
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
