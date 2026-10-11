@@ -62,6 +62,12 @@ export default async function globalSetup(): Promise<void> {
       PORT: String(API_PORT),
       DATABASE_URL: postgres.connectionUri,
       APP_DATABASE_URL: postgres.appRuntimeConnectionUri,
+      // Sin esto se heredaba de .env (localhost:5432), ajeno al contenedor efimero (#125).
+      PLATFORM_ADMIN_DATABASE_URL: postgres.platformAdminConnectionUri,
+      // Clave fija solo de test: apps/api no arranca sin ella (Aes256GcmMfaSecretCipher, #111),
+      // y en CI .env sale de .env.example, donde esta vacia a proposito. Mismo criterio de
+      // e2e autocontenido que STORAGE_* abajo (#125).
+      MFA_SECRET_ENCRYPTION_KEY: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0',
       REDIS_URL: redis.connectionUri,
       STORAGE_ENDPOINT: minio.endpoint,
       STORAGE_BUCKET: minio.bucket,
