@@ -1237,6 +1237,32 @@ Los límites productivos siguen aplicándose **dentro** de cada archivo de specs
 
 **Fuera de alcance, explícito**: las 117 vulnerabilidades restantes son moderadas, solo de desarrollo o con parche únicamente vía major (Expo, React Native, Prisma). El gate las excluye a propósito (`docs/engineering/05-CI-CD.md §2`). Una migración de majors es su propia tanda.
 
+**Resultado del CI (run `38176986031`, commit `3a05520`)**: **6 de 6 checks en verde**, la primera vez que el PR #2 pasa completo. El punto 2 (override de axios) queda **reemplazado por #128**.
+
+## #128 — Nx 23.1.1 → 23.3.0 alineado: axios se resuelve sin override
+
+**Contexto**: el usuario objetó el override de axios de #127 ("no forzar, empatar versiones como corresponde") y pidió una opinión de arquitecto antes de seguir. La investigación (`npm view`) mostró la causa real. `nx@23.1.1` (devDependency) fijaba `axios` en `1.18.1` exacto, y esa copia hoisteada era la que también usaban Twilio y SendGrid (dependencias de producción, `^1.x`). Por eso el gate, que audita con `--omit=dev`, la marcaba. **`nx@23.3.0` ya no depende de axios.** Las versiones 23.1.x y 23.2.x seguían fijando 1.18.1.
+
+**Qué se hizo**:
+
+1. `nx migrate 23.3.0` (también con `npx nx@23.3.0`) actualizó solo `nx` y dejó los 15 `@nx/*` en 23.1.1. No se usó ese resultado, porque dejaba el workspace desalineado. Hipótesis: con el registry lento, falla en silencio al pedir los metadatos de los plugins (todos tienen 23.3.0 publicada, verificado).
+2. `nx` y los 15 `@nx/*` de `package.json` se subieron a **23.3.0 juntos**, y se eliminó el bloque `overrides`.
+3. El primer `npm install` falló con **ERESOLVE**: los plugins transitivos (`@nx/cypress`, `@nx/detox`, `@nx/module-federation`), fijados en 23.1.1 en el lock, exigían pares exactos. **No se usó `--force` ni `--legacy-peer-deps`**: se eliminaron del lockfile solo las 33 entradas de `nx`/`@nx/*` y npm resolvió de nuevo toda la familia. Resultado: 22 paquetes Nx en 23.3.0 y **`axios@1.20.0` resuelto naturalmente**.
+4. **Migraciones del rango (23.1.1, 23.3.0]**: se revisaron leyendo el `migrations.json` de cada paquete instalado.
+   - `nx:23-2-0-set-cache-on-executor-target-defaults` se aplicó con `nx migrate --run-migrations` y no produjo cambios, porque los `targetDefaults` ya tienen `cache` explícito.
+   - Las de `@nx/vitest` (Vitest 5) no aplican: el repo no usa Vitest.
+   - `migrations.json` se borró después de correrlo, como indica Nx.
+
+**image-size: se mantiene la excepción de #127, con una nota nueva**. No existe hoy una versión alineada: `metro@0.87.1` elimina image-size, pero Expo SDK 57 fija `metro 0.84.x` (`@expo/metro@56.1.0` → `metro 0.84.6`). Forzarla implicaría un metro no soportado por Expo o una major de image-size dentro de un metro `^1`. **Se resuelve actualizando Expo** cuando publique una SDK con metro 0.87.1 o superior; la excepción vence el 2027-01-31 para obligar a revisarlo.
+
+**Verificación local (Node 20.19.4, Nx 23.3.0 tras `nx reset`)**:
+
+- `npm run ci:audit-gate`: sin bloqueantes, solo la excepción de image-size.
+- `lint,typecheck,test` de `frontend-data-access`, `rental-reservations-application`, `platform-audit-domain` y `platform-shared-kernel`, más `lint,typecheck` de `api-e2e`: 15/15 en verde. El `test` de `api-e2e` falla localmente por falta de Docker, lo esperado por la decisión (c).
+- `api:build` limpio (borrando `dist/apps/api`, sin caché) y arranque real con `/health/ready` 200.
+
+El resto lo valida el CI.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
