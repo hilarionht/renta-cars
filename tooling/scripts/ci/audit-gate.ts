@@ -69,12 +69,42 @@ function hasDirectAdvisory(via: Vulnerability['via']): boolean {
   return via.some((entry) => typeof entry === 'object');
 }
 
+// Excepciones aceptadas explicitamente por el usuario, cada una con motivo y fecha de
+// revision: vencida la fecha, vuelve a bloquear (nunca una excepcion permanente).
+// docs/persistence/10-DECISIONES.md #127.
+const ACCEPTED_EXCEPTIONS: Record<string, { reason: string; reviewBy: string }> = {
+  'image-size': {
+    reason:
+      'Solo via metro (bundler de apps/mobile, ^1.0.2); el parche existe unicamente en image-size 2.x, ' +
+      'asi que aplicarlo es un salto de major dentro del bundler. Superficie: lectura de dimensiones de ' +
+      'assets propios en build-time, no input de usuarios en el proceso desplegado.',
+    reviewBy: '2027-01-31',
+  },
+};
+
+function isAcceptedException(name: string, now: Date): boolean {
+  const exception = ACCEPTED_EXCEPTIONS[name];
+  if (!exception) {
+    return false;
+  }
+  if (now > new Date(`${exception.reviewBy}T23:59:59Z`)) {
+    console.error(`Excepcion vencida para "${name}" (revisar antes de ${exception.reviewBy}).`);
+    return false;
+  }
+  console.warn(
+    `Excepcion aceptada: ${name} - ${exception.reason} (revisar antes de ${exception.reviewBy})`,
+  );
+  return true;
+}
+
 const report = runAudit();
+const now = new Date();
 const blocking = Object.entries(report.vulnerabilities ?? {}).filter(
-  ([, vulnerability]) =>
+  ([name, vulnerability]) =>
     (vulnerability.severity === 'high' || vulnerability.severity === 'critical') &&
     hasDirectAdvisory(vulnerability.via) &&
-    hasSafeFix(vulnerability.fixAvailable),
+    hasSafeFix(vulnerability.fixAvailable) &&
+    !isAcceptedException(name, now),
 );
 
 if (blocking.length > 0) {
