@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { futureRentalDates } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
 // Paginacion por cursor de GET /reservations (docs/persistence/10-DECISIONES.md #112) -
@@ -80,8 +81,7 @@ describe('Reservations: paginacion por cursor de GET /reservations', () => {
       const createResponse = await auth(request(baseUrl).post('/api/v1/reservations')).send({
         customerId,
         vehicleId,
-        startDate: '2026-09-01T10:00:00.000Z',
-        endDate: '2026-09-04T10:00:00.000Z',
+        ...futureRentalDates(),
       });
       expect(createResponse.status).toBe(201);
       createdIds.add(createResponse.body.data.id);

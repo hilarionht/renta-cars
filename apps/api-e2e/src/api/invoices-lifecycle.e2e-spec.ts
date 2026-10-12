@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { farFutureExpiryDate, futureRentalWindow } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
 interface InvoiceChargeSummary {
@@ -116,7 +117,7 @@ describe('Invoices: emision event-driven + cierre automatico de Reservation', ()
     ).send({
       documentType: 'NationalId',
       fileId: 'file-e2e-identity',
-      expiryDate: '2030-01-01T00:00:00.000Z',
+      expiryDate: farFutureExpiryDate(),
     });
     expect(identityDocResponse.status).toBe(201);
     const identityDocumentId: string = identityDocResponse.body.data.id;
@@ -153,7 +154,7 @@ describe('Invoices: emision event-driven + cierre automatico de Reservation', ()
     ).send({
       documentType: 'PropertyCard',
       fileId: 'file-e2e-vehicle',
-      expiryDate: '2030-01-01T00:00:00.000Z',
+      expiryDate: farFutureExpiryDate(),
     });
     expect(vehicleDocResponse.status).toBe(201);
     const vehicleDocumentId: string = vehicleDocResponse.body.data.id;
@@ -162,15 +163,9 @@ describe('Invoices: emision event-driven + cierre automatico de Reservation', ()
     );
     await auth(request(baseUrl).post(`/api/v1/vehicles/${vehicleId}/enable`));
 
-    // Relativas a "ahora", no fijas: check-out/check-in ocurren hoy, y con un endDate ya
-    // pasado el check-in sumaba LateReturnPenalty y rompia el total esperado (antes
-    // '2026-09-15'..'2026-09-18', docs/persistence/10-DECISIONES.md #126). Inicio en +30 dias
-    // y 3 dias de alquiler -> RentalFee sigue siendo 3 x 50000 = 150000.
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const start = new Date(Date.now() + 30 * DAY_MS);
-    start.setUTCHours(10, 0, 0, 0);
-    const startDate = start.toISOString();
-    const endDate = new Date(start.getTime() + 3 * DAY_MS).toISOString();
+    // Ventana futura (+30 dias, 3 dias de alquiler -> RentalFee 3 x 50000 = 150000): con fechas
+    // fijas ya pasadas, el check-in de hoy sumaba LateReturnPenalty (#126, helper en #129).
+    const { startDate, endDate } = futureRentalWindow();
 
     const createReservationResponse = await auth(
       request(baseUrl).post('/api/v1/reservations'),

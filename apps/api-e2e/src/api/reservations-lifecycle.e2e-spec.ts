@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { farFutureExpiryDate, futureRentalWindow } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
 // Verifica de punta a punta el exit-criterion literal de Fase 1 (docs/01-ROADMAP.md SS3):
@@ -61,7 +62,7 @@ describe('Reservations: reserva -> confirmacion -> check-out -> check-in', () =>
     ).send({
       documentType: 'NationalId',
       fileId: 'file-e2e-identity',
-      expiryDate: '2030-01-01T00:00:00.000Z',
+      expiryDate: farFutureExpiryDate(),
     });
     expect(identityDocResponse.status).toBe(201);
     const identityDocumentId: string = identityDocResponse.body.data.id;
@@ -84,7 +85,7 @@ describe('Reservations: reserva -> confirmacion -> check-out -> check-in', () =>
     ).send({
       documentType: 'DriversLicense',
       fileId: 'file-e2e-license',
-      expiryDate: '2030-01-01T00:00:00.000Z',
+      expiryDate: farFutureExpiryDate(),
       additionalDriverId,
     });
     expect(driverLicenseResponse.status).toBe(201);
@@ -131,7 +132,7 @@ describe('Reservations: reserva -> confirmacion -> check-out -> check-in', () =>
     ).send({
       documentType: 'PropertyCard',
       fileId: 'file-e2e-vehicle',
-      expiryDate: '2030-01-01T00:00:00.000Z',
+      expiryDate: farFutureExpiryDate(),
     });
     expect(vehicleDocResponse.status).toBe(201);
     const vehicleDocumentId: string = vehicleDocResponse.body.data.id;
@@ -143,8 +144,7 @@ describe('Reservations: reserva -> confirmacion -> check-out -> check-in', () =>
     );
     expect(enableVehicleResponse.status).toBe(201);
 
-    const startDate = '2026-09-01T10:00:00.000Z';
-    const endDate = '2026-09-04T10:00:00.000Z';
+    const { startDate, endDate } = futureRentalWindow();
 
     const availabilityBeforeResponse = await auth(
       request(baseUrl).get(

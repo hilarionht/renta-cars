@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { addDays, farFutureExpiryDate, futureRentalWindow, utcDayFromNow } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
 interface RevenueByBranchItem {
@@ -71,8 +72,11 @@ describe('Reports (Fase 4 item 1)', () => {
       validFrom: '2026-01-01T00:00:00.000Z',
     });
 
-    const rentalStart = '2026-11-10T10:00:00.000Z';
-    const rentalEnd = '2026-11-13T10:00:00.000Z';
+    // Ventana futura relativa (#129): con fechas fijas ya pasadas, el check-in sumaba
+    // LateReturnPenalty y billedRevenue dejaba de ser 150000.
+    const rental = futureRentalWindow();
+    const rentalStart = rental.startDate;
+    const rentalEnd = rental.endDate;
 
     async function setupBranchVehicleCustomer(suffix: string) {
       const branchResponse = await auth(request(baseUrl).post('/api/v1/branches')).send({
@@ -96,7 +100,7 @@ describe('Reports (Fase 4 item 1)', () => {
       ).send({
         documentType: 'NationalId',
         fileId: `file-e2e-identity-reports-${suffix}`,
-        expiryDate: '2030-01-01T00:00:00.000Z',
+        expiryDate: farFutureExpiryDate(),
       });
       const identityDocumentId: string = identityDocResponse.body.data.id;
       await auth(
@@ -117,7 +121,7 @@ describe('Reports (Fase 4 item 1)', () => {
       ).send({
         documentType: 'PropertyCard',
         fileId: `file-e2e-vehicle-reports-${suffix}`,
-        expiryDate: '2030-01-01T00:00:00.000Z',
+        expiryDate: farFutureExpiryDate(),
       });
       const vehicleDocumentId: string = vehicleDocResponse.body.data.id;
       await auth(
@@ -176,7 +180,7 @@ describe('Reports (Fase 4 item 1)', () => {
 
     // createdAt de Reservation/Invoice es "ahora" (momento del POST), no rentalStart/
     // rentalEnd - rango amplio para no depender del reloj exacto de la corrida.
-    const createdRangeQuery = 'from=2020-01-01T00:00:00.000Z&to=2030-01-01T00:00:00.000Z';
+    const createdRangeQuery = `from=${utcDayFromNow(-365).toISOString()}&to=${utcDayFromNow(365).toISOString()}`;
 
     const revenueResponse = await auth(
       request(baseUrl).get(`/api/v1/reports/revenue-by-branch?${createdRangeQuery}`),
@@ -198,16 +202,21 @@ describe('Reports (Fase 4 item 1)', () => {
       ]),
     );
 
+    // Mismo encuadre relativo que antes (01..11 nov con alquiler desde el 10 nov 10:00): 10 dias
+    // de consulta que terminan a las 00:00 del dia siguiente al inicio del alquiler.
+    const rentalStartDay = addDays(rental.start, 0);
+    rentalStartDay.setUTCHours(0, 0, 0, 0);
+    const fleetFrom = addDays(rentalStartDay, -9).toISOString();
+    const fleetTo = addDays(rentalStartDay, 1).toISOString();
+
     const fleetResponse = await auth(
-      request(baseUrl).get(
-        '/api/v1/reports/fleet-utilization?from=2026-11-01T00:00:00.000Z&to=2026-11-11T00:00:00.000Z',
-      ),
+      request(baseUrl).get(`/api/v1/reports/fleet-utilization?from=${fleetFrom}&to=${fleetTo}`),
     );
     expect(fleetResponse.status).toBe(200);
     const fleetItems: FleetUtilizationItem[] = fleetResponse.body.data.items;
     const vehicleAUtilization = fleetItems.find((item) => item.vehicleId === branchA.vehicleId);
-    // Rango de consulta: 10 dias (01 al 11 nov); reserva ocupa 1 dia dentro de ese rango
-    // (10 nov 10:00 al 11 nov 00:00, el resto de la reserva cae fuera del rango consultado).
+    // Rango de consulta: 10 dias; la reserva ocupa dentro de el desde las 10:00 de su primer dia
+    // hasta las 00:00 del siguiente (14h = 0.5833 dias), el resto cae fuera del rango.
     expect(vehicleAUtilization).toMatchObject({ branchId: branchA.branchId, totalDays: 10 });
     expect(vehicleAUtilization?.occupiedDays).toBeCloseTo(0.5833, 3);
     expect(fleetResponse.body.data.fleetAverageUtilizationPercentage).toBeGreaterThan(0);

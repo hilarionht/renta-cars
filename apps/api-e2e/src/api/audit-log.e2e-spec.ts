@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { farFutureExpiryDate, futureRentalWindow } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
 interface AuditLogEntrySummary {
@@ -193,7 +194,7 @@ describe('GET /audit-log', () => {
     ).send({
       documentType: 'PropertyCard',
       fileId: 'file-e2e-vehicle-audit-rejected',
-      expiryDate: '2030-01-01T00:00:00.000Z',
+      expiryDate: farFutureExpiryDate(),
     });
     const vehicleDocumentId: string = vehicleDocResponse.body.data.id;
     await auth(
@@ -215,7 +216,7 @@ describe('GET /audit-log', () => {
       ).send({
         documentType: 'NationalId',
         fileId: `file-e2e-identity-audit-rejected-${suffix}`,
-        expiryDate: '2030-01-01T00:00:00.000Z',
+        expiryDate: farFutureExpiryDate(),
       });
       const identityDocumentId: string = identityDocResponse.body.data.id;
       await auth(
@@ -229,8 +230,7 @@ describe('GET /audit-log', () => {
     const customerAId = await createEligibleCustomer('A');
     const customerBId = await createEligibleCustomer('B');
 
-    const startDate = '2026-12-10T10:00:00.000Z';
-    const endDate = '2026-12-13T10:00:00.000Z';
+    const { startDate, endDate } = futureRentalWindow();
 
     const reservationAResponse = await auth(request(baseUrl).post('/api/v1/reservations')).send({
       customerId: customerAId,

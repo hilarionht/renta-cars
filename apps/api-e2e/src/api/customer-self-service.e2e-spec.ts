@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { Client } from 'pg';
 import request from 'supertest';
 
+import { futureRentalDates } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
 // Fase 5 cliente-autogestion (docs/persistence/10-DECISIONES.md #109) - flujo completo
@@ -149,8 +150,7 @@ describe('Customer self-service: OTP login -> crear/listar/cancelar reservas pro
     const createResponse = await asCustomerA(request(baseUrl).post('/api/v1/me/reservations')).send(
       {
         vehicleId,
-        startDate: '2026-09-01T10:00:00.000Z',
-        endDate: '2026-09-04T10:00:00.000Z',
+        ...futureRentalDates(),
       },
     );
     expect(createResponse.status).toBe(201);

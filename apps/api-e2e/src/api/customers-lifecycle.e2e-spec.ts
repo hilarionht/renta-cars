@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { farFutureExpiryDate } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
 // Verifica de punta a punta el primer item de Fase 1 (Alquiler de Vehiculos, MVP) y el
@@ -111,7 +112,7 @@ describe('Customers: registro, documentacion, conductor adicional, bloqueo, y au
     const uploadDocumentResponse = await request(baseUrl)
       .post(`/api/v1/customers/${customerId}/identity-documents`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .send({ documentType: 'NationalId', fileId, expiryDate: '2030-01-01T00:00:00.000Z' });
+      .send({ documentType: 'NationalId', fileId, expiryDate: farFutureExpiryDate() });
     expect(uploadDocumentResponse.status).toBe(201);
     const documentId: string = uploadDocumentResponse.body.data.id;
 
@@ -151,7 +152,7 @@ describe('Customers: registro, documentacion, conductor adicional, bloqueo, y au
       .send({
         documentType: 'DriversLicense',
         fileId: licenseFileId,
-        expiryDate: '2030-01-01T00:00:00.000Z',
+        expiryDate: farFutureExpiryDate(),
         additionalDriverId: driverId,
       });
     expect(uploadLicenseResponse.status).toBe(201);

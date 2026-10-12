@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { farFutureExpiryDate, futureRentalWindow } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
 interface NotificationSummary {
@@ -89,7 +90,7 @@ describe('Reservations/Invoices -> Notifications (Fase 3 item 3)', () => {
     ).send({
       documentType: 'NationalId',
       fileId: 'file-e2e-identity-notif',
-      expiryDate: '2030-01-01T00:00:00.000Z',
+      expiryDate: farFutureExpiryDate(),
     });
     expect(identityDocResponse.status).toBe(201);
     const identityDocumentId: string = identityDocResponse.body.data.id;
@@ -126,7 +127,7 @@ describe('Reservations/Invoices -> Notifications (Fase 3 item 3)', () => {
     ).send({
       documentType: 'PropertyCard',
       fileId: 'file-e2e-vehicle-notif',
-      expiryDate: '2030-01-01T00:00:00.000Z',
+      expiryDate: farFutureExpiryDate(),
     });
     expect(vehicleDocResponse.status).toBe(201);
     const vehicleDocumentId: string = vehicleDocResponse.body.data.id;
@@ -135,8 +136,7 @@ describe('Reservations/Invoices -> Notifications (Fase 3 item 3)', () => {
     );
     await auth(request(baseUrl).post(`/api/v1/vehicles/${vehicleId}/enable`));
 
-    const startDate = '2026-10-15T10:00:00.000Z';
-    const endDate = '2026-10-18T10:00:00.000Z';
+    const { startDate, endDate } = futureRentalWindow();
 
     const createReservationResponse = await auth(
       request(baseUrl).post('/api/v1/reservations'),

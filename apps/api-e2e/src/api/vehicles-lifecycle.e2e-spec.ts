@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { farFutureExpiryDate } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
 // Verifica de punta a punta el segundo item de Fase 1 (Alquiler de Vehiculos, MVP):
@@ -110,7 +111,7 @@ describe('Vehicles: registro, documentacion, mantenimiento, y auditoria', () => 
     const uploadDocumentResponse = await request(baseUrl)
       .post(`/api/v1/vehicles/${vehicleId}/documents`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .send({ documentType: 'PropertyCard', fileId, expiryDate: '2030-01-01T00:00:00.000Z' });
+      .send({ documentType: 'PropertyCard', fileId, expiryDate: farFutureExpiryDate() });
     expect(uploadDocumentResponse.status).toBe(201);
     const documentId: string = uploadDocumentResponse.body.data.id;
 
