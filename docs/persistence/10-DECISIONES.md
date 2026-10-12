@@ -1357,6 +1357,44 @@ No hay evidencia de que el bundle web haya funcionado nunca con estas versiones:
 
 **Gap menor, no corregido**: `PrismaCalendarPortAdapter.findActiveSlotId` sigue tomando el `companyId` del `RequestContext`. Hoy solo se llama desde requests HTTP; si algún worker lo usara, tendría el mismo problema que #131 bug #2.
 
+## #133 — Validación de mobile en un celular real: causa raíz de #108, `expo-notifications` en Expo Go y teléfono sin normalizar
+
+**Contexto**: validación visual pedida por el usuario (backlog C). La versión web de `apps/mobile` no es viable **por diseño**: `expo-secure-store` no existe en web y `docs/09` prohíbe `localStorage`. El usuario eligió validar en su celular con Expo Go.
+
+**Causa raíz real de #108**: `apps/mobile/node_modules` era una **instalación aparte**, hecha con `npm install` dentro de `apps/mobile`, con versiones distintas a la raíz (`expo` 57.0.16 contra 57.0.27, `metro` 0.84.5 contra 0.84.4). Metro mezclaba los dos árboles y no resolvía `@frontend/data-access`. El diseño de `@nx/expo` es otro:
+
+- **En EAS Build** se instala en `apps/mobile` con `apps/mobile/package-lock.json`, que **se conserva**, y `tools/scripts/eas-build-post-install.mjs` enlaza la raíz hacia la app.
+- **En local** hay un único árbol en la raíz, y `apps/mobile/node_modules` tiene que ser un **enlace** a él.
+
+Arreglo local:
+
+- Windows: `New-Item -ItemType Junction -Path apps\mobile\node_modules -Target <raíz>\node_modules`.
+- macOS/Linux: `ln -s ../../node_modules apps/mobile/node_modules`.
+- **Nunca correr `npm install` dentro de `apps/mobile` en local.**
+
+Con el enlace compilan el bundle web (1090 módulos) y el de Android (1629). Además: si el editor exporta `NX_WORKSPACE_ROOT_PATH` con la unidad en minúscula (`c:\…`), hay que corregirla a `C:\…`; si no, `expo-router` duplica la unidad en las rutas.
+
+**Bug real — corregido**: en Android, Expo Go (SDK 53+) **lanza una excepción al importar `expo-notifications`**, y la app se caía al arrancar porque `@frontend/data-access` lo importaba estáticamente desde `register-device-push-token.ts`. Fix:
+
+- `registerDevicePushToken()` sale sin hacer nada en Expo Go (`Constants.executionEnvironment === ExecutionEnvironment.StoreClient`);
+- en development y standalone builds carga `expo-notifications` con `await import()` diferido, como un bundle aparte (el principal bajó de 7,6 a 7,45 MB).
+
+Spec nuevo para el caso Expo Go: `frontend-data-access` pasa 53 de 53 tests.
+
+**Validación en el celular (Expo Go, Android, misma red WiFi)**:
+
+- Operador: login 201, listados de reservas confirmadas y retiradas, **check-out y check-in de las dos reservas del seed** y subida de fotos. Todo correcto.
+- Cliente: el pedido de OTP respondía 201 pero no enviaba nada, porque el teléfono no coincidía con el formato guardado.
+
+**Gap encontrado (sin corregir, decisión pendiente)**: el login de clientes por teléfono **no normaliza el número**. El backend busca el string exacto (`+525500009001`) y, por anti-enumeración, responde 201 aunque no encuentre al cliente, así que si se escribe `5500009001` o `+52 55 …` no pasa nada y la app no muestra ningún error. Conviene normalizar a E.164 (formulario o backend). Hay que decidir el país por defecto.
+
+**Otros requisitos para Expo Go**:
+
+- `EXPO_PUBLIC_API_URL=http://<IP de la PC>:3000`, porque desde el celular `localhost` no es la PC.
+- Arrancar con `expo start --lan`.
+- El firewall de Windows tiene que permitir Node en esa red.
+- Push no se puede validar en Expo Go: hace falta un development build y el `projectId` de EAS (ítem 6).
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

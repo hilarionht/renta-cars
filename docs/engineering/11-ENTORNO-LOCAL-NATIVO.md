@@ -132,7 +132,10 @@ npm run smoke:reminder   # smoke de punta a punta del Reminder: PASS/FAIL con ex
 - **Datos que crea**: sucursal, 2 vehículos habilitados (`DEMO-001`, `DEMO-002`), 2 clientes verificados (Ana `+525500009001`, Luis `+525500009002`), R1 `Confirmed` en +2 h (dentro de la ventana del Reminder) y R2 `Confirmed` en +3 días (para check-out/check-in).
 - **OTP de cliente** (login en mobile): con el proveedor fake el código no viaja por WhatsApp. Pedilo desde la app y leelo con `npm run dev:last-otp -- +525500009001`.
 - `smoke:reminder` crea y cancela su propia reserva en cada corrida, así que se puede repetir. No espera los 15 minutos del scheduler: encola el scan a mano en la cola BullMQ real.
-- **Mobile en modo web**: el API tiene que permitir el origen de Expo, así que `CORS_ORIGINS=http://localhost:8081` va en `.env` (con el valor vacío, CORS queda deshabilitado). **Hoy el bundle web de `apps/mobile` no compila en Windows** (ver #131): está pendiente de una tanda dedicada al toolchain de mobile.
+- **`apps/mobile/node_modules` tiene que ser un enlace a la raíz** (#133): `New-Item -ItemType Junction -Path appsmobile
+ode_modules -Target <raíz>
+ode_modules` en Windows, `ln -s ../../node_modules apps/mobile/node_modules` en macOS/Linux. Nunca correr `npm install` dentro de `apps/mobile`: crea un árbol con otras versiones y Metro no resuelve las libs del workspace.
+- **Mobile en un celular (Expo Go)**: `cd apps/mobile`, con `EXPO_PUBLIC_API_URL=http://<IP-de-la-PC>:3000` y `npx expo start --lan`. En Expo Go se abre `exp://<IP-de-la-PC>:8081`; celular y PC tienen que estar en la misma red y el firewall tiene que permitir Node. Si el editor exporta `NX_WORKSPACE_ROOT_PATH` con la unidad en minúscula, hay que corregirla. La versión web de mobile no es viable por diseño (SecureStore).
 - **Empezar de cero**: `npx prisma migrate reset` (borra la base local; Prisma pide confirmación explícita) y después `npm run db:seed`. Si quedaron jobs viejos en BullMQ, `memurai-cli FLUSHDB` vacía el Redis local.
 
 Mobile: `cd apps/mobile && npx expo start --web`.
