@@ -10,6 +10,10 @@ export default async function globalSetup(): Promise<void> {
   const postgres = await startPostgresContainer();
   registerContainer('postgres', postgres.container);
   process.env.TEST_DATABASE_URL = postgres.connectionUri;
+  // Conexion como app_runtime (sujeta a RLS, docs/persistence/06-RLS.md §3) - necesaria para
+  // cualquier .integration.spec.ts que valide aislamiento de tenant o fail-closed, no solo
+  // round-trip de repositorio (que puede usar TEST_DATABASE_URL, el rol dueño de las tablas).
+  process.env.TEST_APP_DATABASE_URL = postgres.appRuntimeConnectionUri;
 
   const redis = await startRedisContainer();
   registerContainer('redis', redis.container);

@@ -1,0 +1,18 @@
+{
+  "name": "platform-companies-domain",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/companies/domain/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:domain", "module:companies"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/companies/domain"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

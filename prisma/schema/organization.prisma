@@ -1,2 +1,154 @@
 // @@schema("organization") — Company, Branch, CompanySettings (docs/technical/02-PROYECTOS.md §2.2).
-// Vacio a proposito: Fase 0 de docs/01-ROADMAP.md §2 agrega los primeros modelos.
+// CompanySettings (mas abajo) cubre las 9 politicas documentadas
+// (EnabledProductModules, PaymentMethodsEnabled desde Fase 0; CancellationPolicy,
+// LateReturnPolicy, DepositPolicy, DraftExpirationPolicy, MinimumBookingLeadTime agregadas
+// en Reservations, docs/persistence/10-DECISIONES.md #59; NotificationChannelPreference en
+// Notifications, Fase 3 item 1; MaintenanceThresholdPolicy en Fase 4 item 2, sin consumidor
+// real todavia - mismo patron forward-looking que tuvo DepositPolicy antes de Payments).
+
+model Company {
+  // Raiz de tenant (docs/persistence/06-RLS.md §4.1) - no tiene su propio companyId, su
+  // propio id ES el valor que toda otra tabla porta como company_id. Generado en domain/
+  // (EntityId.generate<'Company'>()) antes de persistir, nunca @default(uuid()) - mismo
+  // patron que todo otro aggregate root del modelo.
+  id                  String        @id @db.Uuid
+  legalName           String        @map("legal_name")
+  // INV-016: unica unicidad verdaderamente global del modelo (Company no tiene su propio
+  // tenant que la escope) - ver docs/persistence/10-DECISIONES.md sobre por que se valida
+  // atrapando el constraint, no con un pre-check.
+  taxId               String        @unique @map("tax_id")
+  billingContactEmail String        @map("billing_contact_email")
+  billingContactPhone String?       @map("billing_contact_phone")
+  status              CompanyStatus
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+  version             Int           @default(1)
+
+  @@map("companies")
+  @@schema("organization")
+}
+
+enum CompanyStatus {
+  Active
+  Suspended
+
+  @@schema("organization")
+}
+
+model Branch {
+  id        String @id @db.Uuid
+  companyId String @map("company_id") @db.Uuid
+  // BranchName: VO agregado, no estaba en el catalogo de docs/model/04-VALUE_OBJECTS.md -
+  // ver docs/model/02-AGGREGATES.md §5 actualizado en el mismo cambio.
+  name      String
+
+  addressLine1         String  @map("address_line1")
+  addressLine2         String? @map("address_line2")
+  addressCity          String  @map("address_city")
+  addressStateProvince String? @map("address_state_province")
+  addressPostalCode    String? @map("address_postal_code")
+  addressCountry       String  @map("address_country")
+
+  // Horario semanal - sin mas detalle en los docs para justificar una tabla normalizada
+  // (docs/model/04-VALUE_OBJECTS.md §3: "Rango horario valido por dia de semana").
+  operatingHours Json @map("operating_hours")
+
+  status    BranchStatus
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  version   Int          @default(1)
+
+  // Fase 6/Hardening "cache/performance" (docs/persistence/10-DECISIONES.md #106) -
+  // ListBranchesHandler (GET /branches) filtra solo por companyId, sin ningun indice/unique
+  // que lo cubra hasta ahora.
+  @@index([companyId], map: "branches_company_id_idx")
+  @@map("branches")
+  @@schema("organization")
+}
+
+enum BranchStatus {
+  Active
+  Closed
+
+  @@schema("organization")
+}
+
+model CompanySettings {
+  // Identidad prestada de Company - sin columna id propia (docs/persistence/
+  // 04-COLUMNAS-CONCEPTUALES.md SS4: "identidad = company_id, y ademas es la propia clave
+  // primaria"). Sin @relation/FK real hacia companies - mismo criterio ya usado para
+  // branches.company_id (integridad via RLS + aplicacion, no Postgres).
+  companyId String @id @map("company_id") @db.Uuid
+
+  // String[] deliberado, no un enum nativo - conjunto ABIERTO por diseño (docs/contracts/
+  // 08-VERSIONING.md SS5: "nunca una lista cerrada exhaustiva"), agregar un producto nuevo
+  // (p.ej. Workshop) no debe requerir una migracion. Contraste con paymentMethodsEnabled
+  // abajo, que SI es un catalogo cerrado.
+  enabledProductModules String[] @map("enabled_product_modules")
+
+  // Enum nativo - catalogo verdaderamente cerrado de 4 valores (docs/model/
+  // 04-VALUE_OBJECTS.md SS6).
+  paymentMethodsEnabled PaymentMethod[] @map("payment_methods_enabled")
+
+  // Reservations, docs/persistence/10-DECISIONES.md #59 - 5 politicas gap-filled
+  // (docs/model/04-VALUE_OBJECTS.md SS7 CancellationPolicy/LateReturnPolicy/DepositPolicy
+  // son porcentuales, no Money - una politica a nivel de Company no fija una moneda
+  // concreta). cancellationPolicyTiers: Json en vez de tabla propia - lista corta,
+  // reemplazada como unidad completa en cada update, sin historial propio (a diferencia de
+  // price_adjustments) - mismo criterio que operating_hours de Branch. Los @default aca
+  // coinciden con los defaults de columna SQL fijados en la migracion
+  // 20260819124604 (red de seguridad para cualquier INSERT que no pase por
+  // CompanySettings.create(), no un valor de negocio) - declararlos aca tambien evita que
+  // `prisma migrate dev` detecte drift permanente entre schema.prisma y la columna real.
+  cancellationPolicyTiers        Json                       @default("[{\"minHoursBeforeStart\":0,\"penaltyPercentage\":0}]") @map("cancellation_policy_tiers")
+  lateReturnGraceMinutes         Int                        @default(30) @map("late_return_grace_minutes")
+  lateReturnPenaltyPctPerHour    Float                      @default(10) @map("late_return_penalty_pct_per_hour")
+  depositApplies                 Boolean                    @default(false) @map("deposit_applies")
+  depositPercentageOfTotal       Float                      @default(0) @map("deposit_percentage_of_total")
+  draftExpirationMinutes         Int                        @default(1440) @map("draft_expiration_minutes")
+  minimumBookingLeadTimeMinutes  Int                        @default(0) @map("minimum_booking_lead_time_minutes")
+  // Notifications, Fase 3 item 1, RN-33 - 8vo policy, primer consumidor real
+  // (docs/persistence/10-DECISIONES.md). Nombre de enum distinto de NotificationChannel
+  // (support.prisma, catalogo de 4) - mismo criterio que CommercePaymentMethod vs
+  // PaymentMethod.
+  notificationChannelPreference  NotificationChannelDefault @default(Email) @map("notification_channel_preference")
+  // Fase 4 item 2, RN-29 - 9na y ultima policy. odometerThresholdKm/daysThreshold
+  // nullable (Int?, no Float - "kilometraje" y "dias" son cantidades enteras por
+  // naturaleza) - "Umbrales > 0" se valida en el dominio (MaintenanceThresholdPolicy.from()),
+  // no con un CHECK de Postgres (ambos son opcionales individualmente, un CHECK > 0 sobre una
+  // columna nullable ya deja pasar NULL sin más - la regla real, "al menos uno presente
+  // cuando applies=true", no es expresable como CHECK de columna simple sin acoplar 3
+  // columnas).
+  maintenanceThresholdApplies    Boolean                    @default(false) @map("maintenance_threshold_applies")
+  maintenanceThresholdOdometerKm Int?                       @map("maintenance_threshold_odometer_km")
+  maintenanceThresholdDays       Int?                       @map("maintenance_threshold_days")
+  // Reminder de reservas, docs/persistence/10-DECISIONES.md #121 - 10ma y ultima policy.
+  // Default 1440 (24h) - placeholder explicito sin calibrar, mismo criterio que los
+  // umbrales de alert-rules.yml (#115). A diferencia de minimumBookingLeadTimeMinutes,
+  // nunca 0 (ver ReminderLeadTime.from()).
+  reminderLeadTimeMinutes        Int                        @default(1440) @map("reminder_lead_time_minutes")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  version   Int      @default(1)
+
+  @@map("company_settings")
+  @@schema("organization")
+}
+
+enum PaymentMethod {
+  Card
+  Cash
+  Transfer
+  DigitalWallet
+
+  @@schema("organization")
+}
+
+enum NotificationChannelDefault {
+  WhatsApp
+  Email
+  SMS
+
+  @@schema("organization")
+}

@@ -40,7 +40,10 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio
+    # minio/minio dejo de existir en Docker Hub/Quay: build de Chainguard del mismo binario,
+    # fijado por digest (docs/persistence/10-DECISIONES.md #125). Incluye mc, por eso el
+    # healthcheck de abajo sigue igual.
+    image: cgr.dev/chainguard/minio@sha256:7df55d002b698e4494a131b848dd553361bbe58b7e19f62d9623c29af1ba9ccf
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-renta}
@@ -59,14 +62,16 @@ services:
   # (docs/engineering/06-DOCKER.md §3). Vuelve a correr en cada `up`, pero `--ignore-existing`
   # lo vuelve un no-op cuando el bucket ya existe.
   minio-init:
-    image: minio/mc
+    # Misma imagen que el servicio minio: trae mc y sh. cgr.dev/chainguard/minio-client no
+    # trae shell, y este job la necesita (#125).
+    image: cgr.dev/chainguard/minio@sha256:7df55d002b698e4494a131b848dd553361bbe58b7e19f62d9623c29af1ba9ccf
     depends_on:
       minio:
         condition: service_healthy
     networks:
       - renta-dev
     entrypoint: >
-      /bin/sh -c "
+      /usr/bin/sh -c "
       mc alias set local http://minio:9000 ${STORAGE_ACCESS_KEY:-renta} ${STORAGE_SECRET_KEY:-renta1234} &&
       mc mb --ignore-existing local/${STORAGE_BUCKET:-renta-dev}
       "

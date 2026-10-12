@@ -29,7 +29,32 @@ export const depConstraints = [
   // "product-rental solo puede depender de platform via application/infrastructure", ya
   // queda garantizada por el aislamiento de type:domain de abajo: ningun sourceTag permite
   // llegar al domain de otro modulo, sea cual sea su scope).
-  { sourceTag: 'scope:platform', notDependOnLibsWithTags: ['scope:product-rental'] },
+  //
+  // Correccion real (encontrada al construir Customers, primer modulo scope:product-rental
+  // de la sesion, ver docs/persistence/10-DECISIONES.md): un unico `{ sourceTag:
+  // 'scope:platform', notDependOnLibsWithTags: [...] }` tambien atrapaba a apps/api (el
+  // unico host NestJS, tageado scope:platform + type:feature) - `nx lint` fallaba al
+  // intentar componer CustomersModule en AppModule, aunque docs/technical/
+  // 02-PROYECTOS.md linea 9 ya documenta a apps/api explicitamente como "Host NestJS;
+  // compone todos los modulos de libs/platform y libs/products/rental". INV-P03 protege
+  // que una LIBRERIA de negocio de platform (Companies, Files, etc.) nunca importe
+  // product-rental - nunca tuvo la intencion de bloquear al composition root, que por
+  // definicion tiene que alcanzar ambos scopes. Se usa `allSourceTags` (AND, no OR) para
+  // que la restriccion aplique solo a los 3 tipos de capa que una libreria de negocio real
+  // siempre lleva junto a scope:platform - apps/api nunca lleva type:domain/application/
+  // infrastructure (solo type:feature), asi que ninguna de las 3 combinaciones lo atrapa.
+  {
+    allSourceTags: ['scope:platform', 'type:domain'],
+    notDependOnLibsWithTags: ['scope:product-rental'],
+  },
+  {
+    allSourceTags: ['scope:platform', 'type:application'],
+    notDependOnLibsWithTags: ['scope:product-rental'],
+  },
+  {
+    allSourceTags: ['scope:platform', 'type:infrastructure'],
+    notDependOnLibsWithTags: ['scope:product-rental'],
+  },
   {
     sourceTag: 'scope:frontend',
     notDependOnLibsWithTags: ['scope:platform', 'scope:product-rental'],

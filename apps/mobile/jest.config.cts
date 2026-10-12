@@ -1,5 +1,18 @@
 /// <reference types="jest" />
 /// <reference types="node" />
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathsToModuleNameMapper } from 'ts-jest';
+
+// moduleNameMapper para @frontend/* - jest-expo no lee los "paths" de tsconfig.base.json
+// por si solo, mismo gap que libs/frontend/ui-kit-mobile/jest.config.cts ya documenta,
+// ejercitado aca por primera vez porque Fase 5 (docs/persistence/10-DECISIONES.md #108) es
+// el primer consumidor real de @frontend/data-access/@frontend/ui-kit-mobile en apps/mobile.
+const repoRoot = join(__dirname, '..', '..');
+const tsconfig = JSON.parse(readFileSync(join(repoRoot, 'tsconfig.base.json'), 'utf-8')) as {
+  compilerOptions: { paths: Record<string, string[]> };
+};
+
 module.exports = {
   displayName: 'mobile',
   preset: 'jest-expo',
@@ -7,6 +20,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   moduleNameMapper: {
     '[.]svg$': '@nx/expo/plugins/jest/svg-mock',
+    ...pathsToModuleNameMapper(tsconfig.compilerOptions.paths, { prefix: `${repoRoot}/` }),
   },
   transform: {
     '[.][jt]sx?$': [
@@ -19,4 +33,7 @@ module.exports = {
       require.resolve('jest-expo/src/preset/assetFileTransformer.js'),
   },
   coverageDirectory: '../../coverage/apps/mobile',
+  // 20s, no 5s: en el runner de CI el primer test de cada suite paga la carga inicial de
+  // React Native/expo (~17s por suite) y vencia el default; localmente pasan (#125).
+  testTimeout: 20000,
 };

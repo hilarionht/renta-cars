@@ -14,6 +14,9 @@ import { execSync } from 'node:child_process';
 interface Vulnerability {
   severity: 'info' | 'low' | 'moderate' | 'high' | 'critical';
   fixAvailable: boolean | { name: string; version: string; isSemVerMajor: boolean };
+  // Entradas string ("Depends on vulnerable versions of X") vs. objeto (advisory propio,
+  // con GHSA/CVE) - ver comentario de hasDirectAdvisory().
+  via: Array<string | { url: string }>;
 }
 
 interface AuditReport {
@@ -52,11 +55,56 @@ function hasSafeFix(fixAvailable: Vulnerability['fixAvailable']): boolean {
   return !fixAvailable.isSemVerMajor;
 }
 
+// `via` con solo strings ("Depends on vulnerable versions of X") significa que el propio
+// paquete no tiene una advisory directa - esta vulnerable unicamente porque hereda una de
+// sus dependencias, que ya aparece como su propia entrada en el reporte (con su propio
+// fixAvailable, evaluado por separado). Confirmado en la practica (@expo/metro-config,
+// docs/engineering/05-CI-CD.md §2): npm reporta `fixAvailable: true` (booleano) para estas
+// entradas heredadas incluso cuando la version instalada YA es la mas reciente publicada y
+// `npm audit fix` no cambia nada - un booleano sin una version real y distinta a instalar
+// detras. Sin este filtro, ese falso positivo bloquea CI de forma permanente hasta que el
+// paquete rio arriba (con advisory propia) publique un fix, algo que su propia entrada en
+// el reporte ya refleja correctamente.
+function hasDirectAdvisory(via: Vulnerability['via']): boolean {
+  return via.some((entry) => typeof entry === 'object');
+}
+
+// Excepciones aceptadas explicitamente por el usuario, cada una con motivo y fecha de
+// revision: vencida la fecha, vuelve a bloquear (nunca una excepcion permanente).
+// docs/persistence/10-DECISIONES.md #127.
+const ACCEPTED_EXCEPTIONS: Record<string, { reason: string; reviewBy: string }> = {
+  'image-size': {
+    reason:
+      'Solo via metro (bundler de apps/mobile, ^1.0.2); el parche existe unicamente en image-size 2.x, ' +
+      'asi que aplicarlo es un salto de major dentro del bundler. Superficie: lectura de dimensiones de ' +
+      'assets propios en build-time, no input de usuarios en el proceso desplegado.',
+    reviewBy: '2027-01-31',
+  },
+};
+
+function isAcceptedException(name: string, now: Date): boolean {
+  const exception = ACCEPTED_EXCEPTIONS[name];
+  if (!exception) {
+    return false;
+  }
+  if (now > new Date(`${exception.reviewBy}T23:59:59Z`)) {
+    console.error(`Excepcion vencida para "${name}" (revisar antes de ${exception.reviewBy}).`);
+    return false;
+  }
+  console.warn(
+    `Excepcion aceptada: ${name} - ${exception.reason} (revisar antes de ${exception.reviewBy})`,
+  );
+  return true;
+}
+
 const report = runAudit();
+const now = new Date();
 const blocking = Object.entries(report.vulnerabilities ?? {}).filter(
-  ([, vulnerability]) =>
+  ([name, vulnerability]) =>
     (vulnerability.severity === 'high' || vulnerability.severity === 'critical') &&
-    hasSafeFix(vulnerability.fixAvailable),
+    hasDirectAdvisory(vulnerability.via) &&
+    hasSafeFix(vulnerability.fixAvailable) &&
+    !isAcceptedException(name, now),
 );
 
 if (blocking.length > 0) {

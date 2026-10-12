@@ -1,0 +1,18 @@
+{
+  "name": "platform-identity-domain",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/identity/domain/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:domain", "module:identity"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/identity/domain"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

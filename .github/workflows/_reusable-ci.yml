@@ -30,6 +30,15 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      # docs/engineering/02-DEVELOPER-EXPERIENCE.md §1 paso 3: npm ci no genera el cliente de
+      # Prisma por si solo (sin postinstall a proposito, ver 06-DOCKER.md §1) - sin este paso,
+      # cualquier target que compile apps/api (typecheck, build) falla con "Module '@prisma/
+      # client' has no exported member 'PrismaClient'". prisma.config.ts exige DATABASE_URL
+      # resoluble solo para cargar la config (generate no se conecta a ninguna base, mismo
+      # placeholder que usa apps/api/Dockerfile en su etapa build).
+      - run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://build:build@build:5432/build
       - name: nx affected --target=lint,typecheck
         env:
           NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
@@ -46,6 +55,16 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://build:build@build:5432/build
+      # api-e2e:test levanta apps/api real (docs/engineering/04-TESTING-FOUNDATION.md §5) -
+      # ConfigModule falla fail-fast sin STORAGE_*/JWT_* (docs/engineering/02-DEVELOPER-
+      # EXPERIENCE.md §1 pasos 4-5). No hay .env en CI (gitignored) ni secretos de proveedor
+      # configurados todavia (docs/engineering/05-CI-CD.md §5) - mismo par de pasos que el
+      # bootstrap local, STORAGE_* de .env.example ya son valores de desarrollo no secretos.
+      - run: cp .env.example .env
+      - run: npm run security:generate-jwt-keys >> .env
       # Un unico target `test` cubre unitarios/aplicacion, integracion (Testcontainers, para
       # cualquier proyecto `type:infrastructure` futuro) y el smoke e2e de api-e2e (mismo
       # nombre de target `test`, docs/engineering/04-TESTING-FOUNDATION.md) - Nx ya resuelve
@@ -78,6 +97,9 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://build:build@build:5432/build
       - name: nx affected --target=build
         env:
           NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}

@@ -1,8 +1,5 @@
-import { SetMetadata } from '@nestjs/common';
-
-// docs/technical/07-SECURITY.md SS1: JwtAuthGuard aplica por defecto a todo endpoint,
-// "ausente solo en endpoints explicitamente publicos (@Public())".
-export const IS_PUBLIC_KEY = 'isPublic';
-// PascalCase intencional: convencion de Nest para decoradores custom (@Public, @Roles).
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export const Public = (): MethodDecorator & ClassDecorator => SetMetadata(IS_PUBLIC_KEY, true);
+// Movido a @platform/persistence-kernel - libs/ (platform-identity-infrastructure/http/
+// auth.controller.ts, que aplica @Public() a login/refresh/logout) no puede importar
+// apps/api. Re-exportado aca para no romper el resto de apps/api/src/app/auth que ya lo
+// importaba desde este path.
+export { IS_PUBLIC_KEY, Public } from '@platform/persistence-kernel';

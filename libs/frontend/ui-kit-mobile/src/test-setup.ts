@@ -1,3 +1,7 @@
+// Mismo workaround que apps/mobile/src/test-setup.ts - Expo SDK 55+ instala globals de
+// winter-runtime lazy (fetch, URL, etc.) que Jest trata como "fuera del alcance del test
+// code" en un monorepo. Se reemplazan por los globals reales del runtime antes de que los
+// getters lazy disparen.
 jest.mock('expo/src/winter/ImportMetaRegistry', () => ({
   ImportMetaRegistry: {
     get url() {
@@ -6,10 +10,6 @@ jest.mock('expo/src/winter/ImportMetaRegistry', () => ({
   },
 }));
 
-// Expo SDK 55+ installs lazy winter-runtime globals (fetch, URL, etc.) that
-// require files Jest treats as "outside of the scope of the test code" in a
-// monorepo. Replace them with the runtime's own globals so the lazy getters
-// never fire during tests.
 const defineGlobal = (name: string, value: unknown) => {
   try {
     Object.defineProperty(global, name, {
@@ -18,7 +18,7 @@ const defineGlobal = (name: string, value: unknown) => {
       writable: true,
     });
   } catch {
-    // Ignore environments that don't allow redefining these globals.
+    // Ignora entornos que no permiten redefinir estos globals.
   }
 };
 defineGlobal('fetch', globalThis.fetch);

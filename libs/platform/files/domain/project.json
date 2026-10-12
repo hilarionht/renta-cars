@@ -1,0 +1,18 @@
+{
+  "name": "platform-files-domain",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/files/domain/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:domain", "module:files"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/files/domain"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

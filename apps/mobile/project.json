@@ -5,5 +5,16 @@
   "projectType": "application",
   "tags": ["scope:frontend", "type:feature"],
   "// targets": "to see all targets run: nx show project mobile --web",
-  "targets": {}
+  "// build": "El `build` inferido por @nx/expo/plugin dispara un build en la nube de EAS (necesita cuenta/credenciales, docs/technical/08-DEVOPS.md SS1: apps/mobile se distribuye via EAS, fuera del alcance de CI de PR) - se sobreescribe con `expo export`, el chequeo de compilacion local equivalente al `build` de apps/api/web-admin (mismo comando que el target `export` ya inferido).",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/mobile",
+        "command": "expo export --clear"
+      },
+      "cache": true,
+      "outputs": ["{workspaceRoot}/apps/mobile/dist"]
+    }
+  }
 }

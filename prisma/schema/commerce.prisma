@@ -1,2 +1,99 @@
 // @@schema("commerce") — Payment, SecurityDeposit (docs/technical/02-PROYECTOS.md §2.4).
-// Vacio a proposito: Fase 0 de docs/01-ROADMAP.md §2 agrega los primeros modelos.
+// Fase 2 item 1 (docs/01-ROADMAP.md §4) - primeros modelos reales de este schema.
+
+enum PaymentTargetType {
+  Invoice
+  SecurityDeposit
+
+  @@schema("commerce")
+}
+
+// Nombre distinto de organization.PaymentMethod (mismos 4 valores) - los nombres de enum de
+// Prisma son globales entre schemas aunque @@schema los separe a nivel de Postgres; el
+// dominio sigue teniendo su propia clase PaymentMethod duplicada localmente (ver
+// libs/platform/payments/domain), esto es solo el nombre del tipo a nivel de generacion de
+// schema.
+enum CommercePaymentMethod {
+  Card
+  Cash
+  Transfer
+  DigitalWallet
+
+  @@schema("commerce")
+}
+
+enum PaymentStatus {
+  Requested
+  Authorized
+  Captured
+  Failed
+  Refunded
+
+  @@schema("commerce")
+}
+
+enum DepositStatus {
+  Held
+  ReleasedFully
+  RetainedPartially
+  RetainedFully
+
+  @@schema("commerce")
+}
+
+model Payment {
+  // Raiz de este aggregate - docs/model/02-AGGREGATES.md §13. Sin entidades internas.
+  id               String                @id @db.Uuid
+  // Infraestructura de aislamiento multi-tenant (RLS) - nunca leido por el domain/ de
+  // Payments (docs/persistence/01-SCHEMAS.md §4.3, 10-DECISIONES.md #1).
+  companyId        String                @map("company_id") @db.Uuid
+  // target es polimorfico y siempre opaco, sin FK, incluso hacia security_deposits pese a
+  // compartir schema (docs/persistence/10-DECISIONES.md #4, 03-RELACIONES.md §6).
+  targetType       PaymentTargetType     @map("target_type")
+  targetId         String                @map("target_id")
+  amountMinorUnits Int                   @map("amount_minor_units")
+  amountCurrency   String                @map("amount_currency")
+  method           CommercePaymentMethod
+  status           PaymentStatus
+  gatewayReference String?               @map("gateway_reference")
+  idempotencyKey   String                @map("idempotency_key")
+  failureReason    String?               @map("failure_reason")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  version          Int                   @default(1)
+
+  // INV-021 (doble capa de idempotencia, la otra capa es RequestPaymentHandler en
+  // application/) - docs/persistence/05-INDICES-Y-CONSTRAINTS.md §3.
+  @@unique([companyId, idempotencyKey])
+  // Indice de reconciliacion por target - GetPaymentQuery/ListPaymentsQuery.
+  @@index([companyId, targetType, targetId])
+  @@map("payments")
+  @@schema("commerce")
+}
+
+model SecurityDeposit {
+  // Raiz de este aggregate - docs/model/02-AGGREGATES.md §12. Sin entidades internas.
+  // reservationId: opaco, sin FK real - Commerce es 100% event-driven respecto de Rental
+  // Operations (docs/model/09-DEPENDENCIES.md §2/§3, cero puertos sincronos entre ambos
+  // Bounded Contexts), mismo tratamiento que AvailabilitySlot.resourceId en scheduling.
+  id                       String        @id @db.Uuid
+  companyId                String        @map("company_id") @db.Uuid
+  reservationId            String        @map("reservation_id")
+  amountMinorUnits         Int           @map("amount_minor_units")
+  amountCurrency           String        @map("amount_currency")
+  status                   DepositStatus
+  gatewayHoldReference     String?       @map("gateway_hold_reference")
+  // Sin columna de moneda propia - retain() exige la misma currency que amount (guard de
+  // dominio), siempre se reconstruye con amountCurrency.
+  retainedAmountMinorUnits Int?          @map("retained_amount_minor_units")
+  retentionReason          String?       @map("retention_reason")
+  createdAt                DateTime      @default(now()) @map("created_at")
+  updatedAt                DateTime      @updatedAt @map("updated_at")
+  version                  Int           @default(1)
+
+  // A lo sumo un SecurityDeposit por Reservation (docs/persistence/
+  // 05-INDICES-Y-CONSTRAINTS.md §3, mismo criterio que Inspection.@@unique([reservationId, type])).
+  @@unique([companyId, reservationId])
+  @@map("security_deposits")
+  @@schema("commerce")
+}

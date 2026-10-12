@@ -4,27 +4,28 @@ Este directorio es la referencia oficial de arquitectura de la Plataforma. Su pr
 
 ## Índice
 
-| Doc | Contenido |
-|---|---|
-| [00-VISION.md](00-VISION.md) | Visión, objetivos, filosofía, principios, alcance, no objetivos |
-| [01-ROADMAP.md](01-ROADMAP.md) | Roadmap de Fase 0 a v1.0, orden de construcción de módulos |
-| [02-ARQUITECTURA.md](02-ARQUITECTURA.md) | Monolito Modular, Clean Architecture, DDD, flujo de dependencias, comunicación entre módulos |
-| [03-DOMINIO.md](03-DOMINIO.md) | Bounded contexts, agregados, value objects, servicios y eventos de dominio |
-| [04-MODELO-DATOS.md](04-MODELO-DATOS.md) | Reglas para PostgreSQL/Prisma (sin esquema físico) |
-| [05-CONVENCIONES-BACKEND.md](05-CONVENCIONES-BACKEND.md) | Guía de construcción de módulos NestJS |
-| [06-CONVENCIONES-FRONTEND.md](06-CONVENCIONES-FRONTEND.md) | Estándares React, Next.js, React Native, Expo |
-| [07-DESIGN-SYSTEM.md](07-DESIGN-SYSTEM.md) | Filosofía y reglas del sistema de diseño |
-| [08-API-CONTRACTS.md](08-API-CONTRACTS.md) | Estándares REST, versionado, errores, paginación |
-| [09-SEGURIDAD.md](09-SEGURIDAD.md) | Autenticación, autorización, auditoría, OWASP |
-| [10-TESTING.md](10-TESTING.md) | Estrategia de testing por capa |
-| [11-INTEGRACIONES.md](11-INTEGRACIONES.md) | Arquitectura de integraciones externas (Provider Pattern) |
-| [ADR/](ADR/README.md) | Registro de decisiones arquitectónicas |
-| [domain/](domain/README.md) | Descubrimiento del dominio de negocio de Rental: actores, lenguaje ubicuo, procesos, reglas y eventos (previo al modelado táctico de [03-DOMINIO.md](03-DOMINIO.md)) |
-| [model/](model/README.md) | Modelado táctico definitivo: bounded contexts, agregados, entidades, value objects, servicios y eventos de dominio, invariantes, máquinas de estado |
-| [persistence/](persistence/README.md) | Diseño físico de PostgreSQL: schemas, tablas, relaciones, columnas, índices/constraints, RLS |
-| [technical/](technical/README.md) | Diseño técnico de construcción: monorepo, backend host, persistencia, eventing, observabilidad, seguridad, DevOps |
-| [contracts/](contracts/README.md) | Contratos oficiales de comunicación: REST, recursos, eventos, integraciones, webhooks, errores, versionado |
-| [engineering/](engineering/README.md) | Fundación de ingeniería: workspace Nx, DX, calidad de código, testing, CI/CD, Docker, configuración, observabilidad bootstrap, contribución, plan de bootstrap |
+| Doc                                                        | Contenido                                                                                                                                                            |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [00-VISION.md](00-VISION.md)                               | Visión, objetivos, filosofía, principios, alcance, no objetivos                                                                                                      |
+| [01-ROADMAP.md](01-ROADMAP.md)                             | Roadmap de Fase 0 a v1.0, orden de construcción de módulos                                                                                                           |
+| [02-ARQUITECTURA.md](02-ARQUITECTURA.md)                   | Monolito Modular, Clean Architecture, DDD, flujo de dependencias, comunicación entre módulos                                                                         |
+| [03-DOMINIO.md](03-DOMINIO.md)                             | Bounded contexts, agregados, value objects, servicios y eventos de dominio                                                                                           |
+| [04-MODELO-DATOS.md](04-MODELO-DATOS.md)                   | Reglas para PostgreSQL/Prisma (sin esquema físico)                                                                                                                   |
+| [05-CONVENCIONES-BACKEND.md](05-CONVENCIONES-BACKEND.md)   | Guía de construcción de módulos NestJS                                                                                                                               |
+| [06-CONVENCIONES-FRONTEND.md](06-CONVENCIONES-FRONTEND.md) | Estándares React, Next.js, React Native, Expo                                                                                                                        |
+| [07-DESIGN-SYSTEM.md](07-DESIGN-SYSTEM.md)                 | Filosofía y reglas del sistema de diseño                                                                                                                             |
+| [08-API-CONTRACTS.md](08-API-CONTRACTS.md)                 | Estándares REST, versionado, errores, paginación                                                                                                                     |
+| [09-SEGURIDAD.md](09-SEGURIDAD.md)                         | Autenticación, autorización, auditoría, OWASP                                                                                                                        |
+| [10-TESTING.md](10-TESTING.md)                             | Estrategia de testing por capa                                                                                                                                       |
+| [11-INTEGRACIONES.md](11-INTEGRACIONES.md)                 | Arquitectura de integraciones externas (Provider Pattern)                                                                                                            |
+| [ADR/](ADR/README.md)                                      | Registro de decisiones arquitectónicas                                                                                                                               |
+| [domain/](domain/README.md)                                | Descubrimiento del dominio de negocio de Rental: actores, lenguaje ubicuo, procesos, reglas y eventos (previo al modelado táctico de [03-DOMINIO.md](03-DOMINIO.md)) |
+| [model/](model/README.md)                                  | Modelado táctico definitivo: bounded contexts, agregados, entidades, value objects, servicios y eventos de dominio, invariantes, máquinas de estado                  |
+| [persistence/](persistence/README.md)                      | Diseño físico de PostgreSQL: schemas, tablas, relaciones, columnas, índices/constraints, RLS                                                                         |
+| [technical/](technical/README.md)                          | Diseño técnico de construcción: monorepo, backend host, persistencia, eventing, observabilidad, seguridad, DevOps                                                    |
+| [contracts/](contracts/README.md)                          | Contratos oficiales de comunicación: REST, recursos, eventos, integraciones, webhooks, errores, versionado                                                           |
+| [engineering/](engineering/README.md)                      | Fundación de ingeniería: workspace Nx, DX, calidad de código, testing, CI/CD, Docker, configuración, observabilidad bootstrap, contribución, plan de bootstrap       |
+| [audits/](audits/README.md)                                | Auditorías fechadas del estado real del proyecto (reentrada, antes de decisiones grandes)                                                                            |
 
 ## Cómo leer esta documentación
 

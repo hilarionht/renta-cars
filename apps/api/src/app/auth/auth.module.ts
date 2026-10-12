@@ -3,16 +3,17 @@ import { PassportModule } from '@nestjs/passport';
 
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtStrategy } from './jwt.strategy';
-import { PermissionGuard } from './permission.guard';
 
-// Mecanismo de autenticacion/autorizacion (paso 9 de docs/engineering/10-BOOTSTRAP-PLAN.md)
-// - sin registro global todavia: ningun endpoint real existe aun para aplicarlo por
-// defecto (docs/technical/03-BACKEND-ARCHITECTURE.md SS7 describe el guard chain completo,
-// que se activa cuando el primer controller protegido lo necesite). JwtAuthGuard/
-// PermissionGuard quedan disponibles via @UseGuards() para cuando eso ocurra.
+// Mecanismo de autenticacion (paso 9 de docs/engineering/10-BOOTSTRAP-PLAN.md).
+// JwtAuthGuard se registra global via useExisting en app.module.ts, referenciando esta
+// instancia. PermissionGuard (RBAC, Fase 4 item 2) ya NO vive aca - necesita ROLE_LOOKUP_PORT
+// (puerto cross-modulo de RolesPermissionsModule, que AuthModule no importa) - se registra
+// directo en app.module.ts como { provide: APP_GUARD, useClass: PermissionGuard }, mismo
+// patron que TenantModuleEnabledGuard (tambien depende de un puerto cross-modulo,
+// SETTINGS_LOOKUP_PORT, y tampoco vive en un modulo de feature dedicado).
 @Module({
   imports: [PassportModule],
-  providers: [JwtStrategy, JwtAuthGuard, PermissionGuard],
-  exports: [JwtAuthGuard, PermissionGuard],
+  providers: [JwtStrategy, JwtAuthGuard],
+  exports: [JwtAuthGuard],
 })
 export class AuthModule {}

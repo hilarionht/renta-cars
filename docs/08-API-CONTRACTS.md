@@ -19,8 +19,8 @@ Toda respuesta exitosa sigue el mismo sobre (envelope):
 
 ```json
 {
-  "data": { },
-  "meta": { }
+  "data": {},
+  "meta": {}
 }
 ```
 
@@ -56,7 +56,7 @@ GET /api/v1/reservations?cursor=<opaque>&limit=25
 
 ```json
 {
-  "data": [ ],
+  "data": [],
   "meta": {
     "nextCursor": "opaque-string-or-null",
     "limit": 25
@@ -65,6 +65,10 @@ GET /api/v1/reservations?cursor=<opaque>&limit=25
 ```
 
 `limit` máximo permitido por endpoint (configurable, default 25, tope 100) para evitar queries no acotadas.
+
+**`GET /reservations` implementa el mecanismo de cursor** (docs/persistence/10-DECISIONES.md #112) — primer endpoint del codebase en construirlo de verdad.
+
+**Gap conocido, todavía vigente — `GET /audit-log`**: implementado (Fase 0 ítem 7) como lista plana con límite fijo (`LIST_LIMIT = 100`, `occurredAt DESC`), sin cursor — pese a que esta sección nombra Audit explícitamente como caso de alto volumen. Decisión documentada en [persistence/10-DECISIONES.md](persistence/10-DECISIONES.md): el volumen real en esta fase es mínimo; se prefirió dejar el gap explícito antes que replicar el mecanismo (ya construido y disponible, ver `#112`) sin un caso de uso real que lo justifique todavía. Pendiente para cuando el volumen real lo exija.
 
 ## 6. Filtros y ordenamiento
 
@@ -84,6 +88,14 @@ Toda operación de creación con efecto de negocio no trivialmente repetible (cr
 ## 9. Autenticación en cada request
 
 Ver detalle completo en [09-SEGURIDAD.md](09-SEGURIDAD.md). Resumen de contrato: `Authorization: Bearer <access_token>` en cada request protegido; `401` con `code: TOKEN_EXPIRED` es la única señal que el cliente usa para disparar el flujo de refresh — ningún otro código dispara refresh automático.
+
+### 9.1 `X-Client-Platform` — entrega de `refresh_token` en `login`/`refresh`
+
+Convención agregada durante la implementación de Identity & Access (Fase 0) — no existía una decisión previa en `docs/` sobre cómo distinguir un cliente web de uno móvil en `POST /auth/login` y `POST /auth/refresh`, y ambos necesitan tratamiento distinto para el `refresh_token` (un cliente web no debe tener el `refresh_token` accesible a JavaScript; un cliente móvil no tiene almacén de cookies del navegador).
+
+- Header opcional `X-Client-Platform: web | mobile`. Ausente, o cualquier valor distinto de `mobile`, se trata como `web`.
+- **`web`** (default): `refresh_token` se entrega **únicamente** en una cookie `Set-Cookie: refresh_token=...; HttpOnly; SameSite=Strict` (más `Secure` fuera de `development`) — nunca en el body de la response. `POST /auth/refresh`/`POST /auth/logout` leen el `refresh_token` de esa cookie si el body no lo trae explícito.
+- **`mobile`**: `access_token` y `refresh_token` se entregan ambos en el body JSON de la response — no se setea cookie.
 
 ## 10. Compatibilidad hacia atrás
 

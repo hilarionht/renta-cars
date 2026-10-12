@@ -1,0 +1,18 @@
+{
+  "name": "platform-users-application",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/users/application/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:application", "module:users"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json",
+        "cwd": "libs/platform/users/application"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
+  }
+}

@@ -4,7 +4,7 @@ Este documento deriva todas las tablas físicas a partir de los 17 agregados de 
 
 **Regla de derivación usada en todo este documento**: cada Aggregate Root produce exactamente una tabla con su propio nombre (plural, `snake_case`, [04-MODELO-DATOS.md §5](../04-MODELO-DATOS.md)). Cada entidad interna con identidad propia ([model/03-ENTITIES.md §criterio](../model/03-ENTITIES.md)) produce su propia tabla, hija de la tabla de su agregado raíz — nunca se colapsa una entidad interna dentro de una columna JSONB del agregado, porque JSONB está reservado para datos no estructurados o de extensión ([04-MODELO-DATOS.md §5](../04-MODELO-DATOS.md)), y toda entidad interna de este modelo tiene identidad, ciclo de vida e invariantes propias que una columna JSONB no puede indexar ni proteger con constraints. Una relación muchos-a-muchos entre dos agregados (nunca entre un agregado y su propia entidad interna, que es siempre 1:N) produce una tabla de unión propia.
 
-Total: **31 tablas** en 6 schemas (30 derivadas directamente de un agregado o entidad interna, más `price_adjustments`, identificada en [04-COLUMNAS-CONCEPTUALES.md §9](04-COLUMNAS-CONCEPTUALES.md) como necesaria para preservar el historial append-only de `PriceAdjustment` pese a estar modelada como Value Object compuesto en el dominio — ver justificación completa ahí y en [10-DECISIONES.md](10-DECISIONES.md) #7). Conteo por schema en la tabla resumen de [09-TRAZABILIDAD.md §3](09-TRAZABILIDAD.md).
+Total: **32 tablas** en 6 schemas (30 derivadas directamente de un agregado o entidad interna, más `price_adjustments`, identificada en [04-COLUMNAS-CONCEPTUALES.md §9](04-COLUMNAS-CONCEPTUALES.md) como necesaria para preservar el historial append-only de `PriceAdjustment` pese a estar modelada como Value Object compuesto en el dominio — ver justificación completa ahí y en [10-DECISIONES.md](10-DECISIONES.md) #7 —, más `reservation_reminder_dispatches`, mecanismo transversal del job de Reminder sin agregado propietario, mismo criterio que `outbox_event`, [10-DECISIONES.md](10-DECISIONES.md) #121). Conteo por schema en la tabla resumen de [09-TRAZABILIDAD.md §3](09-TRAZABILIDAD.md).
 
 ## 1. Schema `identity`
 
@@ -213,6 +213,14 @@ Total: **31 tablas** en 6 schemas (30 derivadas directamente de un agregado o en
 - **Responsabilidad**: línea fiscal individualmente citable, inmutable tras la emisión de su `invoice`.
 - **Ciclo de vida**: emitida — estado único y terminal, heredado del estado de su `invoice` contenedora.
 - **Relaciones conceptuales**: pertenece a una `invoice` (FK, mismo schema).
+
+### 4.18 `reservation_reminder_dispatches`
+
+- **Propósito**: registrar que ya se envió el recordatorio proactivo de check-out de una `Reservation` — estado operativo del job de Reminder ([persistence/10-DECISIONES.md #121](10-DECISIONES.md)), no una regla de negocio del aggregate `Reservation`.
+- **Agregado propietario**: ninguno — tabla de infraestructura del job `ReservationReminderScanProcessor`, deliberadamente separada del aggregate `Reservation` (mismo criterio de "duplicación deliberada" ya usado en este repo para no mezclar infraestructura con dominio).
+- **Responsabilidad**: idempotencia real ante redelivery _at-least-once_ de BullMQ — `reservation_id` `UNIQUE`, una fila existente es tanto la marca de "ya enviado" como el mecanismo de dedup (un segundo `INSERT` para la misma `Reservation` falla por la constraint).
+- **Ciclo de vida**: una única fila, creada cuando `send-reminder` procesa el job exitosamente — sin actualización ni eliminación.
+- **Relaciones conceptuales**: referencia `reservation_id` (FK, mismo schema, `onDelete: Restrict`).
 
 ## 5. Schema `commerce`
 
