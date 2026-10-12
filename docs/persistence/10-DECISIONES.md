@@ -1287,6 +1287,19 @@ En `reports`, el rango de `fleet-utilization` se deriva del inicio del alquiler 
 
 **Fuera de alcance**: los ~37 specs **unitarios** con fechas fijas (`new Date('2026-…')`). Hoy pasan; solo son riesgo los que comparan contra `Date.now()`, como pasó con `cancel-reservation`. Revisarlos queda como tanda propia si se decide.
 
+## #130 — PR #2 mergeado y ajuste de la protección de `master`
+
+**Qué pasó**: con el CI en 6/6 (#129), el único bloqueo era la aprobación. La protección exigía "Require review from Code Owners", `.github/CODEOWNERS` solo lista a `@hilarionht` (autor del PR) y GitHub no permite aprobar el propio PR. Con `enforce_admins` activo tampoco había bypass de admin. Además, cambiar `CODEOWNERS` dentro del PR no servía, porque GitHub lee el de la rama destino.
+
+**Decisión del usuario**:
+
+- sumar un colaborador con permiso `write` (`gameoverplay26-stack`);
+- desactivar "Require review from Code Owners", manteniendo PR obligatorio, 1 aprobación, los 6 status checks y `enforce_admins`.
+
+El colaborador aprobó y mergeó el PR #2 el 2026-10-12 (merge commit `7fe8315`). `master` local se actualizó con fast-forward.
+
+**Pendiente opcional**: si se quiere volver a exigir revisión de code owners, primero hay que agregar al colaborador en `CODEOWNERS` mediante un PR, y recién después reactivar la opción.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
