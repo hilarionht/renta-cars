@@ -1265,6 +1265,28 @@ El resto lo valida el CI.
 
 **Resultado del CI (run `38180795669`, commit `922da6c`)**: **6 de 6 checks en verde** con Nx 23.3.0 y sin override de axios. El PR #2 queda técnicamente listo; solo falta la aprobación de un CODEOWNER, decisión del usuario.
 
+## #129 — Specs e2e con fechas relativas a "ahora" (helper `support/dates.ts`)
+
+**Contexto**: riesgo abierto de #126. Dos specs ya se habían roto por fechas fijas que quedaron en el pasado: `cancel-reservation` (#124) e `invoices-lifecycle` (#126). El usuario pidió aplicar fechas relativas al resto.
+
+**Clasificación** (no se cambió todo a ciegas):
+
+- **Dependen de "hoy"** porque el test hace check-out/check-in en el momento real de la corrida. Con un `endDate` pasado se suma `LateReturnPenalty` y cambian los montos. Son 8 specs: `audit-log`, `customer-self-service`, `invoices-lifecycle`, `payments-lifecycle`, `reports`, `reservation-invoice-notifications`, `reservations-lifecycle` y `reservations-list-pagination`.
+- **Bombas a futuro**: `expiryDate: 2030-01-01` de documentos (en 8 specs) y el rango "2020..2030" de `reports`.
+- **No dependen de "hoy"**: `availability-check` siembra slots con fechas fijas y consulta esas mismas fechas, y `vehicles-lifecycle` agenda un mantenimiento sin relación con hoy. Son deterministas y **se dejan como están**. Lo mismo vale para `validFrom: 2026-01-01` de las tarifas (una tarifa vigente desde el pasado es válida para siempre).
+
+**Qué se hizo**: helper `apps/api-e2e/src/support/dates.ts`:
+
+- `futureRentalWindow()`/`futureRentalDates()`: alquiler que empieza en +30 días a las 10:00 UTC y dura 3 días. Mismo `RentalFee` que antes (3 × 50.000).
+- `farFutureExpiryDate()`: hoy + 5 años.
+- `utcDayFromNow()` y `addDays()`.
+
+En `reports`, el rango de `fleet-utilization` se deriva del inicio del alquiler (de D−9 a D+1 a las 00:00) para conservar exactamente la aserción `totalDays: 10` / `occupiedDays ≈ 0.5833` (14 h dentro del rango). `futureRentalDates()` existe porque esparcir la ventana completa en un body mandaría `start` (un `Date`) y el DTO lo rechazaría.
+
+**Verificación**: lint y `tsc` de `api-e2e` en verde. Los specs los corre el CI (decisión (c) de #124); el resultado se agrega abajo.
+
+**Fuera de alcance**: los ~37 specs **unitarios** con fechas fijas (`new Date('2026-…')`). Hoy pasan; solo son riesgo los que comparan contra `Date.now()`, como pasó con `cancel-reservation`. Revisarlos queda como tanda propia si se decide.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
