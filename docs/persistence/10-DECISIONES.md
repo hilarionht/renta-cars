@@ -1283,7 +1283,7 @@ El resto lo valida el CI.
 
 En `reports`, el rango de `fleet-utilization` se deriva del inicio del alquiler (de D−9 a D+1 a las 00:00) para conservar exactamente la aserción `totalDays: 10` / `occupiedDays ≈ 0.5833` (14 h dentro del rango). `futureRentalDates()` existe porque esparcir la ventana completa en un body mandaría `start` (un `Date`) y el DTO lo rechazaría.
 
-**Verificación**: lint y `tsc` de `api-e2e` en verde. Los specs los corre el CI (decisión (c) de #124); el resultado se agrega abajo.
+**Verificación**: lint y `tsc` de `api-e2e` en verde. Los specs los corre el CI (decisión (c) de #124). **Resultado: run `38198924416` (commit `0c5af85`), 6 de 6 checks en verde**, con los 20 specs e2e pasando con fechas relativas.
 
 **Fuera de alcance**: los ~37 specs **unitarios** con fechas fijas (`new Date('2026-…')`). Hoy pasan; solo son riesgo los que comparan contra `Date.now()`, como pasó con `cancel-reservation`. Revisarlos queda como tanda propia si se decide.
 
