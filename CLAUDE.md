@@ -41,7 +41,7 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 4. **Escalamiento humano** cuando una `Notification` `Confirmation` agota todos los canales (`#94`) — mecanismo sin diseñar todavía.
 5. **Push (Expo) solo conectado a `Reminder`** — no a `Confirmation`/`Receipt`, por decisión explícita de acotar alcance en `#122`.
 6. **Sin `extra.eas.projectId`** vinculado en `apps/mobile/app.json` — requiere una cuenta EAS real (acción externa). Sin esto, `getExpoPushTokenAsync()` no puede obtener un token real en ningún entorno de desarrollo.
-7. **Validación visual manual** (`apps/api` + `apps/mobile` en modo web): ya se puede hacer. Hay datos y credenciales con `npm run db:seed`, y el OTP de cliente sale de `npm run dev:last-otp` (ver `docs/engineering/11-ENTORNO-LOCAL-NATIVO.md` §5). Falta que el usuario la recorra.
+7. **Validación visual manual**: el API y los datos están listos (`npm run db:seed`, `npm run dev:last-otp`, guía §5), pero **el bundle web de `apps/mobile` no compila** en esta máquina Windows (ver #131: árbol duplicado de `node_modules`, resolución de Metro y `NX_WORKSPACE_ROOT_PATH` con la unidad en minúscula). Requiere una tanda dedicada al toolchain de mobile, junto con el ítem 3, antes de poder recorrer la app.
 
 ## Entorno — cómo levantar todo
 
