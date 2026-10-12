@@ -107,7 +107,7 @@ describe('AvailabilityService', () => {
       const vehicleStatusPort = {} as VehicleStatusPort;
       const service = new AvailabilityService(vehicleStatusPort, calendarPort);
 
-      await service.release('vehicle-1');
+      await service.release('vehicle-1', 'reservation-1');
 
       expect(calendarPort.release).not.toHaveBeenCalled();
     });
@@ -123,9 +123,43 @@ describe('AvailabilityService', () => {
       const vehicleStatusPort = {} as VehicleStatusPort;
       const service = new AvailabilityService(vehicleStatusPort, calendarPort);
 
-      await service.release('vehicle-1');
+      await service.release('vehicle-1', 'reservation-1');
 
+      expect(calendarPort.findActiveSlotId).toHaveBeenCalledWith(
+        'vehicle',
+        'vehicle-1',
+        'reservation-1',
+      );
       expect(calendarPort.release).toHaveBeenCalledWith('slot-1');
+    });
+
+    // Regresion de docs/persistence/10-DECISIONES.md #132: con dos reservas futuras del mismo
+    // vehiculo hay dos slots Active - liberar la reserva A nunca debe liberar el slot de B.
+    it('con dos reservas del mismo vehiculo, libera solo el slot de la reserva indicada', async () => {
+      const activeSlots = [
+        { id: 'slot-reserva-b', resourceId: 'vehicle-1', referenceId: 'reservation-b' },
+        { id: 'slot-reserva-a', resourceId: 'vehicle-1', referenceId: 'reservation-a' },
+      ];
+      const calendarPort: CalendarPort = {
+        isAvailable: jest.fn(),
+        occupy: jest.fn(),
+        release: jest.fn().mockResolvedValue(undefined),
+        findActiveSlotId: jest.fn((_type: string, resourceId: string, referenceId: string) =>
+          Promise.resolve(
+            activeSlots.find(
+              (slot) => slot.resourceId === resourceId && slot.referenceId === referenceId,
+            )?.id ?? null,
+          ),
+        ),
+        findOccupiedResourceIds: jest.fn(),
+      };
+      const vehicleStatusPort = {} as VehicleStatusPort;
+      const service = new AvailabilityService(vehicleStatusPort, calendarPort);
+
+      await service.release('vehicle-1', 'reservation-a');
+
+      expect(calendarPort.release).toHaveBeenCalledTimes(1);
+      expect(calendarPort.release).toHaveBeenCalledWith('slot-reserva-a');
     });
   });
 
@@ -154,6 +188,11 @@ describe('AvailabilityService', () => {
       await service.moveOccupancy('company-1', 'vehicle-1', range(), 'reservation-1');
 
       expect(callOrder).toEqual(['findActiveSlotId', 'occupy', 'release']);
+      expect(calendarPort.findActiveSlotId).toHaveBeenCalledWith(
+        'vehicle',
+        'vehicle-1',
+        'reservation-1',
+      );
       expect(calendarPort.release).toHaveBeenCalledWith('old-slot-id');
     });
 

@@ -56,12 +56,16 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
     await this.releaseSlot.execute({ slotId });
   }
 
-  async findActiveSlotId(resourceType: string, resourceId: string): Promise<string | null> {
+  async findActiveSlotId(
+    resourceType: string,
+    resourceId: string,
+    referenceId: string,
+  ): Promise<string | null> {
     const { companyId } = this.requestContext.get();
     const record = await this.readTransaction.run(
       (tx) =>
         tx.availabilitySlot.findFirst({
-          where: { resourceType, resourceId, status: 'Active' },
+          where: { resourceType, resourceId, referenceId, status: 'Active' },
           select: { id: true },
         }),
       companyId,

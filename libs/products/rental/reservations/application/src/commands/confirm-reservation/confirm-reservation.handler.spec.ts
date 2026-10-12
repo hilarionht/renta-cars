@@ -197,6 +197,9 @@ describe('ConfirmReservationHandler', () => {
     await expect(
       handler.execute({ companyId: 'company-1', reservationId: reservation.id.toString() }),
     ).rejects.toThrow('concurrent modification');
-    expect(availabilityService.release).toHaveBeenCalledWith('vehicle-1');
+    expect(availabilityService.release).toHaveBeenCalledWith(
+      'vehicle-1',
+      reservation.id.toString(),
+    );
   });
 });

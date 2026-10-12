@@ -62,10 +62,12 @@ export class AvailabilityService {
     }
   }
 
-  // No-op si no hay ningun AvailabilitySlot Active para el Vehicle (ya liberado, o nunca
-  // se ocupo - p. ej. cancelar un Draft, ver Hallazgo #4 del plan de implementacion).
-  async release(vehicleId: string): Promise<void> {
-    const slotId = await this.calendarPort.findActiveSlotId('vehicle', vehicleId);
+  // No-op si no hay ningun AvailabilitySlot Active de ESTA reserva para el Vehicle (ya
+  // liberado, o nunca se ocupo - p. ej. cancelar un Draft, ver Hallazgo #4 del plan de
+  // implementacion). Por reservationId, nunca solo por vehiculo: un vehiculo tiene un slot
+  // Active por cada reserva futura (docs/persistence/10-DECISIONES.md #132).
+  async release(vehicleId: string, reservationId: string): Promise<void> {
+    const slotId = await this.calendarPort.findActiveSlotId('vehicle', vehicleId, reservationId);
     if (!slotId) {
       return;
     }
@@ -84,7 +86,7 @@ export class AvailabilityService {
     newRange: DateRange,
     reservationId: string,
   ): Promise<void> {
-    const oldSlotId = await this.calendarPort.findActiveSlotId('vehicle', vehicleId);
+    const oldSlotId = await this.calendarPort.findActiveSlotId('vehicle', vehicleId, reservationId);
     await this.reserve(companyId, vehicleId, newRange, reservationId);
     if (oldSlotId) {
       await this.calendarPort.release(oldSlotId);

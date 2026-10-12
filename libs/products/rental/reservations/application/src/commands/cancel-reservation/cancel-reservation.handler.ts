@@ -57,7 +57,7 @@ export class CancelReservationHandler {
 
     // Draft nunca ocupo el slot (RN-05, Hallazgo #4) - solo se libera si venia Confirmed.
     if (wasConfirmed) {
-      await this.availabilityService.release(reservation.vehicleId);
+      await this.availabilityService.release(reservation.vehicleId, reservation.id.toString());
     }
 
     await this.unitOfWork.run(async (tx) => {
