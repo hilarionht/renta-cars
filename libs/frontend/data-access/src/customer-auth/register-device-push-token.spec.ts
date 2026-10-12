@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 
 import { customerApiRequest } from './customer-api-client';
@@ -10,17 +11,39 @@ jest.mock('expo-notifications', () => ({
   PermissionStatus: { GRANTED: 'granted', DENIED: 'denied', UNDETERMINED: 'undetermined' },
 }));
 
+// executionEnvironment mutable por test: 'storeClient' = Expo Go (#133). El objeto se crea
+// dentro del factory (jest.mock se eleva por encima de cualquier const del modulo).
 jest.mock('expo-constants', () => ({
-  expoConfig: { extra: { eas: { projectId: 'project-1' } } },
+  __esModule: true,
+  default: {
+    executionEnvironment: 'standalone',
+    expoConfig: { extra: { eas: { projectId: 'project-1' } } },
+  },
+  ExecutionEnvironment: { Bare: 'bare', Standalone: 'standalone', StoreClient: 'storeClient' },
 }));
 
 jest.mock('./customer-api-client', () => ({
   customerApiRequest: jest.fn(),
 }));
 
+const mockConstants = Constants as unknown as { executionEnvironment: string };
+
 describe('registerDevicePushToken', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockConstants.executionEnvironment = 'standalone';
+  });
+
+  // Regresion de docs/persistence/10-DECISIONES.md #133: en Expo Go (Android) importar
+  // expo-notifications lanza al cargar - registerDevicePushToken() no debe tocarlo.
+  it('en Expo Go no pide permisos, no obtiene token ni registra nada', async () => {
+    mockConstants.executionEnvironment = 'storeClient';
+
+    await registerDevicePushToken();
+
+    expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
+    expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+    expect(customerApiRequest).not.toHaveBeenCalled();
   });
 
   it('si el permiso ya estaba concedido, no lo vuelve a pedir y registra el token', async () => {
