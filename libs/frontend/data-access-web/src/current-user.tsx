@@ -24,9 +24,9 @@ export function useCurrentUser() {
 
 export interface Permissions {
   isLoading: boolean;
-  has(permission: string): boolean;
-  hasAny(permissions: readonly string[]): boolean;
-  hasAnyWithPrefix(prefixes: readonly string[]): boolean;
+  has: (permission: string) => boolean;
+  hasAny: (permissions: readonly string[]) => boolean;
+  hasAnyWithPrefix: (prefixes: readonly string[]) => boolean;
 }
 
 export function buildPermissions(granted: readonly string[] | undefined, isLoading: boolean) {

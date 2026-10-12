@@ -40,9 +40,9 @@ export type LoginResult = { mfaRequired: false } | { mfaRequired: true; mfaChall
 interface WebAuthContextValue {
   status: AuthStatus;
   api: ApiClient;
-  login(input: LoginInput): Promise<LoginResult>;
-  verifyMfa(input: { companyId: string; mfaChallengeId: string; code: string }): Promise<void>;
-  logout(): Promise<void>;
+  login: (input: LoginInput) => Promise<LoginResult>;
+  verifyMfa: (input: { companyId: string; mfaChallengeId: string; code: string }) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const webAuthContext = createContext<WebAuthContextValue | null>(null);
