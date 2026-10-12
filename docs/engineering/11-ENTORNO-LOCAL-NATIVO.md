@@ -136,6 +136,7 @@ npm run smoke:reminder   # smoke de punta a punta del Reminder: PASS/FAIL con ex
 ode_modules -Target <raíz>
 ode_modules` en Windows, `ln -s ../../node_modules apps/mobile/node_modules` en macOS/Linux. Nunca correr `npm install` dentro de `apps/mobile`: crea un árbol con otras versiones y Metro no resuelve las libs del workspace.
 - **Mobile en un celular (Expo Go)**: `cd apps/mobile`, con `EXPO_PUBLIC_API_URL=http://<IP-de-la-PC>:3000` y `npx expo start --lan`. En Expo Go se abre `exp://<IP-de-la-PC>:8081`; celular y PC tienen que estar en la misma red y el firewall tiene que permitir Node. Si el editor exporta `NX_WORKSPACE_ROOT_PATH` con la unidad en minúscula, hay que corregirla. La versión web de mobile no es viable por diseño (SecureStore).
+- **Web de administración (#134)**: `npx nx dev web-admin` (puerto **4200**), o `npx nx run web-admin:build` y después `npx next start --port 4200` dentro de `apps/web-admin` para probar la CSP estricta de producción. En el `.env` raíz, `CORS_ORIGINS` tiene que incluir `http://localhost:4200`. En `apps/web-admin/.env.local` (copiado de `.env.local.example`) se puede poner `NEXT_PUBLIC_DEFAULT_COMPANY_ID` con el `companyId` del seed. Login: el admin del seed.
 - **Empezar de cero**: `npx prisma migrate reset` (borra la base local; Prisma pide confirmación explícita) y después `npm run db:seed`. Si quedaron jobs viejos en BullMQ, `memurai-cli FLUSHDB` vacía el Redis local.
 
 Mobile: `cd apps/mobile && npx expo start --web`.

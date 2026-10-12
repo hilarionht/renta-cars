@@ -6,7 +6,7 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#133` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#134` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
 ## Última sesión (2026-10-10 a 2026-10-12) — leer primero
 
@@ -24,7 +24,7 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
-- **`apps/web-admin`** sigue siendo un stub de bootstrap puro (una página con `<h1>` y un ping a `/health/ready`) — nunca se construyó de verdad. Si el próximo paso implica UI de staff en navegador, ahí no hay nada que reusar.
+- **`apps/web-admin`**: en construcción por incrementos (#134). El **Incremento 1 (fundaciones)** está hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. Siguen Reservas (2), Flota (3), Clientes (4) y Administración (5). Arquitectura y restricciones en #134 y `docs/06` §3.
 - Últimas 3 decisiones: `#121` (Reminder de reservas, BullMQ + rol `platform_admin`/BYPASSRLS), `#122` (Push de Expo conectado a Reminder), `#123` (`GET /vehicles?expand=vehicleCategory`, primera implementación real del mecanismo `?expand=`, + pantalla de búsqueda de vehículos en mobile).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)

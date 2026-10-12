@@ -1395,6 +1395,89 @@ Spec nuevo para el caso Expo Go: `frontend-data-access` pasa 53 de 53 tests.
 - El firewall de Windows tiene que permitir Node en esa red.
 - Push no se puede validar en Expo Go: hace falta un development build y el `projectId` de EAS (ítem 6).
 
+## #134 — Web de administración: hoja de ruta e Incremento 1 (fundaciones)
+
+**Contexto**: `apps/web-admin` era un stub del bootstrap. El usuario decidió construir la web de administración de verdad:
+
+- **alcance v1**: Reservas, Flota, Clientes y Administración de la empresa;
+- **estilo**: design system propio, sin dependencias de UI;
+- **usuarios**: una sola web, con menú y acciones según permisos.
+
+El plan se validó con un agente Plan contra el código, y sus correcciones están incorporadas. **Hoja de ruta, un PR por incremento**:
+
+1. fundaciones (esta entrada);
+2. Reservas;
+3. Flota;
+4. Clientes;
+5. Administración.
+
+**Backend (2 endpoints nuevos, `libs/platform/users`)**:
+
+- `GET /users/me`: perfil más **permisos efectivos**. Se resuelven con `ROLE_LOOKUP_PORT.getPermissionsForRoles()` a partir de los roles del **token**, igual que `PermissionGuard`. Se declara **antes** de `@Get(':id')` (si no, `ParseUUIDPipe` responde 400) y lleva `@RequireStaffActor()`, así que un token de Customer recibe 403.
+- `GET /users`: listado paginado por cursor, mismo patrón que #112, sin permiso, porque **leer es libre para el personal**: el catálogo no tiene permisos `:read` salvo `audit:read`.
+- Los dos handlers pasan `companyId` explícito a `ReadTransaction.run()` (lección de #131).
+
+**Separación de `data-access`** (libs separadas, no entry points, con el mismo precedente que `ui-kit-*`):
+
+- `@frontend/data-access-core` (agnóstica): `ApiError`, que suma un `code` opcional del problem details; `AuthenticationExpiredError`; `decodeAccessToken`; y `createApiClient` con transporte inyectable y **un único** reintento ante 401.
+- `@frontend/data-access` queda para mobile y **reexporta** de core: cero cambios en `apps/mobile` (47 de 47 tests).
+- `@frontend/data-access-web` (`platform:web`):
+  - `WebAuthProvider`;
+  - `useCurrentUser`, `usePermissions` y `Can`.
+
+**Autenticación web** (llamada directa al API, **sin BFF**):
+
+- **Por qué sin BFF**: el rate limit AUTH es de 8/min **por IP** y `main.ts` no tiene `trust proxy`, así que detrás de un BFF todo el personal compartiría una IP. Además habría que forzar `X-Client-Platform`.
+- **Transporte**: el navegador llama con `credentials: 'include'` y sin `X-Client-Platform`. El API emite la cookie `refresh_token` (`HttpOnly`, `SameSite=Strict`) y el access token vive **solo en memoria**.
+- **Riesgo crítico mitigado**: el API **revoca todas las sesiones del usuario** si se reusa un refresh ya rotado (`session-security.service.ts`). `createRefreshCoordinator` aplica _single-flight_ dentro de la pestaña y Web Locks (`navigator.locks`) entre pestañas. Tiene test con StrictMode (un solo refresh al montar) y lo validó el usuario con dos pestañas.
+- **`apps/web-admin/src/proxy.ts`** (Next 16 renombró `middleware` a `proxy`):
+  - pone una **CSP con nonce por request**; la CSP estática de `next.config.js` bloqueaba los scripts inline del App Router;
+  - redirige según la cookie **indicadora** `renta_session=1`, que no contiene secretos.
+- El layout raíz es dinámico (`await headers()`), como exige el nonce.
+
+**Desviaciones de `docs/06-CONVENCIONES-FRONTEND.md` §3** (se reescribe §3):
+
+- La "validación de la sesión en middleware contra el backend" se reemplaza por la cookie indicadora más la autorización del API en cada request. Validar de verdad en el proxy exigiría un refresh por navegación, que rota el token, o un endpoint de introspección.
+- Los datos se piden desde **componentes cliente** con React Query: el token vive en memoria del navegador, así que los Server Components no pueden llamar al API autenticados.
+
+**Restricción de despliegue (nueva)**: API y web tienen que compartir **dominio registrable** (por ejemplo `admin.x.com` y `api.x.com`) para que `SameSite=Strict` funcione. No sirven sufijos públicos como `*.vercel.app` u `*.onrender.com`.
+
+**Design system web (`ui-kit-web`)**:
+
+- **Tokens**: `styles/tokens.css` con variables CSS de `ui-kit-core/tokens.ts`. Es un archivo estático, por la CSP, y `tokens.spec.ts` falla si se desincroniza. `ui-kit-core` suma colores de estado (solo claves nuevas; mobile no cambia).
+- **Primitivas** (CSS Modules): `Button`, `Spinner`, `TextField`, `Select`, `Badge`, `Alert`, `PageHeader`, `Table`, `Dialog` y `ConfirmDialog`.
+- **Detalles de implementación**:
+  - `ref` como prop (React 19);
+  - `'use client'` solo donde hay hooks;
+  - `Table` es server-compatible porque recibe funciones `render`.
+
+**App**:
+
+- **Rutas públicas** `(auth)`: login con paso MFA y `?next=` sin open redirect, "olvidé mi contraseña" y reset con el token pegado a mano.
+- **Área protegida** `(admin)`: shell con sidebar y header.
+  - El menú está mapeado en `lib/navigation.ts`: Reservas, Flota y Clientes siempre; Administración solo con algún permiso `users:`, `roles:`, `branches:`, `settings:`, `companies:` o `audit:`.
+  - El inicio muestra los próximos retiros y los vehículos en alquiler.
+  - Los módulos de los incrementos 2 a 5 están como placeholders.
+- **Puerto 4200** (el API usa el 3000) y `NEXT_PUBLIC_DEFAULT_COMPANY_ID` opcional para desarrollo.
+
+**Verificación**:
+
+- **Tests unitarios**: `users` 5/5, `data-access-core` 13/13, `data-access-web` 14/14, `ui-kit-web` 36/36, `web-admin` 8/8 (menú y proxy), y mobile sin regresión (lint, `tsc`, 47/47).
+- **`next build`**: en verde.
+- **Smoke en vivo** con el API real y `next start`:
+  - sin sesión, redirección 307 a `/login`;
+  - CSP con nonce en todos los scripts y sin estilos inline;
+  - CORS con credenciales;
+  - login web con la cookie `HttpOnly`/`SameSite=Strict` y body solo con `accessToken`;
+  - refresh por cookie, `users/me` (44 permisos) y logout (un refresh posterior da 401).
+- **Validación visual del usuario en el navegador**: OK.
+
+**Gaps aceptados**:
+
+- Las fechas se muestran en la zona horaria del navegador; la de la Branch llega con Reservas (Incremento 2).
+- El email de reset trae el token en crudo, sin link.
+- Validar la sesión en el proxy queda descartado (ver desviaciones).
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

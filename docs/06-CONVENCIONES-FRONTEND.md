@@ -30,10 +30,11 @@ Regla de dependencia: `features` → `data-access` + `ui-kit` → `domain-types`
 ## 3. Next.js (Administración)
 
 - **App Router** (no Pages Router): alineado con el soporte a largo plazo de Next.js y con Server Components donde reducen payload al cliente sin necesidad real de interactividad.
-- **Server Components por defecto**, `"use client"` solo donde hay estado/interactividad/hooks de navegador. No se marca un árbol completo como client por comodidad.
+- **Server Components por defecto**, `"use client"` solo donde hay estado/interactividad/hooks de navegador. No se marca un árbol completo como client por comodidad. **Excepción vigente** ([#134](persistence/10-DECISIONES.md)): toda pantalla que pide datos del API es un componente cliente con React Query, porque el access token vive solo en memoria del navegador y un Server Component no puede llamar al API autenticado.
 - **Organización por feature, no por tipo de archivo**: `app/(admin)/reservations/`, no `components/`, `hooks/`, `pages/` como agrupación de primer nivel a través de todo el proyecto.
-- **Mutaciones**: vía Server Actions para formularios simples ligados a una sola pantalla administrativa; vía `data-access` (React Query mutations) cuando el estado debe reflejarse en múltiples partes de la UI o requiere optimistic updates.
-- **Autenticación**: sesión validada en middleware de Next.js contra el backend (verificación de JWT/refresh), redirecciones de rutas protegidas centralizadas, nunca repetidas por página.
+- **Mutaciones**: vía `data-access` (React Query mutations), por el mismo motivo que la excepción anterior: las Server Actions no tienen el access token ([#134](persistence/10-DECISIONES.md)).
+- **Autenticación** ([#134](persistence/10-DECISIONES.md)): el navegador llama directo al API (`credentials: 'include'`). El refresh viaja en la cookie `httpOnly` del API y el access token queda en memoria, con refresh _single-flight_ y Web Locks entre pestañas. Las redirecciones de rutas protegidas están centralizadas en `src/proxy.ts` (Next 16), según una cookie **indicadora** sin secretos (`renta_session`). El proxy **no** valida el JWT contra el backend, porque eso exigiría rotar el refresh en cada navegación; la autorización real la hace el API en cada request. `proxy.ts` también emite la CSP con nonce por request.
+- **Despliegue**: API y web tienen que compartir dominio registrable (por ejemplo `admin.x.com` y `api.x.com`) para que la cookie `SameSite=Strict` funcione. No sirven sufijos públicos como `*.vercel.app`.
 
 ## 4. React Native / Expo (Móvil)
 
@@ -43,12 +44,12 @@ Regla de dependencia: `features` → `data-access` + `ui-kit` → `domain-types`
 
 ## 5. Estado
 
-| Tipo de estado | Herramienta | Dónde |
-|---|---|---|
-| Estado de servidor (datos de la API) | React Query | `data-access` |
-| Estado de sesión/autenticación | Context ligero + almacenamiento seguro (cookies httpOnly en web, SecureStore en Expo) | `data-access/auth` |
-| Estado de UI local (form abierto, tab activo) | `useState`/`useReducer` local al componente | Feature/componente |
-| Estado compartido entre features de una misma app, no persistente | Context puntual, evaluado caso por caso | App específica |
+| Tipo de estado                                                    | Herramienta                                                                           | Dónde              |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------ |
+| Estado de servidor (datos de la API)                              | React Query                                                                           | `data-access`      |
+| Estado de sesión/autenticación                                    | Context ligero + almacenamiento seguro (cookies httpOnly en web, SecureStore en Expo) | `data-access/auth` |
+| Estado de UI local (form abierto, tab activo)                     | `useState`/`useReducer` local al componente                                           | Feature/componente |
+| Estado compartido entre features de una misma app, no persistente | Context puntual, evaluado caso por caso                                               | App específica     |
 
 **Explícitamente evitado**: una librería global de estado (Redux/Zustand/Recoil) como contenedor único de "todo el estado de la app". El estado de servidor ya lo gestiona React Query; introducir un segundo store duplica la fuente de verdad. Se reevalúa solo si aparece un caso real de estado de cliente complejo y compartido que React Query no cubre.
 
@@ -88,10 +89,10 @@ Regla de dependencia: `features` → `data-access` + `ui-kit` → `domain-types`
 
 ## 12. Errores comunes a evitar
 
-| Error común | Corrección |
-|---|---|
-| Fetch directo dentro de un componente de página | Usar el hook de `data-access` correspondiente |
-| Recalcular en frontend si una reserva es válida (fechas, disponibilidad) | Confiar en la respuesta del backend; el frontend solo da feedback optimista |
-| Componente de `ui-kit` que importa un hook de `data-access` | Invertir: la feature inyecta los datos al componente vía props |
-| Estado de sesión duplicado en Context y en React Query a la vez | Una sola fuente de verdad para sesión, en `data-access/auth` |
-| Nueva pantalla mobile que reimplementa una llamada API ya existente en web | Reutilizar el hook de `data-access`, no reescribir la llamada |
+| Error común                                                                | Corrección                                                                  |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Fetch directo dentro de un componente de página                            | Usar el hook de `data-access` correspondiente                               |
+| Recalcular en frontend si una reserva es válida (fechas, disponibilidad)   | Confiar en la respuesta del backend; el frontend solo da feedback optimista |
+| Componente de `ui-kit` que importa un hook de `data-access`                | Invertir: la feature inyecta los datos al componente vía props              |
+| Estado de sesión duplicado en Context y en React Query a la vez            | Una sola fuente de verdad para sesión, en `data-access/auth`                |
+| Nueva pantalla mobile que reimplementa una llamada API ya existente en web | Reutilizar el hook de `data-access`, no reescribir la llamada               |
