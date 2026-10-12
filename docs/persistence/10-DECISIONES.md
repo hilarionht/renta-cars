@@ -1287,6 +1287,31 @@ En `reports`, el rango de `fleet-utilization` se deriva del inicio del alquiler 
 
 **Fuera de alcance**: los ~37 specs **unitarios** con fechas fijas (`new Date('2026-…')`). Hoy pasan; solo son riesgo los que comparan contra `Date.now()`, como pasó con `cancel-reservation`. Revisarlos queda como tanda propia si se decide.
 
+## #131 — Seed de desarrollo + smoke test del Reminder: 3 bugs reales encontrados (EN CURSO)
+
+**Contexto**: backlog A+B+C (plan aprobado por el usuario): seed de desarrollo reutilizable, smoke test de punta a punta del Reminder (#121, que nunca se había probado con datos reales) y validación manual de la app. Rama `feat/dev-seed-smoke`.
+
+**Construido**:
+
+- `npm run db:seed` (`tooling/scripts/db/seed.ts`, antes vacío). Company demo idempotente por `taxId` `DEMO-RENTA-001`. El admin se crea con insert directo (UUID v7, catálogo completo de permisos, credenciales **solo de desarrollo** `admin@demo.renta.local` / `Demo!Renta2026`). Todo lo demás va por la API real: sucursal, categoría con tarifa, 2 vehículos y 2 clientes verificados, R1 `Confirmed` en +2 h y R2 `Confirmed` en +3 días. Salida en `tooling/scripts/db/.output/dev-seed.json` (ignorado por git). Verificado: la primera corrida crea todo; la segunda no duplica.
+- `npm run dev:last-otp -- <telefono>`: muestra el último OTP de cliente. El proveedor fake lo guarda en `support.fake_notification_sends.template_params.code`.
+- `npm run smoke:reminder` (`tooling/scripts/smoke/reminder.ts`): crea su propia reserva en la ventana del Reminder, encola el scan en la cola BullMQ real, verifica dispatch, envío, auditoría del bypass e idempotencia, y cancela la reserva al final.
+
+**Bug real #1 (ya corregido en #124)**: la auditoría del bypass con `action` inválido.
+
+**Bug real #2 — corregido en esta tanda**: ningún recordatorio llegaba a enviarse. `SendNotificationHandler` llama a `PrismaSettingsLookupAdapter.getNotificationChannelPreference(companyId)`, y los **9** métodos del adaptador usaban `ReadTransaction.run()` **sin** el `companyId` que ya recibían, así que caían al `RequestContext` del request HTTP. En el worker BullMQ no hay request, el job fallaba con "RequestContext no inicializado" y la `Notification` `Reminder` quedaba en `Pending`. Las `Confirmation` funcionaban porque se emiten dentro de un request. Fix: los 9 métodos pasan su `companyId`; en HTTP el resultado es idéntico. Se agregó `prisma-settings-lookup.adapter.spec.ts` (unitario, 9/9 en verde localmente sin el `globalSetup`; en CI corre con el proyecto). **Verificado en vivo**: el smoke contra el API sin arreglar reproduce la falla (dispatch=1, envíos=0); con el arreglo, una reserva nueva en la ventana deja 1 envío y su `Notification` en `Sent`.
+
+**Gap encontrado (sin corregir, decisión pendiente)**: `SendReservationReminderProcessor` registra el dispatch **antes** de enviar (idempotencia ante redelivery de BullMQ). Si el envío falla, el recordatorio **no se reintenta nunca**: es una garantía de "como mucho una vez". Las 2 `Notification` que quedaron en `Pending` antes del fix #2 son ejemplo de eso.
+
+**Bug real #3 — GRAVE, sin corregir, requiere aprobación**: `AvailabilityService.release(vehicleId)` libera "el" slot activo del vehículo (`CalendarPort.findActiveSlotId('vehicle', vehicleId)`), como si cada vehículo pudiera tener uno solo. Con varias reservas futuras del mismo vehículo, que es lo normal, **libera el slot de otra reserva**. Reproducido en vivo: cancelar la reserva del smoke liberó el slot de **R2 (que sigue `Confirmed`)**, y el slot de la cancelada quedó `Active`. Impactos:
+
+- el vehículo queda bloqueado en un rango sin reserva;
+- **las fechas de una reserva confirmada quedan libres para otra reserva (doble reserva)**.
+
+Afecta a las 6 operaciones que liberan ocupación: cancelar, check-in, el rollback de confirmar, no-show, cambio de vehículo y `moveOccupancy` (reprogramar o extender). No figuraba como gap aceptado: la única ambigüedad documentada era la transitoria de `moveOccupancy`. La base de desarrollo local quedó con datos inconsistentes por esta reproducción; se regenera con el seed después del fix.
+
+**Pendiente**: aprobación del usuario para corregir el bug #3 (liberar por `reservationId` de la reserva, no por vehículo); decisión sobre el gap de "como mucho una vez"; validación manual (C).
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
