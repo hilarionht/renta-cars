@@ -30,8 +30,15 @@ export interface CalendarPort {
   // Agregado para AvailabilityService.release() (docs/persistence/10-DECISIONES.md #59) -
   // Reservation no contiene el AvailabilitySlot ("no se persiste ni cachea", docs/model/
   // 02-AGGREGATES.md SS11), asi que necesita resolver el slotId activo antes de poder
-  // llamar release(slotId). null = no hay slot Active para ese recurso.
-  findActiveSlotId(resourceType: string, resourceId: string): Promise<string | null>;
+  // llamar release(slotId). null = no hay slot Active para ese recurso y referencia.
+  // referenceId OBLIGATORIO (docs/persistence/10-DECISIONES.md #132): un recurso tiene un slot
+  // Active por cada reserva futura, asi que buscar "el" slot activo solo por recurso devolvia
+  // uno cualquiera y release() liberaba la ocupacion de OTRA reserva (doble reserva posible).
+  findActiveSlotId(
+    resourceType: string,
+    resourceId: string,
+    referenceId: string,
+  ): Promise<string | null>;
   // docs/persistence/10-DECISIONES.md #116: version batch de isAvailable - de una lista de
   // candidatos, cuales tienen un AvailabilitySlot Active solapando el rango. Consumidor nuevo
   // y paralelo a AvailabilityService (reservations/application), no la misma ACL - ver #116.

@@ -1300,6 +1300,101 @@ El colaborador aprobó y mergeó el PR #2 el 2026-10-12 (merge commit `7fe8315`)
 
 **Pendiente opcional**: si se quiere volver a exigir revisión de code owners, primero hay que agregar al colaborador en `CODEOWNERS` mediante un PR, y recién después reactivar la opción.
 
+## #131 — Seed de desarrollo + smoke test del Reminder: 3 bugs reales encontrados
+
+**Contexto**: backlog A+B+C (plan aprobado por el usuario): seed de desarrollo reutilizable, smoke test de punta a punta del Reminder (#121, que nunca se había probado con datos reales) y validación manual de la app. Rama `feat/dev-seed-smoke`.
+
+**Construido**:
+
+- `npm run db:seed` (`tooling/scripts/db/seed.ts`, antes vacío). Company demo idempotente por `taxId` `DEMO-RENTA-001`. El admin se crea con insert directo (UUID v7, catálogo completo de permisos, credenciales **solo de desarrollo** `admin@demo.renta.local` / `Demo!Renta2026`). Todo lo demás va por la API real: sucursal, categoría con tarifa, 2 vehículos y 2 clientes verificados, R1 `Confirmed` en +2 h y R2 `Confirmed` en +3 días. Salida en `tooling/scripts/db/.output/dev-seed.json` (ignorado por git). Verificado: la primera corrida crea todo; la segunda no duplica.
+- `npm run dev:last-otp -- <telefono>`: muestra el último OTP de cliente. El proveedor fake lo guarda en `support.fake_notification_sends.template_params.code`.
+- `npm run smoke:reminder` (`tooling/scripts/smoke/reminder.ts`): crea su propia reserva en la ventana del Reminder, encola el scan en la cola BullMQ real, verifica dispatch, envío, auditoría del bypass e idempotencia, y cancela la reserva al final.
+
+**Bug real #1 (ya corregido en #124)**: la auditoría del bypass con `action` inválido.
+
+**Bug real #2 — corregido en esta tanda**: ningún recordatorio llegaba a enviarse. `SendNotificationHandler` llama a `PrismaSettingsLookupAdapter.getNotificationChannelPreference(companyId)`, y los **9** métodos del adaptador usaban `ReadTransaction.run()` **sin** el `companyId` que ya recibían, así que caían al `RequestContext` del request HTTP. En el worker BullMQ no hay request, el job fallaba con "RequestContext no inicializado" y la `Notification` `Reminder` quedaba en `Pending`. Las `Confirmation` funcionaban porque se emiten dentro de un request. Fix: los 9 métodos pasan su `companyId`; en HTTP el resultado es idéntico. Se agregó `prisma-settings-lookup.adapter.spec.ts` (unitario, 9/9 en verde localmente sin el `globalSetup`; en CI corre con el proyecto). **Verificado en vivo**: el smoke contra el API sin arreglar reproduce la falla (dispatch=1, envíos=0); con el arreglo, una reserva nueva en la ventana deja 1 envío y su `Notification` en `Sent`.
+
+**Gap encontrado (sin corregir, decisión pendiente)**: `SendReservationReminderProcessor` registra el dispatch **antes** de enviar (idempotencia ante redelivery de BullMQ). Si el envío falla, el recordatorio **no se reintenta nunca**: es una garantía de "como mucho una vez". Las 2 `Notification` que quedaron en `Pending` antes del fix #2 son ejemplo de eso.
+
+**Bug real #3 — GRAVE, sin corregir, requiere aprobación**: `AvailabilityService.release(vehicleId)` libera "el" slot activo del vehículo (`CalendarPort.findActiveSlotId('vehicle', vehicleId)`), como si cada vehículo pudiera tener uno solo. Con varias reservas futuras del mismo vehículo, que es lo normal, **libera el slot de otra reserva**. Reproducido en vivo: cancelar la reserva del smoke liberó el slot de **R2 (que sigue `Confirmed`)**, y el slot de la cancelada quedó `Active`. Impactos:
+
+- el vehículo queda bloqueado en un rango sin reserva;
+- **las fechas de una reserva confirmada quedan libres para otra reserva (doble reserva)**.
+
+Afecta a las 6 operaciones que liberan ocupación: cancelar, check-in, el rollback de confirmar, no-show, cambio de vehículo y `moveOccupancy` (reprogramar o extender). No figuraba como gap aceptado: la única ambigüedad documentada era la transitoria de `moveOccupancy`. La base de desarrollo local quedó con datos inconsistentes por esta reproducción; se regenera con el seed después del fix.
+
+**Cierre (2026-10-12)**: con el usuario se decidió corregir el bug #3 (ver **#132**) y **solo documentar** el gap de "como mucho una vez" del Reminder. Ese gap queda como pendiente para una tanda propia: pasar a "al menos una vez" registrando el dispatch después de un envío exitoso, sin duplicar envíos. Con #132 aplicado, la base local se regeneró (`prisma migrate reset` autorizado explícitamente por el usuario, más `npm run db:seed`). **`npm run smoke:reminder` dio PASS en 6 de 6 chequeos, dos corridas seguidas** (scan COMPLETED, dispatch, envío `reservation-reminder`, bypass auditado, sin duplicados en el segundo scan, R2 sin dispatch). La segunda corrida reservó el mismo vehículo que la primera había cancelado, lo que confirma que la cancelación liberó el slot correcto.
+
+**Validación manual (C): BLOQUEADA, el bundle web de `apps/mobile` no compila** (2026-10-12). El API con los datos del seed funciona (login real, `/health/ready` 200, CORS correcto). Se intentó `expo start --web` (lo mismo que hace el target `serve` inferido por `@nx/expo`) y el bundle devuelve HTTP 500. Hubo 4 intentos y cada uno destrabó un error y mostró otro:
+
+1. **Con `apps/mobile/node_modules`**: `Cannot resolve @frontend/data-access`. El resolver de Nx encuentra el path de tsconfig correcto, pero Metro no lo resuelve. Hay versiones mezcladas entre ese árbol y la raíz (`expo` 57.0.16 contra 57.0.27; `metro`/`metro-resolver` 0.84.5 contra 0.84.4). Es la misma causa raíz de #108/#125.
+2. **Sin ese árbol (movido fuera del repo)**: se resuelve la entrada, pero falla con `Cannot resolve C:\c:\Developer\renta\apps\mobile\app\_layout.tsx`. El entorno de esta sesión tenía `NX_WORKSPACE_ROOT_PATH=c:\Developer\renta` con la unidad **en minúscula** (heredado del editor), y la mezcla `c:`/`C:` duplica la unidad.
+3. **Sin esa variable, o con `C:\` en mayúscula**: `Cannot resolve ./node_modules/expo-router/entry`, una ruta relativa a `apps/mobile` que sin ese árbol no existe.
+
+No hay evidencia de que el bundle web haya funcionado nunca con estas versiones: los smokes de bundler de #122/#123 se difirieron por RAM. `apps/mobile/node_modules` se restauró al terminar. **Propuesta**: una tanda propia "toolchain de mobile", que una el ítem 3 de CLAUDE.md (árbol duplicado) con el bundling web y nativo en Windows. Para la validación de la app hace falta resolverla primero.
+
+**Configuración local necesaria para mobile web** (documentada en la guía §5): `CORS_ORIGINS=http://localhost:8081` en `.env`. Sin eso, el API rechaza las llamadas del navegador, porque con `CORS_ORIGINS` vacío el API deja CORS deshabilitado.
+
+## #132 — Disponibilidad: liberar la ocupación por reserva, no por vehículo (doble reserva posible)
+
+**Bug** (encontrado en #131, reproducido en vivo): `AvailabilityService.release(vehicleId)` y `moveOccupancy` resolvían el slot con `CalendarPort.findActiveSlotId('vehicle', vehicleId)`, que devuelve **un** slot `Active` cualquiera del vehículo. Un vehículo tiene un slot `Active` por cada reserva futura, así que cancelar, hacer check-in, marcar no-show, cambiar de vehículo, reprogramar, extender o el rollback de confirmar podían **liberar el slot de otra reserva confirmada**. En ese caso sus fechas quedaban libres para una doble reserva, y el slot de la operada quedaba bloqueado. El código solo contemplaba la ambigüedad transitoria de `moveOccupancy`.
+
+**Decisión del usuario**: corregirlo liberando por reserva.
+
+**Qué cambió**:
+
+- `CalendarPort.findActiveSlotId(resourceType, resourceId, referenceId)`: `referenceId` pasa a ser **obligatorio**, para que la búsqueda ambigua deje de poder escribirse. `PrismaCalendarPortAdapter` filtra por `referenceId` (columna `reference_id` del slot `Booking`, que siempre recibió el `reservationId`). Es la única implementación del puerto.
+- `AvailabilityService.release(vehicleId, reservationId)` y `moveOccupancy` buscan el slot de **esa** reserva.
+- Los 5 handlers (cancelar, check-in, el rollback de confirmar, no-show y cambio de vehículo) pasan `reservation.id`.
+
+**Verificación**:
+
+- `rental-reservations-application`: 43 de 43 tests, con regresión nueva (dos slots `Active` del mismo vehículo; liberar la reserva A libera solo el slot de A).
+- `platform-calendar-application`: 4 de 4.
+- Lint y typecheck de `platform-calendar-*`, `rental-reservations-application` y `rental-vehicles-infrastructure` en verde.
+- **En vivo**: con R2 `Confirmed` en el mismo vehículo, el smoke creó y canceló dos reservas. El slot de R2 siguió `Active` y los de las canceladas quedaron `Released`.
+- Los `*-infrastructure:test` corren en CI (decisión (c) de #124).
+
+**Gap menor, no corregido**: `PrismaCalendarPortAdapter.findActiveSlotId` sigue tomando el `companyId` del `RequestContext`. Hoy solo se llama desde requests HTTP; si algún worker lo usara, tendría el mismo problema que #131 bug #2.
+
+## #133 — Validación de mobile en un celular real: causa raíz de #108, `expo-notifications` en Expo Go y teléfono sin normalizar
+
+**Contexto**: validación visual pedida por el usuario (backlog C). La versión web de `apps/mobile` no es viable **por diseño**: `expo-secure-store` no existe en web y `docs/09` prohíbe `localStorage`. El usuario eligió validar en su celular con Expo Go.
+
+**Causa raíz real de #108**: `apps/mobile/node_modules` era una **instalación aparte**, hecha con `npm install` dentro de `apps/mobile`, con versiones distintas a la raíz (`expo` 57.0.16 contra 57.0.27, `metro` 0.84.5 contra 0.84.4). Metro mezclaba los dos árboles y no resolvía `@frontend/data-access`. El diseño de `@nx/expo` es otro:
+
+- **En EAS Build** se instala en `apps/mobile` con `apps/mobile/package-lock.json`, que **se conserva**, y `tools/scripts/eas-build-post-install.mjs` enlaza la raíz hacia la app.
+- **En local** hay un único árbol en la raíz, y `apps/mobile/node_modules` tiene que ser un **enlace** a él.
+
+Arreglo local:
+
+- Windows: `New-Item -ItemType Junction -Path apps\mobile\node_modules -Target <raíz>\node_modules`.
+- macOS/Linux: `ln -s ../../node_modules apps/mobile/node_modules`.
+- **Nunca correr `npm install` dentro de `apps/mobile` en local.**
+
+Con el enlace compilan el bundle web (1090 módulos) y el de Android (1629). Además: si el editor exporta `NX_WORKSPACE_ROOT_PATH` con la unidad en minúscula (`c:\…`), hay que corregirla a `C:\…`; si no, `expo-router` duplica la unidad en las rutas.
+
+**Bug real — corregido**: en Android, Expo Go (SDK 53+) **lanza una excepción al importar `expo-notifications`**, y la app se caía al arrancar porque `@frontend/data-access` lo importaba estáticamente desde `register-device-push-token.ts`. Fix:
+
+- `registerDevicePushToken()` sale sin hacer nada en Expo Go (`Constants.executionEnvironment === ExecutionEnvironment.StoreClient`);
+- en development y standalone builds carga `expo-notifications` con `await import()` diferido, como un bundle aparte (el principal bajó de 7,6 a 7,45 MB).
+
+Spec nuevo para el caso Expo Go: `frontend-data-access` pasa 53 de 53 tests.
+
+**Validación en el celular (Expo Go, Android, misma red WiFi)**:
+
+- Operador: login 201, listados de reservas confirmadas y retiradas, **check-out y check-in de las dos reservas del seed** y subida de fotos. Todo correcto.
+- Cliente: el pedido de OTP respondía 201 pero no enviaba nada, porque el teléfono no coincidía con el formato guardado.
+
+**Gap encontrado (sin corregir, decisión pendiente)**: el login de clientes por teléfono **no normaliza el número**. El backend busca el string exacto (`+525500009001`) y, por anti-enumeración, responde 201 aunque no encuentre al cliente, así que si se escribe `5500009001` o `+52 55 …` no pasa nada y la app no muestra ningún error. Conviene normalizar a E.164 (formulario o backend). Hay que decidir el país por defecto.
+
+**Otros requisitos para Expo Go**:
+
+- `EXPO_PUBLIC_API_URL=http://<IP de la PC>:3000`, porque desde el celular `localhost` no es la PC.
+- Arrancar con `expo start --lan`.
+- El firewall de Windows tiene que permitir Node en esa red.
+- Push no se puede validar en Expo Go: hace falta un development build y el `projectId` de EAS (ítem 6).
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

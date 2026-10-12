@@ -55,7 +55,7 @@ export class SwapVehicleHandler {
       reservation.dateRange,
       reservation.id.toString(),
     );
-    await this.availabilityService.release(previousVehicleId);
+    await this.availabilityService.release(previousVehicleId, reservation.id.toString());
 
     await this.unitOfWork.run(async (tx) => {
       await this.reservationRepository.save(reservation, tx);

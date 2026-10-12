@@ -96,7 +96,10 @@ describe('CheckInReservationHandler', () => {
     expect(
       reservation.allPriceAdjustments.some((adjustment) => adjustment.kind === 'FuelDifference'),
     ).toBe(true);
-    expect(availabilityService.release).toHaveBeenCalledWith('vehicle-1');
+    expect(availabilityService.release).toHaveBeenCalledWith(
+      'vehicle-1',
+      reservation.id.toString(),
+    );
   });
 
   it('agrega un DamagePenalty cuando el operador provee un monto', async () => {

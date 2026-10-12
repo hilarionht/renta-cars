@@ -23,6 +23,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "ts-node tooling/scripts/db/migrate.ts",
     "db:seed": "ts-node tooling/scripts/db/seed.ts",
+    "dev:last-otp": "ts-node tooling/scripts/db/last-otp.ts",
+    "smoke:reminder": "ts-node tooling/scripts/smoke/reminder.ts",
     "db:studio": "prisma studio",
     "security:generate-jwt-keys": "ts-node tooling/scripts/security/generate-jwt-keys.ts",
     "ci:audit-gate": "ts-node tooling/scripts/ci/audit-gate.ts",

@@ -98,7 +98,10 @@ describe('CancelReservationHandler', () => {
       cancelledBy: 'agent-1',
     });
 
-    expect(availabilityService.release).toHaveBeenCalledWith('vehicle-1');
+    expect(availabilityService.release).toHaveBeenCalledWith(
+      'vehicle-1',
+      reservation.id.toString(),
+    );
     expect(reservation.allPriceAdjustments[0].amount.minorUnits).toBe(5000);
   });
 

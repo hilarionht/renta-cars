@@ -58,7 +58,10 @@ describe('MarkNoShowHandler', () => {
     await handler.execute({ companyId: 'company-1', reservationId: reservation.id.toString() });
 
     expect(reservation.status).toBe('Cancelled');
-    expect(availabilityService.release).toHaveBeenCalledWith('vehicle-1');
+    expect(availabilityService.release).toHaveBeenCalledWith(
+      'vehicle-1',
+      reservation.id.toString(),
+    );
     expect(reservationRepository.save).toHaveBeenCalled();
   });
 

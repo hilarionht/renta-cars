@@ -83,7 +83,10 @@ describe('SwapVehicleHandler', () => {
 
     expect(callOrder).toEqual(['reserve', 'release']);
     expect(reservation.vehicleId).toBe('vehicle-2');
-    expect(availabilityService.release).toHaveBeenCalledWith('vehicle-1');
+    expect(availabilityService.release).toHaveBeenCalledWith(
+      'vehicle-1',
+      reservation.id.toString(),
+    );
   });
 
   it('lanza VehicleNotAvailableError si el vehicle nuevo no esta disponible', async () => {

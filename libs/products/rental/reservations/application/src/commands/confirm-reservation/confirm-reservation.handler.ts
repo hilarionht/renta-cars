@@ -128,7 +128,9 @@ export class ConfirmReservationHandler {
       // persistencia de Reservation fallo (p. ej. ConcurrentModificationError) - liberar
       // para no dejar una ocupacion huerfana. Un fallo de la compensacion misma es un gap
       // conocido de reconciliacion, no bloqueante para Fase 1 (ver plan de implementacion).
-      await this.availabilityService.release(reservation.vehicleId).catch(() => undefined);
+      await this.availabilityService
+        .release(reservation.vehicleId, reservation.id.toString())
+        .catch(() => undefined);
       throw error;
     }
   }
