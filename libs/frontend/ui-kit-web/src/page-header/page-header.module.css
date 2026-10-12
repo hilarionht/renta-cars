@@ -1,0 +1,26 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rk-space-md);
+  margin-bottom: var(--rk-space-lg);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--rk-font-size-heading);
+  line-height: var(--rk-line-height-heading);
+  font-weight: var(--rk-font-weight-heading);
+  color: var(--rk-color-text);
+}
+
+.description {
+  margin: var(--rk-space-xs) 0 0;
+  font-size: var(--rk-font-size-label);
+  color: var(--rk-color-text-muted);
+}
+
+.actions {
+  display: flex;
+  gap: var(--rk-space-sm);
+}
