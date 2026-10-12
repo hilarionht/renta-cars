@@ -1,0 +1,18 @@
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rk-space-xl);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--rk-space-sm);
+  font-size: var(--rk-font-size-body);
+  font-weight: 600;
+}
+
+.links {
+  display: flex;
+  gap: var(--rk-space-lg);
+  padding: 0;
+  list-style: none;
+}

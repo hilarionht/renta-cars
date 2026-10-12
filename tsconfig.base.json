@@ -10,6 +10,7 @@
       "@frontend/ui-kit-core": ["./libs/frontend/ui-kit-core/src/index.ts"],
       "@frontend/ui-kit-mobile": ["./libs/frontend/ui-kit-mobile/src/index.ts"],
       "@frontend/ui-kit-web": ["./libs/frontend/ui-kit-web/src/index.ts"],
+      "@frontend/ui-kit-web/styles/*": ["./libs/frontend/ui-kit-web/src/styles/*"],
       "@platform/audit/application": ["./libs/platform/audit/application/src/index.ts"],
       "@platform/audit/domain": ["./libs/platform/audit/domain/src/index.ts"],
       "@platform/audit/infrastructure": ["./libs/platform/audit/infrastructure/src/index.ts"],
