@@ -41,3 +41,8 @@ export type { ResetPasswordCommand } from './commands/reset-password/reset-passw
 export { ResetPasswordHandler } from './commands/reset-password/reset-password.handler';
 
 export type { GetUserQuery, UserSummary } from './queries/get-user/get-user.query';
+export type {
+  CurrentUserProfile,
+  GetCurrentUserQuery,
+} from './queries/get-current-user/get-current-user.query';
+export type { ListUsersQuery, ListUsersResult } from './queries/list-users/list-users.query';

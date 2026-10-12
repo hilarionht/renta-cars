@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 
-import { RequestContext, RequirePermission } from '@platform/persistence-kernel';
+import { RequestContext, RequirePermission, RequireStaffActor } from '@platform/persistence-kernel';
 import {
   AssignRoleHandler,
   ChangePasswordHandler,
@@ -10,11 +10,15 @@ import {
   RevokeRoleHandler,
 } from '@platform/users/application';
 
+import { GetCurrentUserHandler } from '../queries/get-current-user.handler';
 import { GetUserHandler } from '../queries/get-user.handler';
+import { ListUsersHandler } from '../queries/list-users.handler';
 import { AssignRoleRequestDto } from './dto/assign-role-request.dto';
 import { ChangePasswordRequestDto } from './dto/change-password-request.dto';
 import { CreateUserRequestDto } from './dto/create-user-request.dto';
+import type { CurrentUserResponseDto } from './dto/current-user-response.dto';
 import { DisableUserRequestDto } from './dto/disable-user-request.dto';
+import { ListUsersRequestDto } from './dto/list-users-request.dto';
 import type { UserResponseDto } from './dto/user-response.dto';
 
 // docs/contracts/02-RESOURCE-CATALOG.md SS1 "Identity & Access": users (create, disable/
@@ -30,6 +34,8 @@ export class UsersController {
     private readonly assignRole: AssignRoleHandler,
     private readonly revokeRole: RevokeRoleHandler,
     private readonly getUser: GetUserHandler,
+    private readonly getCurrentUser: GetCurrentUserHandler,
+    private readonly listUsers: ListUsersHandler,
     private readonly requestContext: RequestContext,
   ) {}
 
@@ -46,6 +52,31 @@ export class UsersController {
       roles: dto.roles,
     });
     return { id: id.toString() };
+  }
+
+  // docs/persistence/10-DECISIONES.md #134: listado del personal. Sin @RequirePermission - leer
+  // es libre para el personal autenticado (el catalogo no tiene users:read).
+  @Get()
+  async list(
+    @Query() dto: ListUsersRequestDto,
+  ): Promise<{ data: UserResponseDto[]; meta: { nextCursor: string | null; limit: number } }> {
+    const { companyId } = this.requestContext.get();
+    const result = await this.listUsers.execute({
+      companyId,
+      cursor: dto.cursor,
+      limit: dto.limit,
+    });
+    return { data: result.items, meta: { nextCursor: result.nextCursor, limit: result.limit } };
+  }
+
+  // #134: perfil + permisos efectivos del usuario autenticado (menu de la web segun permisos).
+  // Declarado ANTES de @Get(':id') - si no, ParseUUIDPipe rechaza "me" con 400. Solo personal:
+  // un access token de Customer recibe 403 (mismo criterio que users/me/mfa).
+  @Get('me')
+  @RequireStaffActor()
+  async me(): Promise<CurrentUserResponseDto> {
+    const { companyId, userId, roles } = this.requestContext.get();
+    return this.getCurrentUser.execute({ userId, companyId, roles });
   }
 
   @Get(':id')

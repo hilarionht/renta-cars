@@ -24,3 +24,9 @@ export type {
   ConfirmUploadResponse,
 } from './file.types';
 export type { VehicleCategoryRef, VehicleSummary } from './vehicle.types';
+export type {
+  CurrentUser,
+  MfaRequiredResponse,
+  WebAuthResponse,
+  WebLoginResponse,
+} from './staff-session.types';

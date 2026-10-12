@@ -19,6 +19,15 @@ export const colors = {
   primaryText: '#FFFFFF',
   danger: '#D92D20',
   disabled: '#B0B0B0',
+  // Colores de estado agregados para la web de administracion (badges y alertas,
+  // docs/persistence/10-DECISIONES.md #134) - solo se agregan claves, mobile no cambia.
+  success: '#12805C',
+  warning: '#B54708',
+  info: '#1F6FEB',
+  dangerSurface: '#FEF3F2',
+  successSurface: '#ECFDF3',
+  warningSurface: '#FFFAEB',
+  infoSurface: '#EFF8FF',
 } as const;
 
 export const typography = {

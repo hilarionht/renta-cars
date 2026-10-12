@@ -4,6 +4,21 @@
   "sourceRoot": "apps/web-admin",
   "projectType": "application",
   "tags": ["scope:frontend", "type:feature"],
-  "// targets": "to see all targets run: nx show project web-admin --web",
-  "targets": {}
+  "targets": {
+    "dev": {
+      "options": {
+        "command": "next dev --port 4200"
+      }
+    },
+    "start": {
+      "options": {
+        "command": "next start --port 4200"
+      }
+    },
+    "serve-static": {
+      "options": {
+        "command": "next start --port 4200"
+      }
+    }
+  }
 }

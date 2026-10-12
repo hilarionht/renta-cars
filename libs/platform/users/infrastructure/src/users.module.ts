@@ -33,7 +33,9 @@ import { PrismaUserRepository } from './persistence/prisma/prisma-user.repositor
 import { UserMfaController } from './http/user-mfa.controller';
 import { UsersController } from './http/users.controller';
 import { GetMfaStatusHandler } from './queries/get-mfa-status.handler';
+import { GetCurrentUserHandler } from './queries/get-current-user.handler';
 import { GetUserHandler } from './queries/get-user.handler';
+import { ListUsersHandler } from './queries/list-users.handler';
 
 // Importa RolesPermissionsModule/CompaniesModule (no solo sus puertos) - necesita que
 // ROLE_LOOKUP_PORT/COMPANY_EXISTS_PORT esten bindeados en el arbol de DI (ninguno de los dos
@@ -66,6 +68,8 @@ import { GetUserHandler } from './queries/get-user.handler';
     AssignRoleHandler,
     RevokeRoleHandler,
     GetUserHandler,
+    GetCurrentUserHandler,
+    ListUsersHandler,
     GetMfaStatusHandler,
     ConfirmMfaEnrollmentHandler,
     DisableMfaHandler,

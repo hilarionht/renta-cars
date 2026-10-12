@@ -5,7 +5,13 @@
     "module": "commonjs",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "types": ["jest", "node"]
+    "types": [
+      "jest",
+      "node",
+      "@testing-library/jest-dom",
+      "@nx/react/typings/cssmodule.d.ts",
+      "@nx/react/typings/image.d.ts"
+    ]
   },
   "include": [
     "jest.config.ts",
