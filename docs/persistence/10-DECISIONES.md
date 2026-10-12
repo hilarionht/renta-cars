@@ -1287,7 +1287,7 @@ En `reports`, el rango de `fleet-utilization` se deriva del inicio del alquiler 
 
 **Fuera de alcance**: los ~37 specs **unitarios** con fechas fijas (`new Date('2026-…')`). Hoy pasan; solo son riesgo los que comparan contra `Date.now()`, como pasó con `cancel-reservation`. Revisarlos queda como tanda propia si se decide.
 
-## #131 — Seed de desarrollo + smoke test del Reminder: 3 bugs reales encontrados (EN CURSO)
+## #131 — Seed de desarrollo + smoke test del Reminder: 3 bugs reales encontrados
 
 **Contexto**: backlog A+B+C (plan aprobado por el usuario): seed de desarrollo reutilizable, smoke test de punta a punta del Reminder (#121, que nunca se había probado con datos reales) y validación manual de la app. Rama `feat/dev-seed-smoke`.
 
@@ -1310,7 +1310,29 @@ En `reports`, el rango de `fleet-utilization` se deriva del inicio del alquiler 
 
 Afecta a las 6 operaciones que liberan ocupación: cancelar, check-in, el rollback de confirmar, no-show, cambio de vehículo y `moveOccupancy` (reprogramar o extender). No figuraba como gap aceptado: la única ambigüedad documentada era la transitoria de `moveOccupancy`. La base de desarrollo local quedó con datos inconsistentes por esta reproducción; se regenera con el seed después del fix.
 
-**Pendiente**: aprobación del usuario para corregir el bug #3 (liberar por `reservationId` de la reserva, no por vehículo); decisión sobre el gap de "como mucho una vez"; validación manual (C).
+**Cierre (2026-10-12)**: con el usuario se decidió corregir el bug #3 (ver **#132**) y **solo documentar** el gap de "como mucho una vez" del Reminder. Ese gap queda como pendiente para una tanda propia: pasar a "al menos una vez" registrando el dispatch después de un envío exitoso, sin duplicar envíos. Con #132 aplicado, la base local se regeneró (`prisma migrate reset` autorizado explícitamente por el usuario, más `npm run db:seed`). **`npm run smoke:reminder` dio PASS en 6 de 6 chequeos, dos corridas seguidas** (scan COMPLETED, dispatch, envío `reservation-reminder`, bypass auditado, sin duplicados en el segundo scan, R2 sin dispatch). La segunda corrida reservó el mismo vehículo que la primera había cancelado, lo que confirma que la cancelación liberó el slot correcto.
+
+## #132 — Disponibilidad: liberar la ocupación por reserva, no por vehículo (doble reserva posible)
+
+**Bug** (encontrado en #131, reproducido en vivo): `AvailabilityService.release(vehicleId)` y `moveOccupancy` resolvían el slot con `CalendarPort.findActiveSlotId('vehicle', vehicleId)`, que devuelve **un** slot `Active` cualquiera del vehículo. Un vehículo tiene un slot `Active` por cada reserva futura, así que cancelar, hacer check-in, marcar no-show, cambiar de vehículo, reprogramar, extender o el rollback de confirmar podían **liberar el slot de otra reserva confirmada**. En ese caso sus fechas quedaban libres para una doble reserva, y el slot de la operada quedaba bloqueado. El código solo contemplaba la ambigüedad transitoria de `moveOccupancy`.
+
+**Decisión del usuario**: corregirlo liberando por reserva.
+
+**Qué cambió**:
+
+- `CalendarPort.findActiveSlotId(resourceType, resourceId, referenceId)`: `referenceId` pasa a ser **obligatorio**, para que la búsqueda ambigua deje de poder escribirse. `PrismaCalendarPortAdapter` filtra por `referenceId` (columna `reference_id` del slot `Booking`, que siempre recibió el `reservationId`). Es la única implementación del puerto.
+- `AvailabilityService.release(vehicleId, reservationId)` y `moveOccupancy` buscan el slot de **esa** reserva.
+- Los 5 handlers (cancelar, check-in, el rollback de confirmar, no-show y cambio de vehículo) pasan `reservation.id`.
+
+**Verificación**:
+
+- `rental-reservations-application`: 43 de 43 tests, con regresión nueva (dos slots `Active` del mismo vehículo; liberar la reserva A libera solo el slot de A).
+- `platform-calendar-application`: 4 de 4.
+- Lint y typecheck de `platform-calendar-*`, `rental-reservations-application` y `rental-vehicles-infrastructure` en verde.
+- **En vivo**: con R2 `Confirmed` en el mismo vehículo, el smoke creó y canceló dos reservas. El slot de R2 siguió `Active` y los de las canceladas quedaron `Released`.
+- Los `*-infrastructure:test` corren en CI (decisión (c) de #124).
+
+**Gap menor, no corregido**: `PrismaCalendarPortAdapter.findActiveSlotId` sigue tomando el `companyId` del `RequestContext`. Hoy solo se llama desde requests HTTP; si algún worker lo usara, tendría el mismo problema que #131 bug #2.
 
 ## Qué NO se registra en este documento
 
