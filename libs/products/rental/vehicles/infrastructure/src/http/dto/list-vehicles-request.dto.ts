@@ -1,9 +1,21 @@
-import { IsDateString, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { IsDateString, IsIn, IsOptional, IsString, IsUUID, ValidateIf } from 'class-validator';
 
 // docs/persistence/10-DECISIONES.md #116: busqueda por disponibilidad, ambos o ninguno.
-// branchId/companyId NO son filtros de query aceptados (docs/contracts/01-REST-STANDARDS.md
-// SS7) - se derivan siempre del token, nunca del cliente.
+// companyId nunca es filtro de query (docs/contracts/01-REST-STANDARDS.md SS7). branchId si,
+// como excepcion acotada (#135): solo filtra para usuarios sin sucursal en el token; si el
+// token trae branchId, manda el del token.
 export class ListVehiclesRequestDto {
+  @IsOptional()
+  @IsUUID()
+  branchId?: string;
+
+  // #135: el handler ya lo soportaba pero el controller nunca lo pasaba. Se ignora si viene
+  // startDate/endDate (la busqueda por disponibilidad fuerza la flota operable).
+  @IsOptional()
+  // Mismos valores que el enum VehicleStatus de prisma/schema/rental.prisma.
+  @IsIn(['Registered', 'Available', 'Reserved', 'CheckedOut', 'Maintenance', 'OutOfService'])
+  status?: string;
+
   @ValidateIf(
     (dto: ListVehiclesRequestDto) => dto.startDate !== undefined || dto.endDate !== undefined,
   )
