@@ -53,6 +53,10 @@ model Branch {
   // (docs/model/04-VALUE_OBJECTS.md §3: "Rango horario valido por dia de semana").
   operatingHours Json @map("operating_hours")
 
+  // Zona horaria IANA (docs/persistence/10-DECISIONES.md #135): las fechas de las reservas se
+  // muestran e ingresan en la zona de la sucursal del vehiculo.
+  timeZone String @default("America/Argentina/Buenos_Aires") @map("time_zone")
+
   status    BranchStatus
   createdAt DateTime     @default(now()) @map("created_at")
   updatedAt DateTime     @updatedAt @map("updated_at")

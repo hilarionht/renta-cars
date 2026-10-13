@@ -5,6 +5,7 @@ import type { BranchOpenedEvent } from '../events/branch-opened.event';
 import type { Address } from '../value-objects/address';
 import type { BranchName } from '../value-objects/branch-name';
 import type { BranchStatus } from '../value-objects/branch-status';
+import { BranchTimeZone } from '../value-objects/branch-time-zone';
 import type { OperatingHours } from '../value-objects/operating-hours';
 
 export type BranchId = EntityId<'Branch'>;
@@ -16,6 +17,7 @@ export interface BranchProps {
   name: BranchName;
   address: Address;
   operatingHours: OperatingHours;
+  timeZone: BranchTimeZone;
   status: BranchStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +37,7 @@ export class Branch {
     name: BranchName;
     address: Address;
     operatingHours: OperatingHours;
+    timeZone?: BranchTimeZone;
   }): Branch {
     const now = new Date();
     const branch = new Branch({
@@ -43,6 +46,7 @@ export class Branch {
       name: params.name,
       address: params.address,
       operatingHours: params.operatingHours,
+      timeZone: params.timeZone ?? BranchTimeZone.default(),
       status: 'Active',
       createdAt: now,
       updatedAt: now,
@@ -84,6 +88,10 @@ export class Branch {
     return this.props.operatingHours;
   }
 
+  get timeZone(): BranchTimeZone {
+    return this.props.timeZone;
+  }
+
   get status(): BranchStatus {
     return this.props.status;
   }
@@ -104,6 +112,7 @@ export class Branch {
     name?: BranchName;
     address?: Address;
     operatingHours?: OperatingHours;
+    timeZone?: BranchTimeZone;
   }): void {
     if (params.name) {
       this.props.name = params.name;
@@ -113,6 +122,9 @@ export class Branch {
     }
     if (params.operatingHours) {
       this.props.operatingHours = params.operatingHours;
+    }
+    if (params.timeZone) {
+      this.props.timeZone = params.timeZone;
     }
     this.props.updatedAt = new Date();
     this.props.version += 1;

@@ -12,5 +12,6 @@ export class BranchResponseDto {
     country: string;
   };
   operatingHours!: DaySchedule[];
+  timeZone!: string;
   status!: string;
 }

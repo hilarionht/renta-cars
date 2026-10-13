@@ -13,4 +13,5 @@ export interface UpdateBranchCommand {
     country: string;
   };
   operatingHours?: DaySchedule[];
+  timeZone?: string;
 }

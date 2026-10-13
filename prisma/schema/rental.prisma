@@ -36,6 +36,8 @@ model Customer {
 
   // Clave natural (docs/persistence/04-COLUMNAS-CONCEPTUALES.md §6).
   @@unique([companyId, taxIdOrDocumentId])
+  // GET /customers paginado por cursor (orden id desc, docs/persistence/10-DECISIONES.md #135).
+  @@index([companyId, id], map: "customers_company_id_id_idx")
   @@map("customers")
   @@schema("rental")
 }
