@@ -68,5 +68,6 @@ export type {
   IdentityDocumentSummary,
   AdditionalDriverSummary,
   ListCustomersQuery,
+  ListCustomersResult,
   CustomerSummary,
 } from './queries/get-customer/get-customer.query';

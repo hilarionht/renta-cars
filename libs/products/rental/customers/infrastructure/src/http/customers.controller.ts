@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 
 import {
   RequestContext,
@@ -24,6 +24,7 @@ import { ListCustomersHandler } from '../queries/list-customers.handler';
 import { BlockCustomerRequestDto } from './dto/block-customer-request.dto';
 import type { CustomerResponseDto } from './dto/customer-response.dto';
 import type { CustomerSummaryResponseDto } from './dto/customer-summary-response.dto';
+import { ListCustomersRequestDto } from './dto/list-customers-request.dto';
 import { ExtractIdentityDocumentRequestDto } from './dto/extract-identity-document-request.dto';
 import { RegisterAdditionalDriverRequestDto } from './dto/register-additional-driver-request.dto';
 import { RegisterCustomerRequestDto } from './dto/register-customer-request.dto';
@@ -68,10 +69,21 @@ export class CustomersController {
     return { id: id.toString() };
   }
 
+  // docs/persistence/10-DECISIONES.md #135: ?q= busca en el servidor, paginado por cursor
+  // (#112). El envelope global ya devolvia { data: [...] }; ahora meta suma nextCursor/limit.
   @Get()
-  async list(): Promise<CustomerSummaryResponseDto[]> {
+  async list(@Query() dto: ListCustomersRequestDto): Promise<{
+    data: CustomerSummaryResponseDto[];
+    meta: { nextCursor: string | null; limit: number };
+  }> {
     const { companyId } = this.requestContext.get();
-    return this.listCustomers.execute({ companyId });
+    const result = await this.listCustomers.execute({
+      companyId,
+      q: dto.q,
+      cursor: dto.cursor,
+      limit: dto.limit,
+    });
+    return { data: result.items, meta: { nextCursor: result.nextCursor, limit: result.limit } };
   }
 
   @Get(':id')
