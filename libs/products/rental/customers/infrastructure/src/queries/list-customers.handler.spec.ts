@@ -1,6 +1,6 @@
 import { encodeCursor, type ReadTransaction } from '@platform/persistence-kernel';
 
-import { ListCustomersHandler } from './list-customers.handler';
+import { escapeLikePattern, ListCustomersHandler } from './list-customers.handler';
 
 // docs/persistence/10-DECISIONES.md #135.
 describe('ListCustomersHandler', () => {
@@ -56,6 +56,10 @@ describe('ListCustomersHandler', () => {
         },
       }),
     );
+  });
+
+  it('escapa los comodines de LIKE para que q=% o q=_ busquen el caracter literal', () => {
+    expect(escapeLikePattern('50%_a\\b')).toBe('50\\%\\_a\\\\b');
   });
 
   it('un q vacio no filtra; la ultima pagina devuelve nextCursor null', async () => {

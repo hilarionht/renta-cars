@@ -5,6 +5,12 @@ import type { ListCustomersQuery, ListCustomersResult } from '@rental/customers/
 
 const DEFAULT_LIMIT = 25;
 
+// Prisma no escapa los comodines de LIKE en `contains` (verificado en el smoke de #135: q=%
+// devolvia todos los clientes). Postgres usa `\` como escape por defecto en LIKE/ILIKE.
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
 // docs/persistence/10-DECISIONES.md #135: busqueda en el servidor + cursor, mismo patron que
 // ListReservationsHandler (#112): take limit+1, orden por id desc (UUID v7). `q` busca sin
 // distinguir mayusculas en nombre, documento, email y telefono. Gap aceptado: ILIKE con
@@ -15,7 +21,8 @@ export class ListCustomersHandler {
 
   async execute(query: ListCustomersQuery): Promise<ListCustomersResult> {
     const limit = query.limit ?? DEFAULT_LIMIT;
-    const q = query.q?.trim();
+    const trimmed = query.q?.trim();
+    const q = trimmed ? escapeLikePattern(trimmed) : undefined;
 
     const records = await this.readTransaction.run(
       (tx) =>
