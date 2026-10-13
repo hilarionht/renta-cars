@@ -1,16 +1,21 @@
-import type { ReservationSummary } from '../get-reservation/get-reservation.query';
+import type { ReservationListItem } from '../get-reservation-detail/get-reservation-detail.query';
 
 export interface ListReservationsQuery {
   companyId: string;
   customerId?: string;
   vehicleId?: string;
   status?: string;
+  // Ya resuelto por el controller: el del token si lo trae, si no el del query
+  // (excepcion acotada a docs/contracts/01-REST-STANDARDS.md SS7, docs/persistence/
+  // 10-DECISIONES.md #135).
+  branchId?: string;
+  expand?: string[];
   cursor?: string;
   limit?: number;
 }
 
 export interface ListReservationsResult {
-  items: ReservationSummary[];
+  items: ReservationListItem[];
   // Cursor opaco del siguiente elemento, null si es la ultima pagina (docs/persistence/
   // 10-DECISIONES.md #112).
   nextCursor: string | null;
