@@ -72,6 +72,9 @@ export function useReservationInvoices(reservationId: string, enabled: boolean) 
     queryKey: ['invoices', 'by-reservation', reservationId],
     queryFn: () => api.request<InvoiceSummary[]>('/api/v1/invoices', { query: { reservationId } }),
     enabled,
+    // La factura se emite de forma asincrona despues del check-in: se consulta de nuevo hasta
+    // que aparece.
+    refetchInterval: (query) => (query.state.data?.length ? false : CHECKED_IN_POLL_MS),
   });
 }
 
