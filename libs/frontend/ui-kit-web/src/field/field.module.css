@@ -46,3 +46,15 @@
   font-size: var(--rk-font-size-label);
   color: var(--rk-color-danger);
 }
+
+/* FileInput (docs/persistence/10-DECISIONES.md #137): el control nativo, con el foco del resto. */
+.file {
+  font: inherit;
+  font-size: var(--rk-font-size-label);
+  color: var(--rk-color-text);
+}
+
+.file:focus-visible {
+  outline: 2px solid var(--rk-color-primary);
+  outline-offset: 2px;
+}
