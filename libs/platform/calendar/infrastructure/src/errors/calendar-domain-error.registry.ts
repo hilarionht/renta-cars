@@ -1,10 +1,19 @@
-import { ConcurrentModificationError, type DomainErrorEntries } from '@platform/shared-kernel';
+import {
+  ConcurrentModificationError,
+  type DomainErrorEntries,
+  InvalidValueError,
+} from '@platform/shared-kernel';
 import {
   AvailabilitySlotNotFoundError,
   AvailabilitySlotOverlapError,
 } from '@platform/calendar/domain';
 
 export const CALENDAR_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
+  // #137: VO con dato de entrada invalido (antes TypeError crudo -> 500).
+  [
+    InvalidValueError,
+    { status: 400, code: 'INVALID_VALUE', title: 'Un valor de la solicitud no es valido' },
+  ],
   [
     AvailabilitySlotOverlapError,
     {

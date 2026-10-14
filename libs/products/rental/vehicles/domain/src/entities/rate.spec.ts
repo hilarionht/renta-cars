@@ -1,4 +1,4 @@
-import { Money } from '@platform/shared-kernel';
+import { InvalidValueError, Money } from '@platform/shared-kernel';
 
 import { Rate } from './rate';
 
@@ -14,7 +14,7 @@ function createRate(validFrom: string, validTo: string | null): Rate {
 describe('Rate', () => {
   describe('create', () => {
     it('lanza TypeError si validTo no es posterior a validFrom', () => {
-      expect(() => createRate('2026-06-01', '2026-01-01')).toThrow(TypeError);
+      expect(() => createRate('2026-06-01', '2026-01-01')).toThrow(InvalidValueError);
     });
 
     it('acepta validTo null (vigencia abierta)', () => {

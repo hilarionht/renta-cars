@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { MaintenanceRecordInvalidStateTransitionError } from '../errors/maintenance-record-invalid-state-transition.error';
 import { MaintenanceRecord } from './maintenance-record';
 
@@ -24,7 +26,7 @@ describe('MaintenanceRecord', () => {
           scheduledStart: new Date('2026-02-01T17:00:00.000Z'),
           scheduledEnd: new Date('2026-02-01T09:00:00.000Z'),
         }),
-      ).toThrow(TypeError);
+      ).toThrow(InvalidValueError);
     });
   });
 

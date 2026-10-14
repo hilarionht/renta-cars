@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // docs/model/04-VALUE_OBJECTS.md SS5.1: "formato varia por pais, pero el concepto
 // (identificador registral legal) es un valor puro". Sin catalogo de formatos por pais
 // (no construido), se valida solo forma minima - mismo pragmatismo que TaxIdOrDocumentId
@@ -12,7 +14,7 @@ export class LicensePlate {
   static from(raw: string): LicensePlate {
     const normalized = raw.trim().toUpperCase();
     if (normalized.length < MIN_LENGTH || normalized.length > MAX_LENGTH) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `LicensePlate debe tener entre ${MIN_LENGTH} y ${MAX_LENGTH} caracteres: "${raw}"`,
       );
     }

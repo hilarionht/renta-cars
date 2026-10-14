@@ -11,6 +11,7 @@ import {
 } from '@platform/shared-kernel';
 import {
   CategoryName,
+  DuplicateVehicleCategoryNameError,
   Rate,
   RateOverlapError,
   VehicleCategory,
@@ -24,6 +25,10 @@ import type { VehicleCategoryRepository } from '@rental/vehicles/application';
 // nombre de constraint en el mensaje crudo. Verificado empiricamente contra Postgres real
 // en rate-overlap-exclusion.integration.spec.ts.
 const RATE_OVERLAP_CONSTRAINT = 'rates_no_overlapping_validity';
+// UNIQUE (company_id, name) - #137. P2002 sin meta.target poblado en Prisma 7: se distingue por
+// el nombre del indice en el mensaje crudo del driver, como prisma-vehicle.repository.ts.
+const CATEGORY_NAME_UNIQUE = 'vehicle_categories_company_id_name_key';
+const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
 
 type VehicleCategoryWithRates = PrismaVehicleCategory & { rates: PrismaRate[] };
 
@@ -50,9 +55,16 @@ export class PrismaVehicleCategoryRepository implements VehicleCategoryRepositor
     };
 
     if (category.isNew) {
-      await prisma.vehicleCategory.create({
-        data: { id: category.id.toString(), ...rootData, version: category.version },
-      });
+      try {
+        await prisma.vehicleCategory.create({
+          data: { id: category.id.toString(), ...rootData, version: category.version },
+        });
+      } catch (error) {
+        if (this.isCategoryNameViolation(error)) {
+          throw new DuplicateVehicleCategoryNameError(rootData.name);
+        }
+        throw error;
+      }
       category.markPersisted();
     } else {
       const result = await prisma.vehicleCategory.updateMany({
@@ -85,6 +97,23 @@ export class PrismaVehicleCategoryRepository implements VehicleCategoryRepositor
         throw error;
       }
     }
+  }
+
+  private isCategoryNameViolation(error: unknown): boolean {
+    if (
+      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+      error.code !== UNIQUE_CONSTRAINT_VIOLATION
+    ) {
+      return false;
+    }
+    const driverAdapterError = error.meta?.['driverAdapterError'];
+    const cause =
+      driverAdapterError && typeof driverAdapterError === 'object'
+        ? (driverAdapterError as { cause?: { originalMessage?: unknown } }).cause
+        : undefined;
+    const message =
+      typeof cause?.originalMessage === 'string' ? cause.originalMessage : error.message;
+    return message.includes(CATEGORY_NAME_UNIQUE);
   }
 
   private isRateOverlapViolation(error: unknown): boolean {

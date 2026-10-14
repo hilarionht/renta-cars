@@ -1,6 +1,7 @@
 import {
   ConcurrentModificationError,
   type DomainErrorEntries,
+  InvalidValueError,
   UnsupportedExpandError,
 } from '@platform/shared-kernel';
 import {
@@ -20,6 +21,11 @@ import {
 // docs/contracts/07-ERROR-CATALOG.md - mapeo code/status ya reservado, activado en esta
 // tanda (primer consumidor real de Reservations).
 export const RESERVATIONS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
+  // #137: VO con dato de entrada invalido (antes TypeError crudo -> 500).
+  [
+    InvalidValueError,
+    { status: 400, code: 'INVALID_VALUE', title: 'Un valor de la solicitud no es valido' },
+  ],
   // #135: mismo mapeo que vehicles (#123), repetido para no depender de que vehicles este
   // cargado; el merge en apps/api deja una sola entrada.
   [

@@ -1,3 +1,5 @@
+import { InvalidValueError } from '../errors/invalid-value.error';
+
 // VO minimo compartido - docs/model/04-VALUE_OBJECTS.md SS1.2, catalogado como
 // "verdaderamente universal" junto a Money/Email/PhoneNumber/EntityId, pero nunca
 // implementado hasta esta tanda (Calendar) - mismo tipo de hueco que Money antes de
@@ -15,7 +17,7 @@ export class DateRange {
 
   static from(startDate: Date, endDate: Date): DateRange {
     if (endDate.getTime() <= startDate.getTime()) {
-      throw new TypeError('DateRange: endDate debe ser posterior a startDate.');
+      throw new InvalidValueError('DateRange: endDate debe ser posterior a startDate.');
     }
     return new DateRange(startDate, endDate);
   }

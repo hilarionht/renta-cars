@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // docs/model/04-VALUE_OBJECTS.md SS5.1: "nombre comercial de categoria... no vacio, unico
 // por Company" - mismo shape que CustomerName/BranchName.
 const MIN_LENGTH = 2;
@@ -9,7 +11,7 @@ export class CategoryName {
   static from(raw: string): CategoryName {
     const trimmed = raw.trim();
     if (trimmed.length < MIN_LENGTH || trimmed.length > MAX_LENGTH) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `CategoryName debe tener entre ${MIN_LENGTH} y ${MAX_LENGTH} caracteres: "${raw}"`,
       );
     }
