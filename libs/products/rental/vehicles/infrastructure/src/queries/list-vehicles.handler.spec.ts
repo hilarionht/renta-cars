@@ -30,6 +30,7 @@ describe('ListVehiclesHandler', () => {
       move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn(),
+      findActiveBookings: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handler = new ListVehiclesHandler(readTransaction as any, calendarPort);
@@ -54,6 +55,7 @@ describe('ListVehiclesHandler', () => {
       move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn().mockResolvedValue(['vehicle-2']),
+      findActiveBookings: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handler = new ListVehiclesHandler(readTransaction as any, calendarPort);
@@ -88,6 +90,7 @@ describe('ListVehiclesHandler', () => {
       move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn(),
+      findActiveBookings: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handler = new ListVehiclesHandler(readTransaction as any, calendarPort);
@@ -114,6 +117,7 @@ describe('ListVehiclesHandler', () => {
       move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn(),
+      findActiveBookings: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handler = new ListVehiclesHandler(readTransaction as any, calendarPort);
@@ -144,6 +148,7 @@ describe('ListVehiclesHandler', () => {
       move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn(),
+      findActiveBookings: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handler = new ListVehiclesHandler(readTransaction as any, calendarPort);
@@ -173,6 +178,7 @@ describe('ListVehiclesHandler', () => {
       move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn(),
+      findActiveBookings: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handler = new ListVehiclesHandler(readTransaction as any, calendarPort);

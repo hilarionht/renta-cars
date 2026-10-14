@@ -7,6 +7,13 @@ import type { SlotKindValue } from '@platform/calendar/domain';
 // CUSTOMER_LOOKUP_PORT/VEHICLE_STATUS_PORT.
 export const CALENDAR_PORT = Symbol('CalendarPort');
 
+// docs/persistence/10-DECISIONES.md #137: una ocupacion Booking activa de un recurso.
+export interface ActiveBooking {
+  referenceId: string;
+  startDate: Date;
+  endDate: Date;
+}
+
 export interface OccupySlotParams {
   companyId: string;
   resourceType: string;
@@ -45,6 +52,15 @@ export interface CalendarPort {
     resourceId: string,
     referenceId: string,
   ): Promise<string | null>;
+  // docs/persistence/10-DECISIONES.md #137: ocupaciones Booking Active de un recurso (los Blackout
+  // no cuentan), ordenadas por inicio. Las usa vehicles para no dejar sin auto a una reserva al
+  // programar mantenimiento, reportar un dano o marcar fuera de servicio. companyId explicito
+  // (no del RequestContext) para no repetir el gap de #132.
+  findActiveBookings(
+    companyId: string,
+    resourceType: string,
+    resourceId: string,
+  ): Promise<ActiveBooking[]>;
   // docs/persistence/10-DECISIONES.md #116: version batch de isAvailable - de una lista de
   // candidatos, cuales tienen un AvailabilitySlot Active solapando el rango. Consumidor nuevo
   // y paralelo a AvailabilityService (reservations/application), no la misma ACL - ver #116.

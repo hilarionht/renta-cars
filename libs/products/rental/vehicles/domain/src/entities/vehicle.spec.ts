@@ -234,22 +234,30 @@ describe('Vehicle', () => {
   });
 
   describe('reportDamage', () => {
-    it('Minor transiciona Available -> Maintenance', () => {
+    // docs/persistence/10-DECISIONES.md #137: antes quedaba en Maintenance sin registro y
+    // ninguna transicion lo sacaba.
+    it('Minor transiciona a Maintenance con un mantenimiento correctivo que se puede completar', () => {
       const vehicle = createVehicle();
       uploadAndVerifyDocument(vehicle);
       vehicle.enable();
       vehicle.pullDomainEvents();
 
-      vehicle.reportDamage('Minor', 'rayon en la puerta');
+      const { blockedUntil } = vehicle.reportDamage('Minor', 'rayon en la puerta');
 
       expect(vehicle.status).toBe('Maintenance');
+      const [corrective] = vehicle.allMaintenanceRecords;
+      expect(corrective).toMatchObject({ type: 'Corrective', status: 'Scheduled' });
+      expect(blockedUntil).toEqual(corrective.scheduledEnd);
       const events = vehicle.pullDomainEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]).toMatchObject({
-        eventType: 'VehicleStatusChanged.v1',
-        previousStatus: 'Available',
-        newStatus: 'Maintenance',
-      });
+      expect(events.map((event) => event.eventType)).toEqual([
+        'MaintenanceScheduled.v1',
+        'VehicleStatusChanged.v1',
+      ]);
+      expect(events[1]).toMatchObject({ previousStatus: 'Available', newStatus: 'Maintenance' });
+
+      vehicle.startMaintenance(corrective.id.toString());
+      vehicle.completeMaintenance(corrective.id.toString(), true);
+      expect(vehicle.status).toBe('Available');
     });
 
     it('Severe transiciona Available -> OutOfService', () => {
@@ -257,9 +265,11 @@ describe('Vehicle', () => {
       uploadAndVerifyDocument(vehicle);
       vehicle.enable();
 
-      vehicle.reportDamage('Severe');
+      const { blockedUntil } = vehicle.reportDamage('Severe');
 
       expect(vehicle.status).toBe('OutOfService');
+      expect(blockedUntil).toBeNull();
+      expect(vehicle.allMaintenanceRecords).toHaveLength(0);
     });
 
     it('lanza VehicleInvalidStateTransitionError si no esta Available', () => {

@@ -19,6 +19,7 @@ import {
   VehicleDocumentExpiredError,
   VehicleDocumentNotFoundError,
   VehicleDocumentationIncompleteError,
+  VehicleHasActiveBookingsError,
   VehicleInvalidStateTransitionError,
   VehicleNotFoundError,
 } from '@rental/vehicles/domain';
@@ -30,6 +31,14 @@ export const VEHICLES_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
       status: 409,
       code: 'DUPLICATE_VEHICLE_CATEGORY_NAME',
       title: 'Ya existe una categoria con ese nombre',
+    },
+  ],
+  [
+    VehicleHasActiveBookingsError,
+    {
+      status: 409,
+      code: 'VEHICLE_HAS_ACTIVE_BOOKINGS',
+      title: 'El vehiculo tiene reservas que quedarian sin auto',
     },
   ],
   // #137: VO con dato de entrada invalido (antes TypeError crudo -> 500).

@@ -13,6 +13,7 @@ import {
   VehicleNotFoundError,
 } from '@rental/vehicles/domain';
 
+import { ActiveBookingsGuard } from '../../services/active-bookings-guard';
 import { VEHICLE_REPOSITORY, type VehicleRepository } from '../../ports/vehicle.repository';
 import type { ReportDamageCommand } from './report-damage.command';
 
@@ -22,6 +23,7 @@ export class ReportDamageHandler {
     @Inject(VEHICLE_REPOSITORY) private readonly vehicleRepository: VehicleRepository,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
+    private readonly activeBookingsGuard: ActiveBookingsGuard,
   ) {}
 
   async execute(command: ReportDamageCommand): Promise<void> {
@@ -31,7 +33,16 @@ export class ReportDamageHandler {
       throw new VehicleNotFoundError(command.vehicleId);
     }
 
-    vehicle.reportDamage(command.severity as DamageSeverityValue, command.reason);
+    const { blockedUntil } = vehicle.reportDamage(
+      command.severity as DamageSeverityValue,
+      command.reason,
+    );
+    // #137: leve bloquea hasta el fin del correctivo; grave (fuera de servicio), sin fin.
+    await this.activeBookingsGuard.assertNoneBlocked({
+      companyId: vehicle.companyId,
+      vehicleId: vehicle.id.toString(),
+      blockedUntil,
+    });
 
     await this.unitOfWork.run(async (tx) => {
       await this.vehicleRepository.save(vehicle, tx);

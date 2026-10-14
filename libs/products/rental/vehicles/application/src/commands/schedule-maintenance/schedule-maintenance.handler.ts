@@ -13,6 +13,7 @@ import {
   VehicleNotFoundError,
 } from '@rental/vehicles/domain';
 
+import { ActiveBookingsGuard } from '../../services/active-bookings-guard';
 import { VEHICLE_REPOSITORY, type VehicleRepository } from '../../ports/vehicle.repository';
 import type { ScheduleMaintenanceCommand } from './schedule-maintenance.command';
 
@@ -22,6 +23,7 @@ export class ScheduleMaintenanceHandler {
     @Inject(VEHICLE_REPOSITORY) private readonly vehicleRepository: VehicleRepository,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
+    private readonly activeBookingsGuard: ActiveBookingsGuard,
   ) {}
 
   async execute(command: ScheduleMaintenanceCommand): Promise<string> {
@@ -36,6 +38,12 @@ export class ScheduleMaintenanceHandler {
       scheduledStart: command.scheduledStart,
       scheduledEnd: command.scheduledEnd,
       responsibleUserId: command.responsibleUserId,
+    });
+    // #137: el vehiculo queda bloqueado desde ya hasta el fin de la ventana (INV-009).
+    await this.activeBookingsGuard.assertNoneBlocked({
+      companyId: vehicle.companyId,
+      vehicleId: vehicle.id.toString(),
+      blockedUntil: command.scheduledEnd,
     });
 
     await this.unitOfWork.run(async (tx) => {

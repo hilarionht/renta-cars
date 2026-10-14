@@ -1,8 +1,15 @@
 import type { DomainEventPublisher, UnitOfWork } from '@platform/shared-kernel';
-import { LicensePlate, Vehicle, VehicleNotFoundError, VIN } from '@rental/vehicles/domain';
+import {
+  LicensePlate,
+  Vehicle,
+  VehicleHasActiveBookingsError,
+  VehicleNotFoundError,
+  VIN,
+} from '@rental/vehicles/domain';
 
 import { ScheduleMaintenanceHandler } from './schedule-maintenance.handler';
 import type { VehicleRepository } from '../../ports/vehicle.repository';
+import type { ActiveBookingsGuard } from '../../services/active-bookings-guard';
 
 const UNKNOWN_ID = '018e5a00-0000-7000-8000-000000000000';
 
@@ -34,9 +41,18 @@ function buildHandler(existingVehicle: Vehicle | null) {
   const unitOfWork: UnitOfWork = { run: jest.fn((work) => work({})) };
   const eventPublisher: DomainEventPublisher = { publish: jest.fn().mockResolvedValue(undefined) };
 
-  const handler = new ScheduleMaintenanceHandler(vehicleRepository, unitOfWork, eventPublisher);
+  const activeBookingsGuard = {
+    assertNoneBlocked: jest.fn().mockResolvedValue(undefined),
+  } as unknown as ActiveBookingsGuard;
 
-  return { handler, vehicleRepository, eventPublisher };
+  const handler = new ScheduleMaintenanceHandler(
+    vehicleRepository,
+    unitOfWork,
+    eventPublisher,
+    activeBookingsGuard,
+  );
+
+  return { handler, vehicleRepository, eventPublisher, activeBookingsGuard };
 }
 
 describe('ScheduleMaintenanceHandler', () => {
@@ -73,5 +89,32 @@ describe('ScheduleMaintenanceHandler', () => {
       expect.anything(),
       expect.objectContaining({ eventType: 'MaintenanceScheduled.v1' }),
     );
+  });
+
+  // docs/persistence/10-DECISIONES.md #137.
+  it('verifica reservas hasta el fin de la ventana y, si alguna choca, no guarda nada', async () => {
+    const vehicle = createAvailableVehicle();
+    const { handler, vehicleRepository, activeBookingsGuard } = buildHandler(vehicle);
+    const scheduledEnd = new Date('2026-02-01T17:00:00.000Z');
+    (activeBookingsGuard.assertNoneBlocked as jest.Mock).mockRejectedValue(
+      new VehicleHasActiveBookingsError(vehicle.id.toString(), ['reservation-1']),
+    );
+
+    await expect(
+      handler.execute({
+        vehicleId: vehicle.id.toString(),
+        companyId: 'company-1',
+        type: 'Preventive',
+        scheduledStart: new Date('2026-02-01T09:00:00.000Z'),
+        scheduledEnd,
+      }),
+    ).rejects.toThrow(VehicleHasActiveBookingsError);
+
+    expect(activeBookingsGuard.assertNoneBlocked).toHaveBeenCalledWith({
+      companyId: 'company-1',
+      vehicleId: vehicle.id.toString(),
+      blockedUntil: scheduledEnd,
+    });
+    expect(vehicleRepository.save).not.toHaveBeenCalled();
   });
 });

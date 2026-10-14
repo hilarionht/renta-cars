@@ -1,8 +1,15 @@
 import type { DomainEventPublisher, UnitOfWork } from '@platform/shared-kernel';
-import { LicensePlate, Vehicle, VehicleNotFoundError, VIN } from '@rental/vehicles/domain';
+import {
+  LicensePlate,
+  Vehicle,
+  VehicleHasActiveBookingsError,
+  VehicleNotFoundError,
+  VIN,
+} from '@rental/vehicles/domain';
 
 import { MarkVehicleOutOfServiceHandler } from './mark-vehicle-out-of-service.handler';
 import type { VehicleRepository } from '../../ports/vehicle.repository';
+import type { ActiveBookingsGuard } from '../../services/active-bookings-guard';
 
 const UNKNOWN_ID = '018e5a00-0000-7000-8000-000000000000';
 
@@ -34,9 +41,18 @@ function buildHandler(existingVehicle: Vehicle | null) {
   const unitOfWork: UnitOfWork = { run: jest.fn((work) => work({})) };
   const eventPublisher: DomainEventPublisher = { publish: jest.fn().mockResolvedValue(undefined) };
 
-  const handler = new MarkVehicleOutOfServiceHandler(vehicleRepository, unitOfWork, eventPublisher);
+  const activeBookingsGuard = {
+    assertNoneBlocked: jest.fn().mockResolvedValue(undefined),
+  } as unknown as ActiveBookingsGuard;
 
-  return { handler, vehicleRepository, eventPublisher };
+  const handler = new MarkVehicleOutOfServiceHandler(
+    vehicleRepository,
+    unitOfWork,
+    eventPublisher,
+    activeBookingsGuard,
+  );
+
+  return { handler, vehicleRepository, eventPublisher, activeBookingsGuard };
 }
 
 describe('MarkVehicleOutOfServiceHandler', () => {
@@ -64,5 +80,25 @@ describe('MarkVehicleOutOfServiceHandler', () => {
       expect.anything(),
       expect.objectContaining({ eventType: 'VehicleStatusChanged.v1' }),
     );
+  });
+
+  // docs/persistence/10-DECISIONES.md #137.
+  it('verifica cualquier reserva activa (bloqueo sin fin) y, si alguna choca, no guarda nada', async () => {
+    const vehicle = createAvailableVehicle();
+    const { handler, vehicleRepository, activeBookingsGuard } = buildHandler(vehicle);
+    (activeBookingsGuard.assertNoneBlocked as jest.Mock).mockRejectedValue(
+      new VehicleHasActiveBookingsError(vehicle.id.toString(), ['reservation-1']),
+    );
+
+    await expect(
+      handler.execute({ vehicleId: vehicle.id.toString(), companyId: 'company-1' }),
+    ).rejects.toThrow(VehicleHasActiveBookingsError);
+
+    expect(activeBookingsGuard.assertNoneBlocked).toHaveBeenCalledWith({
+      companyId: 'company-1',
+      vehicleId: vehicle.id.toString(),
+      blockedUntil: null,
+    });
+    expect(vehicleRepository.save).not.toHaveBeenCalled();
   });
 });

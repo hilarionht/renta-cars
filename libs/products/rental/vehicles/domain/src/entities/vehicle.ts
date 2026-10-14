@@ -33,6 +33,11 @@ type VehicleDomainEvent =
 // negocio sobre cual deberia ser (ver plan de implementacion).
 const RETRY_MAINTENANCE_WINDOW_DAYS = 7;
 
+// docs/persistence/10-DECISIONES.md #137: ventana del MaintenanceRecord correctivo que crea un
+// dano leve. Mismo valor que el re-intento: sin instruccion de negocio especifica.
+const CORRECTIVE_MAINTENANCE_WINDOW_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export interface VehicleProps {
   id: VehicleId;
   companyId: string;
@@ -297,7 +302,14 @@ export class Vehicle {
     }
   }
 
-  reportDamage(severity: DamageSeverityValue, reason?: string): void {
+  // Devuelve hasta cuando queda bloqueado el vehiculo (null = sin fin, fuera de servicio), para
+  // que el handler verifique que no deja sin auto a una reserva (#137).
+  //
+  // Dano leve (docs/persistence/10-DECISIONES.md #137): antes pasaba a Maintenance SIN
+  // MaintenanceRecord, y ninguna transicion lo sacaba de ahi (scheduleMaintenance exige
+  // Available/OutOfService y completeMaintenance exige un registro). Ahora crea un
+  // MaintenanceRecord Corrective desde ahora, que se inicia y completa como cualquier otro.
+  reportDamage(severity: DamageSeverityValue, reason?: string): { blockedUntil: Date | null } {
     if (this.props.status !== 'Available') {
       throw new VehicleInvalidStateTransitionError(
         this.props.id.toString(),
@@ -306,9 +318,32 @@ export class Vehicle {
       );
     }
     const previousStatus = this.props.status;
+    let corrective: MaintenanceRecord | null = null;
+    if (severity === 'Minor') {
+      const start = new Date();
+      corrective = MaintenanceRecord.schedule({
+        type: 'Corrective',
+        scheduledStart: start,
+        scheduledEnd: new Date(start.getTime() + CORRECTIVE_MAINTENANCE_WINDOW_DAYS * DAY_MS),
+      });
+      this.maintenanceRecords.push(corrective);
+      this.dirtyMaintenanceIds.add(corrective.id.toString());
+    }
     this.props.status = severity === 'Minor' ? 'Maintenance' : 'OutOfService';
     this.props.updatedAt = new Date();
     this.props.version += 1;
+    if (corrective) {
+      this.domainEvents.push({
+        eventType: 'MaintenanceScheduled.v1',
+        vehicleId: this.props.id.toString(),
+        maintenanceId: corrective.id.toString(),
+        type: corrective.type,
+        window: {
+          start: corrective.scheduledStart.toISOString(),
+          end: corrective.scheduledEnd.toISOString(),
+        },
+      });
+    }
     this.domainEvents.push({
       eventType: 'VehicleStatusChanged.v1',
       vehicleId: this.props.id.toString(),
@@ -316,6 +351,7 @@ export class Vehicle {
       newStatus: this.props.status,
       reason,
     });
+    return { blockedUntil: corrective ? corrective.scheduledEnd : null };
   }
 
   markOutOfService(reason?: string): void {
