@@ -25,4 +25,12 @@ export class VehicleResponseDto {
   status!: string;
   vehicleDocuments!: VehicleDocumentResponseDto[];
   maintenanceRecords!: MaintenanceRecordResponseDto[];
+  // Solo para el personal (docs/persistence/10-DECISIONES.md #137).
+  activeReservations?: {
+    id: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+    overdue: boolean;
+  }[];
 }

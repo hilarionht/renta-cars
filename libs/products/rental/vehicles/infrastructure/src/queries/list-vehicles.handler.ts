@@ -7,6 +7,8 @@ import { CALENDAR_PORT, type CalendarPort } from '@platform/calendar/application
 import { InvalidDateRangeError } from '@rental/vehicles/domain';
 import type { ListVehiclesQuery, VehicleSummary } from '@rental/vehicles/application';
 
+import { loadActiveReservations, pickCurrentReservation } from './vehicle-reservations.read';
+
 // docs/persistence/10-DECISIONES.md Fase 4 item 1 (fleet-utilization.handler.ts): misma
 // flota "operable" que un reporte de utilizacion considera - excluida del denominador ahi,
 // excluida de la busqueda aca, mismo criterio, duplicado deliberado (sin constante
@@ -69,8 +71,10 @@ export class ListVehiclesHandler {
       summaries = summaries.filter((summary) => !occupiedIds.includes(summary.id));
     }
 
-    if (query.expand?.includes('vehicleCategory') && summaries.length > 0) {
-      const categoryIds = [...new Set(summaries.map((summary) => summary.vehicleCategoryId))];
+    let result: VehicleSummary[] = summaries;
+
+    if (query.expand?.includes('vehicleCategory') && result.length > 0) {
+      const categoryIds = [...new Set(result.map((summary) => summary.vehicleCategoryId))];
       const categories = await this.readTransaction.run(
         (tx) =>
           tx.vehicleCategory.findMany({
@@ -80,12 +84,33 @@ export class ListVehiclesHandler {
         query.companyId,
       );
       const categoryById = new Map(categories.map((category) => [category.id, category]));
-      return summaries.map((summary) => ({
+      result = result.map((summary) => ({
         ...summary,
         vehicleCategory: categoryById.get(summary.vehicleCategoryId),
       }));
     }
 
-    return summaries;
+    // docs/persistence/10-DECISIONES.md #137: estado de alquiler derivado, solo para el
+    // personal (el controller nunca lo pide con token de Customer).
+    if (query.includeReservations && result.length > 0) {
+      const reservationsByVehicle = await this.readTransaction.run(
+        (tx) =>
+          loadActiveReservations(
+            tx,
+            result.map((summary) => summary.id),
+          ),
+        query.companyId,
+      );
+      const now = new Date();
+      result = result.map((summary) => {
+        const activeReservation = pickCurrentReservation(
+          reservationsByVehicle.get(summary.id),
+          now,
+        );
+        return activeReservation ? { ...summary, activeReservation } : summary;
+      });
+    }
+
+    return result;
   }
 }

@@ -25,6 +25,7 @@ export class TenantContextGuard implements CanActivate {
         branchId: payload.branchId,
         userId: payload.sub,
         roles: payload.roles,
+        actorType: payload.actorType,
       });
     }
 

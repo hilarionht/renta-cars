@@ -1,6 +1,22 @@
 export interface GetVehicleQuery {
   vehicleId: string;
   companyId: string;
+  // docs/persistence/10-DECISIONES.md #137: solo personal (nunca con token de Customer).
+  includeReservations?: boolean;
+}
+
+// docs/persistence/10-DECISIONES.md #137: estado de alquiler derivado en la lectura (el
+// estado del vehiculo nunca pasa a Reserved/CheckedOut). Solo Confirmed/CheckedOut.
+export interface VehicleReservationRef {
+  id: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface VehicleActiveReservation extends VehicleReservationRef {
+  // endDate ya paso: alquiler atrasado o no-show sin marcar. Sigue bloqueando el vehiculo.
+  overdue: boolean;
 }
 
 export interface VehicleDocumentSummary {
@@ -30,6 +46,9 @@ export interface VehicleDetail {
   status: string;
   vehicleDocuments: VehicleDocumentSummary[];
   maintenanceRecords: MaintenanceRecordSummary[];
+  // Presente solo si includeReservations: TODAS las Confirmed/CheckedOut, sin filtro de
+  // fecha (una atrasada sigue ocupando el slot), ordenadas por inicio.
+  activeReservations?: VehicleActiveReservation[];
 }
 
 export interface ListVehiclesQuery {
@@ -44,6 +63,8 @@ export interface ListVehiclesQuery {
   // docs/contracts/10-DECISIONES.md #3, primera implementacion real de `?expand=` - unico
   // valor soportado hoy: 'vehicleCategory' (docs/persistence/10-DECISIONES.md #123).
   expand?: string[];
+  // docs/persistence/10-DECISIONES.md #137: solo personal.
+  includeReservations?: boolean;
 }
 
 export interface VehicleSummary {
@@ -57,4 +78,7 @@ export interface VehicleSummary {
   // 10-DECISIONES.md #123) - proyeccion minima, no VehicleCategorySummary (get-vehicle-
   // category.query.ts, que incluye description y es una query distinta).
   vehicleCategory?: { id: string; name: string };
+  // Presente solo si includeReservations: la CheckedOut o, si no hay, la proxima Confirmed
+  // que todavia no termino (#137).
+  activeReservation?: VehicleReservationRef;
 }

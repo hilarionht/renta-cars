@@ -45,6 +45,8 @@ export type {
   MaintenanceRecordSummary,
   ListVehiclesQuery,
   VehicleSummary,
+  VehicleReservationRef,
+  VehicleActiveReservation,
 } from './queries/get-vehicle/get-vehicle.query';
 export type {
   GetVehicleCategoryQuery,

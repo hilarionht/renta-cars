@@ -188,4 +188,57 @@ describe('ListVehiclesHandler', () => {
     );
     expect(findMany).not.toHaveBeenCalled();
   });
+
+  // docs/persistence/10-DECISIONES.md #137.
+  describe('includeReservations', () => {
+    function build() {
+      const vehicleFindMany = jest
+        .fn()
+        .mockResolvedValue([
+          vehicleRecord({ id: 'vehicle-1' }),
+          vehicleRecord({ id: 'vehicle-2' }),
+        ]);
+      const reservationFindMany = jest.fn().mockResolvedValue([
+        {
+          id: 'r-alquiler',
+          vehicleId: 'vehicle-2',
+          status: 'CheckedOut',
+          startDate: new Date('2026-10-01T13:00:00Z'),
+          endDate: new Date('2099-10-03T13:00:00Z'),
+        },
+      ]);
+      const readTransaction = {
+        run: (fn: (tx: unknown) => unknown) =>
+          fn({
+            vehicle: { findMany: vehicleFindMany },
+            reservation: { findMany: reservationFindMany },
+          }),
+      };
+      const calendarPort = {} as CalendarPort;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const handler = new ListVehiclesHandler(readTransaction as any, calendarPort);
+      return { handler, reservationFindMany };
+    }
+
+    it('para el personal agrega la reserva activa de cada vehiculo', async () => {
+      const { handler, reservationFindMany } = build();
+
+      const result = await handler.execute({ companyId: 'company-1', includeReservations: true });
+
+      expect(reservationFindMany).toHaveBeenCalledTimes(1);
+      expect(result.find((v) => v.id === 'vehicle-1')).not.toHaveProperty('activeReservation');
+      expect(result.find((v) => v.id === 'vehicle-2')?.activeReservation).toEqual(
+        expect.objectContaining({ id: 'r-alquiler', status: 'CheckedOut' }),
+      );
+    });
+
+    it('sin includeReservations (token de cliente) no lee reservas', async () => {
+      const { handler, reservationFindMany } = build();
+
+      const result = await handler.execute({ companyId: 'company-1' });
+
+      expect(reservationFindMany).not.toHaveBeenCalled();
+      expect(result.every((v) => v.activeReservation === undefined)).toBe(true);
+    });
+  });
 });
