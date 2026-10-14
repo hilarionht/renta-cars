@@ -163,7 +163,7 @@ Este documento define los agregados definitivos de la Plataforma: la unidad de c
 
 **Entidades internas**: ninguna.
 
-**Value Objects**: `Address`, `OperatingHours`, `BranchStatus` (`Active`, `Closed`), `BranchName` (agregado durante la implementación de Organization — no estaba en el catálogo original, ver [04-VALUE_OBJECTS.md §3](04-VALUE_OBJECTS.md); una sucursal sin nombre no es usable en ningún flujo real, mismo hueco que `PersonName` tuvo para `User` en Identity & Access).
+**Value Objects**: `Address`, `OperatingHours`, `BranchStatus` (`Active`, `Closed`), `BranchName` (agregado durante la implementación de Organization — no estaba en el catálogo original, ver [04-VALUE_OBJECTS.md §3](04-VALUE_OBJECTS.md); una sucursal sin nombre no es usable en ningún flujo real, mismo hueco que `PersonName` tuvo para `User` en Identity & Access), `BranchTimeZone` (zona IANA de la sucursal, agregado en [persistence/10-DECISIONES.md #135](../persistence/10-DECISIONES.md)).
 
 **Eventos**: `BranchOpened.v1`, `BranchClosed.v1`.
 
@@ -240,7 +240,7 @@ Este documento define los agregados definitivos de la Plataforma: la unidad de c
 
 **Transacciones**: creación (ocupar), liberación — cada una atómica sobre el `AvailabilitySlot` afectado, protegida por el exclusion constraint para el caso de condición de carrera entre dos solicitudes concurrentes.
 
-**Lifecycle**: `Active` → `Released` (liberación explícita, nunca "editado" en el rango — un cambio de fechas es liberar el slot viejo y crear uno nuevo, atómicamente, nunca un estado intermedio con ambos activos o ambos liberados, ver la misma regla de negocio en [domain/07-EXCEPCIONES.md §7](../domain/07-EXCEPCIONES.md) sobre Vehicle Swap).
+**Lifecycle**: `Active` → `Released` (liberación explícita, nunca "editado" en el rango — un cambio de fechas es liberar el slot viejo y crear uno nuevo, atómicamente, nunca un estado intermedio con ambos activos o ambos liberados, ver la misma regla de negocio en [domain/07-EXCEPCIONES.md §7](../domain/07-EXCEPCIONES.md) sobre Vehicle Swap). Implementado por `MoveSlotHandler` ([persistence/10-DECISIONES.md #136](../persistence/10-DECISIONES.md)): libera el viejo e inserta el nuevo en una sola transacción; la versión anterior ocupaba antes de liberar y chocaba consigo misma.
 
 **Límites**: no contiene ningún dato de negocio de quien ocupa el recurso — ni `CustomerId`, ni `VehicleCategory`, ni monto. Solo el hecho puro de ocupación temporal.
 

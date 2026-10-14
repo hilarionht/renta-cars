@@ -1478,6 +1478,116 @@ El plan se validó con un agente Plan contra el código, y sus correcciones est�
 - El email de reset trae el token en crudo, sin link.
 - Validar la sesión en el proxy queda descartado (ver desviaciones).
 
+## #135 — Web de administración, Incremento 2: Reservas
+
+**Contexto**: el segundo incremento de la hoja de ruta de #134. El plan se validó con un agente Plan contra el código antes de implementarlo. **Decisiones del usuario**:
+
+1. **Zona horaria por sucursal**: cada `Branch` tiene su zona IANA. Las fechas de una reserva se muestran y se ingresan en la zona de la sucursal del **vehículo**, no en la del navegador. Default `America/Argentina/Buenos_Aires`, para las sucursales existentes y para las nuevas que no la indiquen.
+2. **Check-out y check-in web sin fotos** (`photoFileIds: []`; el API no las exige). Las fotos siguen cargándose desde la app móvil.
+3. **Búsqueda de clientes en el servidor**, paginada por cursor.
+4. **Excepción acotada a [`01-REST-STANDARDS.md`](../contracts/01-REST-STANDARDS.md) §7**: se acepta `?branchId=` en `GET /reservations` y `GET /vehicles`. Si el token trae `branchId`, manda el del token y el del query se ignora: un usuario de sucursal nunca ve otras. Si no trae, el filtro aplica. `companyId` sigue saliendo siempre del token.
+
+**Backend**:
+
+- **`Branch.timeZone`**:
+  - VO `BranchTimeZone`: valida con `Intl.DateTimeFormat` y guarda el nombre **tal como viene**, sin espacios. No se guarda el de `resolvedOptions()`, porque ICU lo reemplaza por su alias canónico (`America/Argentina/Buenos_Aires` pasa a `America/Buenos_Aires`) y cambiaría el valor elegido.
+  - Migración `20261012120000_organization_branch_time_zone`: `time_zone TEXT NOT NULL DEFAULT 'America/Argentina/Buenos_Aires'`, más el índice `(company_id, id)` de `customers`.
+  - Se lee en `GET /branches` y se carga en `POST`/`PATCH` (`@IsTimeZone()`). Todavía no hay UI para editarla (Incremento 5).
+- **`GET /reservations`**: `expand=customer,vehicle`, separados por coma. Devuelven objetos mínimos: `customer: {id, name}` y `vehicle: {id, licensePlate, branchId}`. Un valor fuera de la lista da 400 `UNSUPPORTED_EXPAND` (registrado también en el registry de reservations, con el mismo mapeo que #123). Además acepta `branchId` (`where: { vehicle: { branchId } }`).
+- **Precedente nuevo, lectura directa entre módulos del lado query**: el `expand` lee `customer` y `vehicle` directo de Prisma, sin pasar por los puertos de customers y vehicles. Se justifica así:
+  - son FK reales del mismo schema `rental`;
+  - es solo lectura (lado query de CQRS);
+  - los puertos leen de a un registro, así que un listado haría N+1.
+
+  Como mucho hay una lectura por valor de `expand`, nunca una por reserva, y todas dentro de la misma `ReadTransaction` con `companyId` explícito (lección de #131).
+
+- **`GET /reservations/:id`**: nuevo `GetReservationDetailHandler`, **solo para el personal**. Devuelve summary, `inspections`, `damageReports`, `priceAdjustments` y el mismo `expand`. `GetReservationHandler` lo sigue usando `/me/reservations/:id`, que **no cambia**: el cliente no ve inspecciones, daños ni ajustes.
+- **`GET /customers?q=&cursor=&limit=`**:
+  - `q` busca sin distinguir mayúsculas en nombre, documento y email, y también en teléfono;
+  - orden `id desc` y cursor con el mismo patrón que #112;
+  - `meta` suma `nextCursor` y `limit`; el envelope global ya devolvía `{ data: [...] }`.
+  - **Bug encontrado por el smoke**: Prisma **no escapa** `%` ni `_` en `contains`, así que `q=%` devolvía todos los clientes. Ahora se escapan con `escapeLikePattern`.
+  - El load test de aislamiento pide `limit=100`, para que la paginación no debilite su chequeo de fuga.
+- **`GET /vehicles`**: `status` (`@IsIn` del enum real) y `branchId`. `ListVehiclesHandler` ya los soportaba, pero el DTO no los declaraba y `forbidNonWhitelisted` respondía 400.
+
+**Frontend**:
+
+- **`data-access-core/time-zone.ts`**, sin dependencias:
+  - `formatInTimeZone`;
+  - `utcIsoToZonedLocal`;
+  - `zonedLocalToUtcIso`: toma los offsets de la zona un día antes y un día después del instante; cada uno da un candidato, y se queda con el que realmente muestra esa hora (`formatToParts` con `hourCycle: 'h23'`).
+  - Una hora que no existe por el salto de DST lanza `NonexistentLocalTimeError`; en la hora repetida se elige la primera ocurrencia. Hay tests con Buenos Aires y Nueva York.
+- **`data-access-web/src/reservations/`**: es el `data-access` web de [`docs/06`](../06-CONVENCIONES-FRONTEND.md) §6, separado por la división de #134.
+  - Consultas: listado infinito con cursor y `expand`; detalle que se refresca cada 2 s mientras está `CheckedIn` (la factura se emite de forma asíncrona y la reserva pasa a `Closed`); facturas, que se refrescan hasta que aparece la emitida; sucursales (5 min de caché); búsqueda de clientes; vehículos disponibles.
+  - Acciones: invalidan listado y detalle **también ante error**, así un 409 `CONCURRENT_MODIFICATION` recarga el estado real.
+- **`apps/web-admin`**:
+  - **Listado**: filtros de estado y sucursal, "Cargar más".
+  - **Nueva reserva**:
+    - muestra `status` y `blockStatus` del cliente: un bloqueado no se puede elegir, y un registro incompleto avisa que no se podrá confirmar (anticipa el 422 `CUSTOMER_NOT_ELIGIBLE`);
+    - lista solo sucursales `Active` (anticipa el 409 `BRANCH_CLOSED`);
+    - fechas en la zona de la sucursal y vehículos disponibles;
+    - "Confirmar al crear" opcional.
+  - **Detalle**: acciones según la tabla de estados de `reservation.ts` y según permiso (`lib/reservation-status.ts`, con tests). No-show aparece solo después del inicio. "Extender" agrupa pedir y aprobar.
+  - **Inicio**: muestra nombres y la zona de la sucursal (cierra el gap de #134).
+
+**Verificación**:
+
+- **Tests unitarios**: lint, typecheck y tests de cada proyecto tocado, con Node 20.19.4.
+- **Smoke contra el API real**: 22/22.
+- **Flujo en vivo con el seed**:
+  - crear, confirmar, check-out sin fotos, check-in con daño, `Closed` con factura;
+  - reprogramar y cancelar;
+  - cambio de vehículo, pedir y aprobar extensión.
+
+  Encontró el bug de #136.
+
+- **e2e nuevos**, corridos individualmente contra el API local antes de CI:
+  - `web-admin-reservations-reads`: timeZone, `q` con comodines y cursor, `expand`, filtros, y `branchId` ignorado para un usuario de sucursal (helper `seedBranchUserForCompany`);
+  - aserciones nuevas en `reservations-lifecycle` (detalle con la inspección) y `customer-self-service` (`/me` sin inspecciones).
+- **`next build`**: en verde.
+- **Validación visual del usuario**: OK.
+
+**Gaps aceptados**:
+
+- `inspectedBy` y `cancelledBy` todavía los manda el cliente (el id del usuario actual); el API no los deriva del token.
+- `ILIKE` con comodín inicial sin índice trigram (`pg_trgm`); el volumen de clientes por empresa lo tolera.
+- La zona horaria de una sucursal todavía no se edita desde la UI.
+
+## #136 — Disponibilidad: reprogramar y extender chocaban con su propia ocupación
+
+**Bug** (encontrado por el flujo en vivo de #135): reprogramar una reserva `Confirmed` a un rango que se superpone con el actual, o aprobar **cualquier** extensión (que siempre se superpone, porque mantiene el inicio), fallaba siempre con 409. En la práctica, **aprobar una extensión nunca funcionaba**. Había dos causas:
+
+1. `AvailabilityService.isAvailable` contaba el slot de la propia reserva como ocupación (`VEHICLE_NOT_AVAILABLE` o `EXTENSION_COLLIDES`).
+2. `moveOccupancy` ocupaba el slot nuevo **antes** de liberar el viejo, en dos transacciones (#59/#132). La exclusión GiST rechazaba los dos slots `Active` superpuestos. Eso violaba lo que ya decía [`model/02-AGGREGATES.md`](../model/02-AGGREGATES.md) §7: el cambio de fechas es liberar el slot viejo y crear uno nuevo **atómicamente**, nunca con ambos activos.
+
+Nunca saltó porque no había e2e de reprogramar ni de extender, y los unit tests usan un mock del calendario.
+
+**Decisión del usuario**: mover la ocupación de forma atómica, en este mismo PR.
+
+**Qué cambió**:
+
+- `CheckAvailabilityQuery` y `CalendarPort.isAvailable` aceptan `excludeReferenceId`. El filtro es `OR: [{ referenceId: null }, { referenceId: { not: x } }]` y no un `not` a secas: `reference_id <> x` descarta los `NULL`, y dejaría de ver los `Blackout` y mantenimientos.
+- **`MoveSlotHandler` nuevo** (calendario) y `CalendarPort.move()`:
+  - en **una sola transacción**, libera el slot viejo y después inserta uno nuevo con el mismo recurso y `slotKind`;
+  - el slot sigue sin editarse en el rango (§7);
+  - la exclusión es parcial (`WHERE status = 'Active'`) y se evalúa fila a fila, así que el viejo ya liberado no choca con el nuevo;
+  - si el nuevo choca con **otro** slot, la transacción vuelve atrás y el viejo sigue `Active`, sin ventana con el vehículo libre.
+- `AvailabilityService.isAvailable(vehicleId, range, excludeReservationId?)`. Reprogramar y aprobar extensión pasan `reservation.id`.
+- `moveOccupancy` usa `move()`; sin slot activo (por ejemplo un `Draft`), ocupa directamente. Un choque se traduce a `ReservationOverlapError`.
+
+**Verificación**:
+
+- **Unit tests**: `MoveSlotHandler`, la exclusión de `CheckAvailabilityHandler`, `AvailabilityService` y los handlers de reprogramar y extender.
+- **Integration spec de la exclusión GiST**, con casos nuevos corridos contra Postgres local: mover a un rango superpuesto al propio en una transacción se acepta, y si choca con otro slot, todo vuelve atrás y el viejo sigue `Active`.
+- **e2e `reservations-reschedule-extension`**, corrido contra el API local:
+  - reprogramar superpuesto al propio mueve la ocupación (verificado con `GET /availability`);
+  - reprogramar encima de otra reserva da 409 y deja todo igual;
+  - pedir y aprobar una extensión cambia `endDate`, agrega el ajuste `Extension` y ocupa los días nuevos;
+  - extender encima de otra reserva da 409 `EXTENSION_COLLIDES`.
+- **Flujo en vivo**: completo en verde.
+
+**Gap que se mantiene** (preexistente, como #132): la ocupación se mueve en la transacción del calendario y la reserva se guarda en otra. Si guardar la reserva falla después de mover, quedan desfasadas. Es el mismo patrón que confirmar o cancelar.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

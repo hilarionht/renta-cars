@@ -55,7 +55,7 @@ Regla de dependencia: `features` → `data-access` + `ui-kit` → `domain-types`
 
 ## 6. Hooks de dominio
 
-- Un hook de dominio (`useReservation(id)`, `useConfirmReservation()`) vive en `data-access/<bounded-context>/` y es la única forma en que una feature toca datos de ese contexto.
+- Un hook de dominio (`useReservation(id)`, `useConfirmReservation()`) vive en `data-access/<bounded-context>/` y es la única forma en que una feature toca datos de ese contexto. En la web, ese `data-access` es `@frontend/data-access-web` (por la separación de [#134](persistence/10-DECISIONES.md)): por ejemplo `data-access-web/src/reservations/` ([#135](persistence/10-DECISIONES.md)). La lógica sin plataforma, como la zona horaria, va en `@frontend/data-access-core`.
 - Naming: `use<Recurso>` para lectura, `use<Verbo><Recurso>` para mutación (`useCreateReservation`).
 - Los hooks exponen estados de carga/error de forma consistente (`{ data, isLoading, error }`), nunca formas ad-hoc por feature.
 
