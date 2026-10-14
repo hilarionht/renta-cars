@@ -20,6 +20,13 @@ export class CheckAvailabilityHandler {
             status: 'Active',
             startDate: { lt: query.endDate },
             endDate: { gt: query.startDate },
+            // #136: con OR + null, no con `not` a secas: `reference_id <> x` descarta los NULL
+            // (Blackout/Maintenance no tienen referencia) y dejaria de verlos como ocupacion.
+            ...(query.excludeReferenceId
+              ? {
+                  OR: [{ referenceId: null }, { referenceId: { not: query.excludeReferenceId } }],
+                }
+              : {}),
           },
           select: { id: true },
         }),

@@ -27,6 +27,7 @@ describe('ListVehiclesHandler', () => {
       isAvailable: jest.fn(),
       occupy: jest.fn(),
       release: jest.fn(),
+      move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn(),
     };
@@ -50,6 +51,7 @@ describe('ListVehiclesHandler', () => {
       isAvailable: jest.fn(),
       occupy: jest.fn(),
       release: jest.fn(),
+      move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn().mockResolvedValue(['vehicle-2']),
     };
@@ -83,6 +85,7 @@ describe('ListVehiclesHandler', () => {
       isAvailable: jest.fn(),
       occupy: jest.fn(),
       release: jest.fn(),
+      move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn(),
     };
@@ -108,6 +111,7 @@ describe('ListVehiclesHandler', () => {
       isAvailable: jest.fn(),
       occupy: jest.fn(),
       release: jest.fn(),
+      move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn(),
     };
@@ -137,6 +141,7 @@ describe('ListVehiclesHandler', () => {
       isAvailable: jest.fn(),
       occupy: jest.fn(),
       release: jest.fn(),
+      move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn(),
     };
@@ -165,6 +170,7 @@ describe('ListVehiclesHandler', () => {
       isAvailable: jest.fn(),
       occupy: jest.fn(),
       release: jest.fn(),
+      move: jest.fn(),
       findActiveSlotId: jest.fn(),
       findOccupiedResourceIds: jest.fn(),
     };

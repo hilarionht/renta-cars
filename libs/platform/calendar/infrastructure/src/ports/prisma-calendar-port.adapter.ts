@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { ReadTransaction, RequestContext } from '@platform/persistence-kernel';
 import {
+  MoveSlotHandler,
   OccupySlotHandler,
   ReleaseSlotHandler,
   type CalendarPort,
@@ -18,6 +19,7 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
   constructor(
     private readonly occupySlot: OccupySlotHandler,
     private readonly releaseSlot: ReleaseSlotHandler,
+    private readonly moveSlot: MoveSlotHandler,
     private readonly checkAvailability: CheckAvailabilityHandler,
     private readonly requestContext: RequestContext,
     private readonly readTransaction: ReadTransaction,
@@ -28,6 +30,7 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
     resourceId: string,
     startDate: Date,
     endDate: Date,
+    excludeReferenceId?: string,
   ): Promise<boolean> {
     const { companyId } = this.requestContext.get();
     const result = await this.checkAvailability.execute({
@@ -36,6 +39,7 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
       resourceId,
       startDate,
       endDate,
+      excludeReferenceId,
     });
     return result.available;
   }
@@ -54,6 +58,11 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
 
   async release(slotId: string): Promise<void> {
     await this.releaseSlot.execute({ slotId });
+  }
+
+  async move(slotId: string, startDate: Date, endDate: Date): Promise<string> {
+    const newSlotId = await this.moveSlot.execute({ slotId, startDate, endDate });
+    return newSlotId.toString();
   }
 
   async findActiveSlotId(

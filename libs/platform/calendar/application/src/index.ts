@@ -12,6 +12,8 @@ export { OccupySlotHandler } from './commands/occupy-slot/occupy-slot.handler';
 export type { OccupySlotCommand } from './commands/occupy-slot/occupy-slot.command';
 export { ReleaseSlotHandler } from './commands/release-slot/release-slot.handler';
 export type { ReleaseSlotCommand } from './commands/release-slot/release-slot.command';
+export { MoveSlotHandler } from './commands/move-slot/move-slot.handler';
+export type { MoveSlotCommand } from './commands/move-slot/move-slot.command';
 
 export type {
   CheckAvailabilityQuery,

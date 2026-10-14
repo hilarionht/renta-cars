@@ -86,4 +86,58 @@ describe('Exclusion constraint parcial de disponibilidad (scheduling.availabilit
       }),
     ).resolves.toBeDefined();
   });
+
+  // docs/persistence/10-DECISIONES.md #136: la secuencia de MoveSlotHandler (liberar el slot
+  // viejo y DESPUES insertar el nuevo, en una sola transaccion). La exclusion se evalua fila a
+  // fila (no es DEFERRABLE), asi que el viejo ya Released no choca con el nuevo superpuesto.
+  async function moveInTransaction(oldSlotId: string, startDate: string, endDate: string) {
+    await client.query('BEGIN');
+    try {
+      await client.query(
+        "UPDATE scheduling.availability_slots SET status = 'Released' WHERE id = $1",
+        [oldSlotId],
+      );
+      const newId = await insertSlot({ startDate, endDate, status: 'Active' });
+      await client.query('COMMIT');
+      return newId;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  }
+
+  async function statusOf(id: string): Promise<string> {
+    const result = await client.query<{ status: string }>(
+      'SELECT status FROM scheduling.availability_slots WHERE id = $1',
+      [id],
+    );
+    return result.rows[0].status;
+  }
+
+  it('mover a un rango superpuesto al propio (extension) se acepta en una transaccion', async () => {
+    const oldId = await insertSlot({
+      startDate: '2026-05-01',
+      endDate: '2026-05-10',
+      status: 'Active',
+    });
+
+    const newId = await moveInTransaction(oldId, '2026-05-01', '2026-05-15');
+
+    expect(await statusOf(oldId)).toBe('Released');
+    expect(await statusOf(newId)).toBe('Active');
+  });
+
+  it('si el rango nuevo choca con OTRO slot, la transaccion vuelve atras y el viejo sigue Active', async () => {
+    const oldId = await insertSlot({
+      startDate: '2026-06-01',
+      endDate: '2026-06-10',
+      status: 'Active',
+    });
+    await insertSlot({ startDate: '2026-06-12', endDate: '2026-06-20', status: 'Active' });
+
+    await expect(moveInTransaction(oldId, '2026-06-01', '2026-06-15')).rejects.toThrow(
+      /availability_slots_no_overlapping_active/,
+    );
+    expect(await statusOf(oldId)).toBe('Active');
+  });
 });
