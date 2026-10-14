@@ -30,6 +30,7 @@ export class GetBranchHandler {
           country: record.addressCountry,
         },
         operatingHours: record.operatingHours as unknown as DaySchedule[],
+        timeZone: record.timeZone,
         status: record.status,
       };
     });

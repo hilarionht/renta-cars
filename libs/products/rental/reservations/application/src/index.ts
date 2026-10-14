@@ -37,6 +37,17 @@ export type {
   GetReservationQuery,
   ReservationSummary,
 } from './queries/get-reservation/get-reservation.query';
+export {
+  RESERVATION_EXPAND_VALUES,
+  type GetReservationDetailQuery,
+  type ReservationDamageReportView,
+  type ReservationDetail,
+  type ReservationExpandValue,
+  type ReservationExpansions,
+  type ReservationInspectionView,
+  type ReservationListItem,
+  type ReservationPriceAdjustmentView,
+} from './queries/get-reservation-detail/get-reservation-detail.query';
 export type {
   ListReservationsQuery,
   ListReservationsResult,

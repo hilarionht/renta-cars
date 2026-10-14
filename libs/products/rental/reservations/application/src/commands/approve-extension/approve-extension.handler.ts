@@ -50,6 +50,7 @@ export class ApproveExtensionHandler {
     const isNewRangeAvailable = await this.availabilityService.isAvailable(
       reservation.vehicleId,
       newRange,
+      reservation.id.toString(),
     );
     const newTotal = await this.pricingService.recalculateForExtension(categoryId, newRange);
     const adjustmentAmount = Money.from(

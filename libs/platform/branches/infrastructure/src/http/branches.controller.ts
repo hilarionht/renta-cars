@@ -37,6 +37,7 @@ export class BranchesController {
       name: dto.name,
       address: dto.address,
       operatingHours: dto.operatingHours,
+      timeZone: dto.timeZone,
     });
     return { id: id.toString() };
   }
@@ -66,6 +67,7 @@ export class BranchesController {
       name: dto.name,
       address: dto.address,
       operatingHours: dto.operatingHours,
+      timeZone: dto.timeZone,
     });
   }
 

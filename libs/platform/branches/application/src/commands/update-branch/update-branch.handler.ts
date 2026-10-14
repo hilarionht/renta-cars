@@ -12,6 +12,7 @@ import {
   type BranchId,
   BranchName,
   BranchNotFoundError,
+  BranchTimeZone,
   OperatingHours,
 } from '@platform/branches/domain';
 
@@ -39,6 +40,7 @@ export class UpdateBranchHandler {
       operatingHours: command.operatingHours
         ? OperatingHours.from(command.operatingHours)
         : undefined,
+      timeZone: command.timeZone ? BranchTimeZone.from(command.timeZone) : undefined,
     });
 
     await this.unitOfWork.run(async (tx) => {

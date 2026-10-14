@@ -18,16 +18,18 @@ import {
   RequestExtensionHandler,
   RescheduleReservationHandler,
   SwapVehicleHandler,
-  type ReservationSummary,
+  type ReservationDetail,
+  type ReservationListItem,
 } from '@rental/reservations/application';
 
-import { GetReservationHandler } from '../queries/get-reservation.handler';
+import { GetReservationDetailHandler } from '../queries/get-reservation-detail.handler';
 import { ListReservationsHandler } from '../queries/list-reservations.handler';
 import { ApproveExtensionRequestDto } from './dto/approve-extension-request.dto';
 import { CancelReservationRequestDto } from './dto/cancel-reservation-request.dto';
 import { CheckInReservationRequestDto } from './dto/check-in-reservation-request.dto';
 import { CheckOutReservationRequestDto } from './dto/check-out-reservation-request.dto';
 import { CreateReservationRequestDto } from './dto/create-reservation-request.dto';
+import { GetReservationRequestDto } from './dto/get-reservation-request.dto';
 import { ListReservationsRequestDto } from './dto/list-reservations-request.dto';
 import { RequestExtensionRequestDto } from './dto/request-extension-request.dto';
 import { RescheduleReservationRequestDto } from './dto/reschedule-reservation-request.dto';
@@ -51,7 +53,7 @@ export class ReservationsController {
     private readonly requestExtension: RequestExtensionHandler,
     private readonly approveExtension: ApproveExtensionHandler,
     private readonly swapVehicle: SwapVehicleHandler,
-    private readonly getReservation: GetReservationHandler,
+    private readonly getReservationDetail: GetReservationDetailHandler,
     private readonly listReservations: ListReservationsHandler,
     private readonly requestContext: RequestContext,
   ) {}
@@ -86,23 +88,36 @@ export class ReservationsController {
   @Get()
   async list(
     @Query() dto: ListReservationsRequestDto,
-  ): Promise<{ data: ReservationSummary[]; meta: { nextCursor: string | null; limit: number } }> {
-    const { companyId } = this.requestContext.get();
+  ): Promise<{ data: ReservationListItem[]; meta: { nextCursor: string | null; limit: number } }> {
+    const { companyId, branchId } = this.requestContext.get();
     const result = await this.listReservations.execute({
       companyId,
       customerId: dto.customerId,
       vehicleId: dto.vehicleId,
       status: dto.status,
+      // #135: el branchId del token manda; el del query solo aplica a usuarios de alcance
+      // empresa (excepcion acotada a docs/contracts/01-REST-STANDARDS.md SS7).
+      branchId: branchId ?? dto.branchId,
+      expand: splitExpand(dto.expand),
       cursor: dto.cursor,
       limit: dto.limit,
     });
     return { data: result.items, meta: { nextCursor: result.nextCursor, limit: result.limit } };
   }
 
+  // #135: detalle para el personal (inspecciones, danos, ajustes). /me/reservations/:id usa
+  // GetReservationHandler y no expone nada de eso.
   @Get(':id')
-  async get(@Param('id', ParseUUIDPipe) id: string): Promise<ReservationSummary> {
+  async get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() dto: GetReservationRequestDto,
+  ): Promise<ReservationDetail> {
     const { companyId } = this.requestContext.get();
-    return this.getReservation.execute({ companyId, reservationId: id });
+    return this.getReservationDetail.execute({
+      companyId,
+      reservationId: id,
+      expand: splitExpand(dto.expand),
+    });
   }
 
   @Post(':id/confirm')
@@ -231,4 +246,14 @@ export class ReservationsController {
       reason: dto.reason,
     });
   }
+}
+
+function splitExpand(raw: string | undefined): string[] | undefined {
+  if (!raw) {
+    return undefined;
+  }
+  return raw
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
 }

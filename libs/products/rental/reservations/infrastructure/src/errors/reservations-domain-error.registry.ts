@@ -1,4 +1,8 @@
-import { ConcurrentModificationError, type DomainErrorEntries } from '@platform/shared-kernel';
+import {
+  ConcurrentModificationError,
+  type DomainErrorEntries,
+  UnsupportedExpandError,
+} from '@platform/shared-kernel';
 import {
   BranchClosedError,
   CustomerNotEligibleError,
@@ -16,6 +20,12 @@ import {
 // docs/contracts/07-ERROR-CATALOG.md - mapeo code/status ya reservado, activado en esta
 // tanda (primer consumidor real de Reservations).
 export const RESERVATIONS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
+  // #135: mismo mapeo que vehicles (#123), repetido para no depender de que vehicles este
+  // cargado; el merge en apps/api deja una sola entrada.
+  [
+    UnsupportedExpandError,
+    { status: 400, code: 'UNSUPPORTED_EXPAND', title: 'El valor de expand no esta soportado' },
+  ],
   [
     ReservationInvalidStateTransitionError,
     { status: 409, code: 'INVALID_STATE_TRANSITION', title: 'Transicion de estado invalida' },

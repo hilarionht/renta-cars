@@ -56,7 +56,9 @@ export default function () {
   // GET /customers: el unico endpoint con datos taggeados por company - el check de
   // aislamiento real vive aca. GET /branches y /reservations solo suman presion real de
   // concurrencia sobre el pool/RLS de otras rutas, sin dato taggeado que verificar en ellas.
-  const customersRes = http.get(`${API_BASE_URL}/api/v1/customers`, { headers });
+  // limit=100: desde #135 GET /customers pagina (default 25); con el maximo, la primera pagina
+  // cubre los CUSTOMERS_PER_COMPANY de la company y el chequeo de fuga no se debilita.
+  const customersRes = http.get(`${API_BASE_URL}/api/v1/customers?limit=100`, { headers });
   http.get(`${API_BASE_URL}/api/v1/branches`, { headers });
   http.get(`${API_BASE_URL}/api/v1/reservations`, { headers });
 

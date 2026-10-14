@@ -6,9 +6,23 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#134` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#136` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
-## Última sesión (2026-10-10 a 2026-10-12) — leer primero
+## Última sesión (2026-10-12 a 2026-10-13) — leer primero
+
+- **Web de administración, Incremento 2 (Reservas)**: hecho en el PR #6, rama `feat/web-admin-reservations`. Ver **`docs/persistence/10-DECISIONES.md #135`**:
+  - zona horaria por sucursal (`Branch.timeZone`);
+  - `expand` y filtro `branchId` en reservas (excepción acotada a `01-REST-STANDARDS` §7);
+  - detalle de reserva solo para el personal;
+  - búsqueda de clientes con `q` y cursor;
+  - pantallas de listado, nueva reserva y detalle con acciones.
+
+  Validado visualmente por el usuario.
+
+- **#136**: el flujo en vivo encontró que reprogramar a un rango superpuesto y aprobar **cualquier** extensión fallaban siempre (la reserva chocaba con su propia ocupación). Se corrigió con `MoveSlotHandler`, que libera y ocupa en una sola transacción.
+- Siguen los incrementos 3 (Flota), 4 (Clientes) y 5 (Administración).
+
+## Sesión anterior (2026-10-10 a 2026-10-12)
 
 - Se hizo una **auditoría de reentrada**: [`docs/audits/2026-10-10-reentry-audit.md`](docs/audits/2026-10-10-reentry-audit.md). Tiene el estado verificado, la matriz de gobernanza SDD propuesta y el backlog priorizado.
 - Lo que se decidió y se hizo después está en **`docs/persistence/10-DECISIONES.md #124`**:
@@ -24,8 +38,8 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
-- **`apps/web-admin`**: en construcción por incrementos (#134). El **Incremento 1 (fundaciones)** está hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. Siguen Reservas (2), Flota (3), Clientes (4) y Administración (5). Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas 3 decisiones: `#121` (Reminder de reservas, BullMQ + rol `platform_admin`/BYPASSRLS), `#122` (Push de Expo conectado a Reminder), `#123` (`GET /vehicles?expand=vehicleCategory`, primera implementación real del mecanismo `?expand=`, + pantalla de búsqueda de vehículos en mobile).
+- **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). Siguen Flota (3), Clientes (4) y Administración (5). Arquitectura y restricciones en #134 y `docs/06` §3.
+- Últimas 3 decisiones: `#134` (web de administración: hoja de ruta e Incremento 1), `#135` (Incremento 2: Reservas), `#136` (reprogramar y extender chocaban con su propia ocupación).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 
@@ -42,6 +56,11 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 5. **Push (Expo) solo conectado a `Reminder`** — no a `Confirmation`/`Receipt`, por decisión explícita de acotar alcance en `#122`.
 6. **Sin `extra.eas.projectId`** vinculado en `apps/mobile/app.json` — requiere una cuenta EAS real (acción externa). Sin esto, `getExpoPushTokenAsync()` no puede obtener un token real en ningún entorno de desarrollo.
 7. **Validación visual manual**: hecha para el operador en un celular con Expo Go (#133), incluidos check-out y check-in. Falta completar el flujo del cliente. **Gap nuevo**: el login de clientes no normaliza el teléfono a E.164 y hay que decidir el país por defecto.
+8. **Gaps de la web de reservas (#135)**:
+   - `inspectedBy` y `cancelledBy` todavía los manda el cliente; el API no los deriva del token;
+   - la zona horaria de una sucursal todavía no se edita desde la UI (va en el Incremento 5);
+   - la búsqueda de clientes usa `ILIKE` sin índice trigram.
+9. **Reserva y ocupación en transacciones separadas** (#136, preexistente): mover la ocupación y guardar la reserva no son atómicos entre sí. Es el mismo patrón que confirmar y cancelar.
 
 ## Entorno — cómo levantar todo
 

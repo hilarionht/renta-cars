@@ -1,12 +1,18 @@
+import { formatInTimeZone } from '@frontend/data-access-core';
+
 // Formato de montos y fechas (docs/06-CONVENCIONES-FRONTEND.md SS10). Montos desde el VO Money
 // del API (unidad minima + moneda): la division es solo para mostrar, nunca se opera en float.
-// Gap aceptado (#134): las fechas se muestran en la zona horaria del navegador; la de la
-// Branch llega con el modulo de Reservas (Incremento 2).
+// Fechas de reservas: en la zona horaria de la sucursal del vehiculo (docs/persistence/
+// 10-DECISIONES.md #135, cierra el gap de #134).
 export function formatMoney(minorUnits: number, currency: string): string {
   return new Intl.NumberFormat('es', { style: 'currency', currency }).format(minorUnits / 100);
 }
 
-export function formatDateTime(iso: string): string {
+// Sin zona (sucursales todavia cargando, o un dato sin sucursal) cae a la del navegador.
+export function formatDateTime(iso: string, timeZone?: string): string {
+  if (timeZone) {
+    return formatInTimeZone(iso, timeZone);
+  }
   return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(
     new Date(iso),
   );

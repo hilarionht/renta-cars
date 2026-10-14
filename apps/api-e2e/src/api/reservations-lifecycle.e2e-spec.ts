@@ -205,6 +205,12 @@ describe('Reservations: reserva -> confirmacion -> check-out -> check-in', () =>
       request(baseUrl).get(`/api/v1/reservations/${reservationId}`),
     );
     expect(getCheckedOutResponse.body.data.status).toBe('CheckedOut');
+    // #135: detalle para el personal, con la inspeccion de check-out.
+    expect(getCheckedOutResponse.body.data.inspections).toHaveLength(1);
+    expect(getCheckedOutResponse.body.data.inspections[0]).toEqual(
+      expect.objectContaining({ type: 'CheckOut', odometer: 1000, fuelLevel: 100 }),
+    );
+    expect(getCheckedOutResponse.body.data.damageReports).toEqual([]);
 
     // CheckedIn - con dano detectado y penalidad
     const checkInResponse = await auth(

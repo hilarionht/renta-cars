@@ -85,3 +85,39 @@ export async function seedCompanyWithAdmin(): Promise<SeededCompany> {
   const admin = await seedAdminForCompany(companyId);
   return { companyId, ...admin };
 }
+
+export interface SeededBranchUser {
+  userId: string;
+  email: string;
+  password: string;
+}
+
+// docs/persistence/10-DECISIONES.md #135: usuario con sucursal en el token (users.branch_id),
+// con el mismo rol System que el admin. Sirve para verificar que un usuario de sucursal no
+// puede pedir datos de otra sucursal via ?branchId=.
+export async function seedBranchUserForCompany(
+  companyId: string,
+  roleId: string,
+  branchId: string,
+): Promise<SeededBranchUser> {
+  const client = new Client({ connectionString: process.env.TEST_DATABASE_URL });
+  await client.connect();
+  try {
+    const userId = uuidv7();
+    const email = `branch-user-${randomUUID()}@example.com`;
+    const password = 'Sup3rSecret!123';
+    await client.query(
+      `INSERT INTO identity.users (id, company_id, branch_id, email, password_hash, name, status, updated_at, version)
+       VALUES ($1, $2, $3, $4, $5, 'Branch User E2E', 'Active', now(), 1)`,
+      [userId, companyId, branchId, email, hashSync(password, ARGON2_PARAMS)],
+    );
+    await client.query(
+      `INSERT INTO identity.user_roles (user_id, role_id, company_id, updated_at)
+       VALUES ($1, $2, $3, now())`,
+      [userId, roleId, companyId],
+    );
+    return { userId, email, password };
+  } finally {
+    await client.end();
+  }
+}

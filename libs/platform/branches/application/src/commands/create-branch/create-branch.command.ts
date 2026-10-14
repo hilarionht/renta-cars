@@ -12,4 +12,6 @@ export interface CreateBranchCommand {
     country: string;
   };
   operatingHours: DaySchedule[];
+  // IANA; sin valor, BranchTimeZone.default() (docs/persistence/10-DECISIONES.md #135).
+  timeZone?: string;
 }

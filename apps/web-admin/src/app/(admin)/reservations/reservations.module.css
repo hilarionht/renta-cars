@@ -1,0 +1,156 @@
+/* Modulo Reservas (docs/persistence/10-DECISIONES.md #135). Solo tokens de ui-kit-web. */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 260px));
+  gap: var(--rk-space-md);
+  margin-bottom: var(--rk-space-lg);
+}
+
+.loadMore {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--rk-space-md);
+}
+
+/* Link con aspecto de boton primario (navegar no es una accion: <a>, no <button>). */
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--rk-space-md);
+  border-radius: var(--rk-radius-md);
+  background: var(--rk-color-primary);
+  color: var(--rk-color-primary-text);
+  font-size: var(--rk-font-size-label);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.linkButton:focus-visible {
+  outline: 2px solid var(--rk-color-primary);
+  outline-offset: 2px;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: var(--rk-space-md);
+  color: var(--rk-color-primary);
+  font-size: var(--rk-font-size-label);
+  text-decoration: none;
+}
+
+.section {
+  margin-top: var(--rk-space-xl);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--rk-space-sm);
+  font-size: var(--rk-font-size-body);
+  font-weight: 600;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--rk-space-md);
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--rk-color-text-muted);
+  font-size: var(--rk-font-size-label);
+}
+
+.facts dd {
+  margin: var(--rk-space-xs) 0 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rk-space-sm);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rk-space-md);
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--rk-space-md);
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rk-space-md);
+  margin: 0;
+  padding: var(--rk-space-md);
+  border: 1px solid var(--rk-color-border);
+  border-radius: var(--rk-radius-md);
+}
+
+.fieldset legend {
+  padding: 0 var(--rk-space-xs);
+  font-weight: 600;
+}
+
+.choiceList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rk-space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rk-space-sm);
+  width: 100%;
+  padding: var(--rk-space-sm) var(--rk-space-md);
+  border: 1px solid var(--rk-color-border);
+  border-radius: var(--rk-radius-sm);
+  background: var(--rk-color-background);
+  color: var(--rk-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.choice:hover:not(:disabled) {
+  background: var(--rk-color-surface);
+}
+
+.choice:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.choiceSelected {
+  border-color: var(--rk-color-primary);
+  background: var(--rk-color-info-surface);
+}
+
+.muted {
+  color: var(--rk-color-text-muted);
+  font-size: var(--rk-font-size-label);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--rk-space-sm);
+  font-size: var(--rk-font-size-label);
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--rk-space-sm);
+}

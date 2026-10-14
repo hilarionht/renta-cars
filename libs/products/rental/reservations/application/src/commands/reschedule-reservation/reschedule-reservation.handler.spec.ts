@@ -79,6 +79,12 @@ describe('RescheduleReservationHandler', () => {
       newEndDate: new Date('2026-09-15T10:00:00Z'),
     });
 
+    // #136: el chequeo previo excluye la propia reserva (si no, choca consigo misma).
+    expect(availabilityService.isAvailable).toHaveBeenCalledWith(
+      reservation.vehicleId,
+      expect.anything(),
+      reservation.id.toString(),
+    );
     expect(availabilityService.moveOccupancy).toHaveBeenCalledWith(
       'company-1',
       'vehicle-1',

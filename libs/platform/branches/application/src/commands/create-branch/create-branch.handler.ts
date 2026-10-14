@@ -11,6 +11,7 @@ import {
   Branch,
   type BranchId,
   BranchName,
+  BranchTimeZone,
   OperatingHours,
 } from '@platform/branches/domain';
 
@@ -34,6 +35,7 @@ export class CreateBranchHandler {
       name: BranchName.from(command.name),
       address: Address.from(command.address),
       operatingHours: OperatingHours.from(command.operatingHours),
+      timeZone: command.timeZone ? BranchTimeZone.from(command.timeZone) : undefined,
     });
 
     await this.unitOfWork.run(async (tx) => {

@@ -34,6 +34,7 @@ import { ReservationsController } from './http/reservations.controller';
 import { ReservationReminderScanProcessor } from './jobs/reservation-reminder-scan.processor';
 import { SendReservationReminderProcessor } from './jobs/send-reservation-reminder.processor';
 import { PrismaReservationRepository } from './persistence/prisma/prisma-reservation.repository';
+import { GetReservationDetailHandler } from './queries/get-reservation-detail.handler';
 import { GetReservationHandler } from './queries/get-reservation.handler';
 import { ListReservationsHandler } from './queries/list-reservations.handler';
 
@@ -90,6 +91,7 @@ import { ListReservationsHandler } from './queries/list-reservations.handler';
     SwapVehicleHandler,
     CloseReservationHandler,
     GetReservationHandler,
+    GetReservationDetailHandler,
     ListReservationsHandler,
     InvoiceIssuedListener,
     ReservationConfirmedNotificationListener,

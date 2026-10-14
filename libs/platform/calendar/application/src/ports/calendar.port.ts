@@ -22,11 +22,17 @@ export interface CalendarPort {
     resourceId: string,
     startDate: Date,
     endDate: Date,
+    // docs/persistence/10-DECISIONES.md #136: ignora los slots de esta referencia.
+    excludeReferenceId?: string,
   ): Promise<boolean>;
   // Retorna el id del AvailabilitySlot creado. Lanza AvailabilitySlotOverlapError (via el
   // command handler subyacente) si el rango se solapa con un slot Active existente.
   occupy(params: OccupySlotParams): Promise<string>;
   release(slotId: string): Promise<void>;
+  // docs/persistence/10-DECISIONES.md #136: libera el slot y ocupa uno nuevo con otro rango,
+  // atomico. Devuelve el id del nuevo. Lanza AvailabilitySlotOverlapError si el rango nuevo
+  // choca con OTRO slot (el viejo queda Active).
+  move(slotId: string, startDate: Date, endDate: Date): Promise<string>;
   // Agregado para AvailabilityService.release() (docs/persistence/10-DECISIONES.md #59) -
   // Reservation no contiene el AvailabilitySlot ("no se persiste ni cachea", docs/model/
   // 02-AGGREGATES.md SS11), asi que necesita resolver el slotId activo antes de poder

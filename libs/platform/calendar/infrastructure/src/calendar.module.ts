@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import {
   AVAILABILITY_SLOT_REPOSITORY,
   CALENDAR_PORT,
+  MoveSlotHandler,
   OccupySlotHandler,
   ReleaseSlotHandler,
 } from '@platform/calendar/application';
@@ -21,6 +22,7 @@ import { CheckAvailabilityHandler } from './queries/check-availability.handler';
     { provide: AVAILABILITY_SLOT_REPOSITORY, useClass: PrismaAvailabilitySlotRepository },
     { provide: CALENDAR_PORT, useClass: PrismaCalendarPortAdapter },
     OccupySlotHandler,
+    MoveSlotHandler,
     ReleaseSlotHandler,
     CheckAvailabilityHandler,
   ],

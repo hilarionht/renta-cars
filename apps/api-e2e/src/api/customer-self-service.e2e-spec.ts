@@ -166,6 +166,16 @@ describe('Customer self-service: OTP login -> crear/listar/cancelar reservas pro
     expect(listAsBResponse.status).toBe(200);
     expect(listAsBResponse.body.data).toHaveLength(0);
 
+    // #135: el detalle propio del cliente sigue siendo ReservationSummary - las inspecciones,
+    // danos y ajustes solo los ve el personal en GET /reservations/:id.
+    const getOwnResponse = await asCustomerA(
+      request(baseUrl).get(`/api/v1/me/reservations/${reservationId}`),
+    );
+    expect(getOwnResponse.status).toBe(200);
+    expect(getOwnResponse.body.data).not.toHaveProperty('inspections');
+    expect(getOwnResponse.body.data).not.toHaveProperty('damageReports');
+    expect(getOwnResponse.body.data).not.toHaveProperty('priceAdjustments');
+
     // Ownership: B nunca puede ver ni cancelar la reserva de A - mismo codigo que "no existe".
     const getAsBResponse = await asCustomerB(
       request(baseUrl).get(`/api/v1/me/reservations/${reservationId}`),

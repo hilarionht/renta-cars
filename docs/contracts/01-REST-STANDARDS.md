@@ -25,12 +25,12 @@ Un sub-recurso anidado (`/api/v1/reservations/{id}/inspections`) se justifica ú
 2. La entidad hija es una **entidad interna** del mismo Aggregate Root en [model/03-ENTITIES.md](../model/03-ENTITIES.md) — nunca un agregado distinto, aunque esté relacionado (`/api/v1/reservations/{id}/invoice` está prohibido: `Invoice` es su propio Aggregate Root, se accede como `/api/v1/invoices?reservationId=...` o por su propio ID).
 3. **Nunca más de dos niveles de anidamiento** (ya fijado en [08-API-CONTRACTS.md §1](../08-API-CONTRACTS.md)) — `/api/v1/reservations/{id}/inspections/{inspectionId}/photos` está prohibido; las fotos de una inspección se exponen como campo del recurso `inspection`, no como tercer nivel de URI.
 
-| Ejemplo | Válido como sub-recurso | Por qué |
-|---|---|---|
-| `/api/v1/reservations/{id}/inspections` | Sí | `Inspection` es entidad interna de `Reservation` (§4.10 de [model/02-AGGREGATES.md](../model/02-AGGREGATES.md)), sin sentido fuera de ella |
-| `/api/v1/vehicles/{id}/documents` | Sí | `VehicleDocument` es entidad interna de `Vehicle` |
-| `/api/v1/reservations/{id}/invoice` | No | `Invoice` es un Aggregate Root propio de otro Bounded Context — se referencia por evento, nunca por FK ([03-RELACIONES.md §4](../persistence/03-RELACIONES.md) de persistencia); exponerlo como sub-recurso induciría al cliente a asumir un acoplamiento que el dominio ya evitó explícitamente |
-| `/api/v1/customers/{id}/reservations` | No | `Reservation` es Aggregate Root propio — se expone como `/api/v1/reservations?customerId=...` (filtro sobre el recurso raíz, no anidamiento) |
+| Ejemplo                                 | Válido como sub-recurso | Por qué                                                                                                                                                                                                                                                                                          |
+| --------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/api/v1/reservations/{id}/inspections` | Sí                      | `Inspection` es entidad interna de `Reservation` (§4.10 de [model/02-AGGREGATES.md](../model/02-AGGREGATES.md)), sin sentido fuera de ella                                                                                                                                                       |
+| `/api/v1/vehicles/{id}/documents`       | Sí                      | `VehicleDocument` es entidad interna de `Vehicle`                                                                                                                                                                                                                                                |
+| `/api/v1/reservations/{id}/invoice`     | No                      | `Invoice` es un Aggregate Root propio de otro Bounded Context — se referencia por evento, nunca por FK ([03-RELACIONES.md §4](../persistence/03-RELACIONES.md) de persistencia); exponerlo como sub-recurso induciría al cliente a asumir un acoplamiento que el dominio ya evitó explícitamente |
+| `/api/v1/customers/{id}/reservations`   | No                      | `Reservation` es Aggregate Root propio — se expone como `/api/v1/reservations?customerId=...` (filtro sobre el recurso raíz, no anidamiento)                                                                                                                                                     |
 
 ### 1.3 Acciones de negocio que no son CRUD
 
@@ -49,13 +49,13 @@ POST /api/v1/vehicles/{id}/schedule-maintenance
 
 ## 2. Métodos HTTP
 
-| Método | Uso | Idempotente (semántica HTTP) | Cuerpo de request |
-|---|---|---|---|
-| `GET` | Leer un recurso o una colección | Sí | Nunca |
-| `POST` | Crear un recurso, o ejecutar una acción de negocio (§1.3) | No (salvo deduplicación explícita vía `Idempotency-Key`, §7) | Sí, salvo acciones sin parámetros |
-| `PUT` | Nunca usado en v1.0 | — | — |
-| `PATCH` | Actualización parcial de campos editables de un recurso que **no** representan una transición de máquina de estados (p. ej. datos de contacto de un `Customer`, dirección de una `Branch`) | Sí (aplicar el mismo `PATCH` dos veces produce el mismo estado) | Sí, solo los campos a modificar |
-| `DELETE` | Eliminación de un recurso, solo donde el ciclo de vida del agregado lo admite (ver §2.1) | Sí | Nunca |
+| Método   | Uso                                                                                                                                                                                        | Idempotente (semántica HTTP)                                    | Cuerpo de request                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- | --------------------------------- |
+| `GET`    | Leer un recurso o una colección                                                                                                                                                            | Sí                                                              | Nunca                             |
+| `POST`   | Crear un recurso, o ejecutar una acción de negocio (§1.3)                                                                                                                                  | No (salvo deduplicación explícita vía `Idempotency-Key`, §7)    | Sí, salvo acciones sin parámetros |
+| `PUT`    | Nunca usado en v1.0                                                                                                                                                                        | —                                                               | —                                 |
+| `PATCH`  | Actualización parcial de campos editables de un recurso que **no** representan una transición de máquina de estados (p. ej. datos de contacto de un `Customer`, dirección de una `Branch`) | Sí (aplicar el mismo `PATCH` dos veces produce el mismo estado) | Sí, solo los campos a modificar   |
+| `DELETE` | Eliminación de un recurso, solo donde el ciclo de vida del agregado lo admite (ver §2.1)                                                                                                   | Sí                                                              | Nunca                             |
 
 **Por qué no se usa `PUT`**: `PUT` implica reemplazo completo del recurso, lo cual es ajeno a un modelo donde cada agregado protege invariantes de transición (ningún agregado de [model/02-AGGREGATES.md](../model/02-AGGREGATES.md) se "reemplaza" como un documento — se muta a través de comandos explícitos). Introducir `PUT` invitaría a un cliente a reconstruir el recurso completo y reenviarlo, evadiendo la máquina de estados. Esta es una decisión nueva de este documento — ver [10-DECISIONES.md](10-DECISIONES.md) #1.
 
@@ -107,7 +107,7 @@ Hereda [08-API-CONTRACTS.md §6](../08-API-CONTRACTS.md): query params planos y 
 - **Filtro de rango**: para campos de fecha, convención `<campo>From`/`<campo>To` (`?createdAtFrom=2026-01-01&createdAtTo=2026-02-01`), nunca un operador embebido en el nombre del parámetro.
 - **Filtro de conjunto**: `?status=confirmed,checked-out` (valores separados por coma) donde el negocio lo requiere (p. ej. "reservas activas" = varios estados no terminales) — un endpoint documenta explícitamente si un filtro admite múltiples valores.
 - **Búsqueda de texto libre**: un parámetro `q` reservado exclusivamente para búsqueda de texto no estructurado (p. ej. nombre de `Customer`, placa de `Vehicle`) — nunca reutilizado como filtro estructurado. Un endpoint que no ofrece búsqueda de texto simplemente no documenta `q`; usarlo contra un endpoint que no lo soporta responde `400` con `code: UNSUPPORTED_FILTER`.
-- **`companyId`/`branchId` nunca son filtros de query aceptados desde el cliente** — ya fijado en [08-API-CONTRACTS.md §2](../08-API-CONTRACTS.md): se derivan del token, salvo el puñado de endpoints cross-tenant de super-administración de Plataforma (§9).
+- **`companyId`/`branchId` nunca son filtros de query aceptados desde el cliente** — ya fijado en [08-API-CONTRACTS.md §2](../08-API-CONTRACTS.md): se derivan del token, salvo el puñado de endpoints cross-tenant de super-administración de Plataforma (§9). **Excepción acotada para `branchId`** ([persistence/10-DECISIONES.md #135](../persistence/10-DECISIONES.md)): `GET /reservations` y `GET /vehicles` aceptan `?branchId=` como filtro **dentro** de la company del token, solo para usuarios sin sucursal en el token. Si el token trae `branchId`, manda el del token y el del query se ignora, así que un usuario de sucursal nunca ve otras. `companyId` no tiene excepción.
 - Todo filtro combinado se interpreta en conjunción (`AND`) — nunca disyunción implícita entre parámetros distintos; una disyunción explícita, cuando el negocio la requiere, usa el filtro de conjunto (viñeta anterior), nunca un operador `OR` genérico.
 
 ## 8. Cache, ETag y Optimistic Concurrency — decisiones nuevas de este documento
@@ -118,7 +118,7 @@ Ningún documento previo fija el mecanismo HTTP de control de concurrencia ni de
 
 - Todo recurso individual (`GET /api/v1/reservations/{id}`) responde una cabecera `ETag` cuyo valor es una función determinística de `version` (p. ej. `W/"<version>"`, ETag débil — débil porque la serialización JSON puede variar sin que el estado de negocio cambie, p. ej. un campo `meta.generatedAt`).
 - Una escritura sobre ese recurso (`PATCH`, o una acción de negocio de §1.3 que exige concurrencia protegida) puede enviar `If-Match: <etag>` — si el `version` actual del agregado no coincide, la operación se rechaza con `412 Precondition Failed` y `code: CONCURRENT_MODIFICATION`, **antes** de ejecutar cualquier lógica de dominio.
-- `If-Match` es **obligatorio** en las acciones identificadas explícitamente en [02-RESOURCE-CATALOG.md](02-RESOURCE-CATALOG.md) como de alta concurrencia de escritura (`Reservation.checkOut()`, `Reservation.checkIn()`, `Reservation.confirm()` — coherente con la nota de "`version` de alta prioridad por concurrencia de escritura" de [persistence/09-TRAZABILIDAD.md §4](../persistence/09-TRAZABILIDAD.md)); **opcional** en el resto, donde un cliente puede optar por protegerse de una sobreescritura perdida (*lost update*) o aceptar "última escritura gana".
+- `If-Match` es **obligatorio** en las acciones identificadas explícitamente en [02-RESOURCE-CATALOG.md](02-RESOURCE-CATALOG.md) como de alta concurrencia de escritura (`Reservation.checkOut()`, `Reservation.checkIn()`, `Reservation.confirm()` — coherente con la nota de "`version` de alta prioridad por concurrencia de escritura" de [persistence/09-TRAZABILIDAD.md §4](../persistence/09-TRAZABILIDAD.md)); **opcional** en el resto, donde un cliente puede optar por protegerse de una sobreescritura perdida (_lost update_) o aceptar "última escritura gana".
 - La ausencia de `If-Match` en una operación donde es opcional no es un error — el servidor ejecuta la operación contra el estado más reciente, tal como lo haría sin este mecanismo.
 
 ### 8.2 Cache-Control
@@ -129,16 +129,16 @@ Ningún documento previo fija el mecanismo HTTP de control de concurrencia ni de
 
 ## 9. Headers — catálogo completo
 
-| Header | Dirección | Obligatorio | Propósito |
-|---|---|---|---|
-| `Authorization: Bearer <access_token>` | Request | Sí (salvo `@Public()`) | Autenticación — [09-SEGURIDAD.md §1](../09-SEGURIDAD.md) |
-| `Idempotency-Key` | Request | Condicional (§4) | Deduplicación de efectos de negocio |
-| `If-Match` | Request | Condicional (§8.1) | Concurrencia optimista |
-| `X-Correlation-Id` | Request/Response | No (generado si ausente) | Trazabilidad de punta a punta — [technical/06-OBSERVABILITY.md §4](../technical/06-OBSERVABILITY.md); ecoado en la response y en `instance` del error RFC 7807 |
-| `Accept-Language` | Request | No | Selecciona el idioma de `title`/`detail` humanos del error (§3 de [07-ERROR-CATALOG.md](07-ERROR-CATALOG.md)) — nunca afecta `code`, que es siempre estable e independiente de idioma |
-| `ETag` | Response | Sí, en todo `GET` de recurso individual | §8.1 |
-| `Cache-Control` | Response | Sí, en todo `GET` | §8.2 |
-| `Link` | Response | No (recomendado en listas paginadas) | Enlaces `rel="next"` como alternativa navegable al `meta.nextCursor` — conveniencia, nunca la única fuente del cursor |
+| Header                                 | Dirección        | Obligatorio                             | Propósito                                                                                                                                                                             |
+| -------------------------------------- | ---------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Authorization: Bearer <access_token>` | Request          | Sí (salvo `@Public()`)                  | Autenticación — [09-SEGURIDAD.md §1](../09-SEGURIDAD.md)                                                                                                                              |
+| `Idempotency-Key`                      | Request          | Condicional (§4)                        | Deduplicación de efectos de negocio                                                                                                                                                   |
+| `If-Match`                             | Request          | Condicional (§8.1)                      | Concurrencia optimista                                                                                                                                                                |
+| `X-Correlation-Id`                     | Request/Response | No (generado si ausente)                | Trazabilidad de punta a punta — [technical/06-OBSERVABILITY.md §4](../technical/06-OBSERVABILITY.md); ecoado en la response y en `instance` del error RFC 7807                        |
+| `Accept-Language`                      | Request          | No                                      | Selecciona el idioma de `title`/`detail` humanos del error (§3 de [07-ERROR-CATALOG.md](07-ERROR-CATALOG.md)) — nunca afecta `code`, que es siempre estable e independiente de idioma |
+| `ETag`                                 | Response         | Sí, en todo `GET` de recurso individual | §8.1                                                                                                                                                                                  |
+| `Cache-Control`                        | Response         | Sí, en todo `GET`                       | §8.2                                                                                                                                                                                  |
+| `Link`                                 | Response         | No (recomendado en listas paginadas)    | Enlaces `rel="next"` como alternativa navegable al `meta.nextCursor` — conveniencia, nunca la única fuente del cursor                                                                 |
 
 ## 10. Endpoints cross-tenant de super-administración de Plataforma
 

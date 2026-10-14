@@ -21,5 +21,6 @@ export interface BranchSummary {
     country: string;
   };
   operatingHours: DaySchedule[];
+  timeZone: string;
   status: string;
 }

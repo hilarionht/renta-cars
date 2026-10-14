@@ -27,12 +27,24 @@ export class AvailabilityService {
   // Un Vehicle en Maintenance/OutOfService es "no disponible" incluso si Scheduling no
   // tiene ningun AvailabilitySlot activo para el (RN-04) - combina ambas fuentes, ninguna
   // por si sola basta.
-  async isAvailable(vehicleId: string, range: DateRange): Promise<boolean> {
+  // excludeReservationId (docs/persistence/10-DECISIONES.md #136): al reprogramar o extender,
+  // el slot de la propia reserva no cuenta como ocupacion (si no, choca consigo misma).
+  async isAvailable(
+    vehicleId: string,
+    range: DateRange,
+    excludeReservationId?: string,
+  ): Promise<boolean> {
     const isOperational = await this.vehicleStatusPort.isOperational(vehicleId);
     if (!isOperational) {
       return false;
     }
-    return this.calendarPort.isAvailable('vehicle', vehicleId, range.start, range.end);
+    return this.calendarPort.isAvailable(
+      'vehicle',
+      vehicleId,
+      range.start,
+      range.end,
+      excludeReservationId,
+    );
   }
 
   // Traduce a CalendarPort.occupy() - lanza AvailabilitySlotOverlapError (propagada desde
@@ -75,11 +87,12 @@ export class AvailabilityService {
   }
 
   // reschedule()/approveExtension() mueven la ventana ocupada del MISMO vehicleId (a
-  // diferencia de swapVehicle, que ocupa un vehicleId distinto) - occupy-antes-que-release
-  // (Hallazgo #2) crearia momentaneamente DOS AvailabilitySlot Active para el mismo
-  // resourceId, lo que vuelve ambiguo a `release(vehicleId)` (busca "el" slot activo). Se
-  // captura el id del slot viejo ANTES de ocupar el nuevo, cuando la busqueda todavia es
-  // inequivoca, y se libera por id explicito despues.
+  // diferencia de swapVehicle, que ocupa un vehicleId distinto). docs/persistence/
+  // 10-DECISIONES.md #136: CalendarPort.move() libera el slot viejo y ocupa el nuevo en una
+  // sola transaccion. Antes se ocupaba el nuevo ANTES de liberar el viejo (dos transacciones)
+  // y la exclusion GiST lo rechazaba siempre que los rangos se superpusieran - una extension
+  // siempre se superpone (mismo inicio), asi que aprobar extensiones nunca funcionaba.
+  // Sin slot activo (p.ej. un Draft, que nunca ocupo) se ocupa directamente.
   async moveOccupancy(
     companyId: string,
     vehicleId: string,
@@ -87,9 +100,17 @@ export class AvailabilityService {
     reservationId: string,
   ): Promise<void> {
     const oldSlotId = await this.calendarPort.findActiveSlotId('vehicle', vehicleId, reservationId);
-    await this.reserve(companyId, vehicleId, newRange, reservationId);
-    if (oldSlotId) {
-      await this.calendarPort.release(oldSlotId);
+    if (!oldSlotId) {
+      await this.reserve(companyId, vehicleId, newRange, reservationId);
+      return;
+    }
+    try {
+      await this.calendarPort.move(oldSlotId, newRange.start, newRange.end);
+    } catch (error) {
+      if (error instanceof Error && error.name === AVAILABILITY_SLOT_OVERLAP_ERROR_NAME) {
+        throw new ReservationOverlapError(vehicleId);
+      }
+      throw error;
     }
   }
 }

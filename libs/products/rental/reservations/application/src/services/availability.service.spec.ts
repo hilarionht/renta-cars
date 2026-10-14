@@ -21,6 +21,7 @@ describe('AvailabilityService', () => {
         isAvailable: jest.fn(),
         occupy: jest.fn(),
         release: jest.fn(),
+        move: jest.fn(),
         findActiveSlotId: jest.fn(),
         findOccupiedResourceIds: jest.fn(),
       };
@@ -42,6 +43,7 @@ describe('AvailabilityService', () => {
         isAvailable: jest.fn().mockResolvedValue(true),
         occupy: jest.fn(),
         release: jest.fn(),
+        move: jest.fn(),
         findActiveSlotId: jest.fn(),
         findOccupiedResourceIds: jest.fn(),
       };
@@ -55,6 +57,35 @@ describe('AvailabilityService', () => {
         'vehicle-1',
         range().start,
         range().end,
+        undefined,
+      );
+    });
+
+    // docs/persistence/10-DECISIONES.md #136: al reprogramar/extender, la propia reserva no cuenta.
+    it('pasa la reserva a excluir a CalendarPort.isAvailable()', async () => {
+      const vehicleStatusPort: VehicleStatusPort = {
+        isOperational: jest.fn().mockResolvedValue(true),
+        getBranchId: jest.fn(),
+        getCategoryId: jest.fn(),
+      };
+      const calendarPort: CalendarPort = {
+        isAvailable: jest.fn().mockResolvedValue(true),
+        occupy: jest.fn(),
+        release: jest.fn(),
+        move: jest.fn(),
+        findActiveSlotId: jest.fn(),
+        findOccupiedResourceIds: jest.fn(),
+      };
+      const service = new AvailabilityService(vehicleStatusPort, calendarPort);
+
+      await service.isAvailable('vehicle-1', range(), 'reservation-1');
+
+      expect(calendarPort.isAvailable).toHaveBeenCalledWith(
+        'vehicle',
+        'vehicle-1',
+        range().start,
+        range().end,
+        'reservation-1',
       );
     });
   });
@@ -67,6 +98,7 @@ describe('AvailabilityService', () => {
         isAvailable: jest.fn(),
         occupy: jest.fn().mockRejectedValue(overlapError),
         release: jest.fn(),
+        move: jest.fn(),
         findActiveSlotId: jest.fn(),
         findOccupiedResourceIds: jest.fn(),
       };
@@ -83,6 +115,7 @@ describe('AvailabilityService', () => {
         isAvailable: jest.fn(),
         occupy: jest.fn().mockRejectedValue(new Error('infra failure')),
         release: jest.fn(),
+        move: jest.fn(),
         findActiveSlotId: jest.fn(),
         findOccupiedResourceIds: jest.fn(),
       };
@@ -101,6 +134,7 @@ describe('AvailabilityService', () => {
         isAvailable: jest.fn(),
         occupy: jest.fn(),
         release: jest.fn(),
+        move: jest.fn(),
         findActiveSlotId: jest.fn().mockResolvedValue(null),
         findOccupiedResourceIds: jest.fn(),
       };
@@ -117,6 +151,7 @@ describe('AvailabilityService', () => {
         isAvailable: jest.fn(),
         occupy: jest.fn(),
         release: jest.fn().mockResolvedValue(undefined),
+        move: jest.fn(),
         findActiveSlotId: jest.fn().mockResolvedValue('slot-1'),
         findOccupiedResourceIds: jest.fn(),
       };
@@ -144,6 +179,7 @@ describe('AvailabilityService', () => {
         isAvailable: jest.fn(),
         occupy: jest.fn(),
         release: jest.fn().mockResolvedValue(undefined),
+        move: jest.fn(),
         findActiveSlotId: jest.fn((_type: string, resourceId: string, referenceId: string) =>
           Promise.resolve(
             activeSlots.find(
@@ -163,53 +199,59 @@ describe('AvailabilityService', () => {
     });
   });
 
+  // docs/persistence/10-DECISIONES.md #136: mover = CalendarPort.move() (libera y ocupa en una
+  // sola transaccion). Antes se ocupaba el nuevo antes de liberar el viejo y la exclusion GiST
+  // rechazaba cualquier rango superpuesto al actual.
   describe('moveOccupancy', () => {
-    it('captura el slot viejo, ocupa el nuevo, y recien despues libera el viejo por id explicito', async () => {
-      const callOrder: string[] = [];
-      const calendarPort: CalendarPort = {
+    function calendarPortWith(overrides: Partial<CalendarPort>): CalendarPort {
+      return {
         isAvailable: jest.fn(),
-        occupy: jest.fn().mockImplementation(() => {
-          callOrder.push('occupy');
-          return Promise.resolve('new-slot-id');
-        }),
-        release: jest.fn().mockImplementation(() => {
-          callOrder.push('release');
-          return Promise.resolve();
-        }),
-        findActiveSlotId: jest.fn().mockImplementation(() => {
-          callOrder.push('findActiveSlotId');
-          return Promise.resolve('old-slot-id');
-        }),
+        occupy: jest.fn().mockResolvedValue('new-slot-id'),
+        release: jest.fn(),
+        move: jest.fn().mockResolvedValue('new-slot-id'),
+        findActiveSlotId: jest.fn().mockResolvedValue('old-slot-id'),
         findOccupiedResourceIds: jest.fn(),
+        ...overrides,
       };
-      const vehicleStatusPort = {} as VehicleStatusPort;
-      const service = new AvailabilityService(vehicleStatusPort, calendarPort);
+    }
+
+    it('con slot activo de la reserva, lo mueve en una sola operacion (sin occupy/release sueltos)', async () => {
+      const calendarPort = calendarPortWith({});
+      const service = new AvailabilityService({} as VehicleStatusPort, calendarPort);
 
       await service.moveOccupancy('company-1', 'vehicle-1', range(), 'reservation-1');
 
-      expect(callOrder).toEqual(['findActiveSlotId', 'occupy', 'release']);
       expect(calendarPort.findActiveSlotId).toHaveBeenCalledWith(
         'vehicle',
         'vehicle-1',
         'reservation-1',
       );
-      expect(calendarPort.release).toHaveBeenCalledWith('old-slot-id');
+      expect(calendarPort.move).toHaveBeenCalledWith('old-slot-id', range().start, range().end);
+      expect(calendarPort.occupy).not.toHaveBeenCalled();
+      expect(calendarPort.release).not.toHaveBeenCalled();
     });
 
-    it('no libera nada si no habia ningun slot viejo activo', async () => {
-      const calendarPort: CalendarPort = {
-        isAvailable: jest.fn(),
-        occupy: jest.fn().mockResolvedValue('new-slot-id'),
-        release: jest.fn(),
+    it('si el rango nuevo choca con otra reserva, lanza ReservationOverlapError', async () => {
+      const overlap = new Error('solapa');
+      overlap.name = 'AvailabilitySlotOverlapError';
+      const calendarPort = calendarPortWith({ move: jest.fn().mockRejectedValue(overlap) });
+      const service = new AvailabilityService({} as VehicleStatusPort, calendarPort);
+
+      await expect(
+        service.moveOccupancy('company-1', 'vehicle-1', range(), 'reservation-1'),
+      ).rejects.toThrow(ReservationOverlapError);
+    });
+
+    it('sin slot activo (nunca ocupo), ocupa directamente', async () => {
+      const calendarPort = calendarPortWith({
         findActiveSlotId: jest.fn().mockResolvedValue(null),
-        findOccupiedResourceIds: jest.fn(),
-      };
-      const vehicleStatusPort = {} as VehicleStatusPort;
-      const service = new AvailabilityService(vehicleStatusPort, calendarPort);
+      });
+      const service = new AvailabilityService({} as VehicleStatusPort, calendarPort);
 
       await service.moveOccupancy('company-1', 'vehicle-1', range(), 'reservation-1');
 
-      expect(calendarPort.release).not.toHaveBeenCalled();
+      expect(calendarPort.occupy).toHaveBeenCalledTimes(1);
+      expect(calendarPort.move).not.toHaveBeenCalled();
     });
   });
 });

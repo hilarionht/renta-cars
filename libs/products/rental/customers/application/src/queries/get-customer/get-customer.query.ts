@@ -35,8 +35,19 @@ export interface CustomerDetail {
   additionalDrivers: AdditionalDriverSummary[];
 }
 
+// docs/persistence/10-DECISIONES.md #135: busqueda en el servidor (q, contrato
+// docs/contracts/01-REST-STANDARDS.md) y paginacion por cursor (#112).
 export interface ListCustomersQuery {
   companyId: string;
+  q?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface ListCustomersResult {
+  items: CustomerSummary[];
+  nextCursor: string | null;
+  limit: number;
 }
 
 export interface CustomerSummary {

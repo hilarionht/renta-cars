@@ -4,6 +4,7 @@
 // Ver docs/technical/09-CODING-STANDARDS.md SS2.
 export { Branch, type BranchId, type BranchProps } from './entities/branch';
 export { BranchName } from './value-objects/branch-name';
+export { BranchTimeZone, DEFAULT_BRANCH_TIME_ZONE } from './value-objects/branch-time-zone';
 export { Address, type AddressProps } from './value-objects/address';
 export {
   OperatingHours,

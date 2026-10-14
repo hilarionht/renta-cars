@@ -85,6 +85,12 @@ describe('ApproveExtensionHandler', () => {
     expect(reservation.allPriceAdjustments[0]).toMatchObject({ kind: 'Extension' });
     expect(reservation.allPriceAdjustments[0].amount.minorUnits).toBe(5000);
     expect(availabilityService.moveOccupancy).toHaveBeenCalled();
+    // #136: el chequeo previo excluye la propia reserva (si no, choca consigo misma).
+    expect(availabilityService.isAvailable).toHaveBeenCalledWith(
+      reservation.vehicleId,
+      expect.anything(),
+      reservation.id.toString(),
+    );
   });
 
   it('lanza ExtensionCollidesError si el rango extendido colisiona (INV-106)', async () => {

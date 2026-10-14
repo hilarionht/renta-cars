@@ -69,9 +69,12 @@ export class VehiclesController {
   // implementacion real de docs/contracts/10-DECISIONES.md #3.
   @Get()
   async list(@Query() dto: ListVehiclesRequestDto): Promise<VehicleSummaryResponseDto[]> {
-    const { companyId } = this.requestContext.get();
+    const { companyId, branchId } = this.requestContext.get();
     return this.listVehicles.execute({
       companyId,
+      // #135: el branchId del token manda (excepcion acotada a SS7).
+      branchId: branchId ?? dto.branchId,
+      status: dto.status,
       startDate: dto.startDate ? new Date(dto.startDate) : undefined,
       endDate: dto.endDate ? new Date(dto.endDate) : undefined,
       expand: dto.expand ? [dto.expand] : undefined,

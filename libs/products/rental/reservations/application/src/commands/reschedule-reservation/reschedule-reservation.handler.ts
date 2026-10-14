@@ -50,6 +50,7 @@ export class RescheduleReservationHandler {
     const isNewRangeAvailable = await this.availabilityService.isAvailable(
       reservation.vehicleId,
       newRange,
+      reservation.id.toString(),
     );
     const newBaseAmount = await this.pricingService.calculateBasePrice(categoryId, newRange);
 

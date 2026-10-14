@@ -12,6 +12,7 @@ import {
   Branch,
   type BranchId,
   BranchName,
+  BranchTimeZone,
   type DaySchedule,
   OperatingHours,
 } from '@platform/branches/domain';
@@ -49,6 +50,7 @@ export class PrismaBranchRepository implements BranchRepository {
       addressPostalCode: address.postalCode,
       addressCountry: address.country,
       operatingHours: branch.operatingHours.toSchedule() as unknown as object,
+      timeZone: branch.timeZone.toString(),
       status: branch.status,
     };
 
@@ -84,6 +86,7 @@ export class PrismaBranchRepository implements BranchRepository {
         country: record.addressCountry,
       }),
       operatingHours: OperatingHours.from(record.operatingHours as unknown as DaySchedule[]),
+      timeZone: BranchTimeZone.from(record.timeZone),
       status: record.status,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,

@@ -22,6 +22,18 @@ export class ListReservationsRequestDto {
   @IsString()
   status?: string;
 
+  // Excepcion acotada a docs/contracts/01-REST-STANDARDS.md SS7 (docs/persistence/
+  // 10-DECISIONES.md #135): solo filtra para usuarios sin sucursal en el token; si el token
+  // trae branchId, manda el del token y este se ignora.
+  @IsOptional()
+  @IsUUID()
+  branchId?: string;
+
+  // #135: separados por coma, allow-list en el handler (customer, vehicle).
+  @IsOptional()
+  @IsString()
+  expand?: string;
+
   @IsOptional()
   @IsString()
   cursor?: string;
