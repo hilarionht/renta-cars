@@ -1,4 +1,5 @@
-/* Modulo Reservas (docs/persistence/10-DECISIONES.md #135). Solo tokens de ui-kit-web. */
+/* Estilos de pagina compartidos por los modulos de la web (Reservas #135, Flota #137). Solo
+   tokens de ui-kit-web. */
 .filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 260px));

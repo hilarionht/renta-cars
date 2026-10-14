@@ -10,7 +10,7 @@ import { Alert, Button, PageHeader, Select, Table } from '@frontend/ui-kit-web';
 
 import { RESERVATION_STATUSES, reservationStatusLabel } from '../../../lib/reservation-status';
 import { useReservationColumns } from './reservation-columns';
-import styles from './reservations.module.css';
+import styles from '../admin-page.module.css';
 
 // Listado de reservas (docs/persistence/10-DECISIONES.md #135): filtros por estado y sucursal,
 // paginado por cursor con "Cargar mas". Un usuario de sucursal ve solo la suya aunque elija

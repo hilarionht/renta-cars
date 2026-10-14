@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, type ReactNode, useState } from 'react';
+import { useState } from 'react';
 
 import { utcIsoToZonedLocal, zonedLocalToUtcIso } from '@frontend/data-access-core';
 import {
@@ -10,11 +10,13 @@ import {
   type ReservationActionInput,
 } from '@frontend/data-access-web';
 import type { CheckInDamage, DamageSeverity, ReservationDetail } from '@frontend/domain-types';
-import { Alert, Button, ConfirmDialog, Dialog, Select, TextField } from '@frontend/ui-kit-web';
+import { Alert, Button, ConfirmDialog, Select, TextField } from '@frontend/ui-kit-web';
 
 import { apiErrorMessage } from '../../../../lib/api-error-message';
+import { parseInteger, parseMoneyToMinorUnits } from '../../../../lib/form-parsing';
 import type { ReservationUiAction } from '../../../../lib/reservation-status';
-import styles from '../reservations.module.css';
+import styles from '../../admin-page.module.css';
+import { FormDialog } from '../../form-dialog';
 
 // Dialogos de las acciones de una reserva (docs/persistence/10-DECISIONES.md #135). Fechas en
 // la zona de la sucursal del vehiculo; check-out/check-in sin fotos (photoFileIds: []).
@@ -41,74 +43,6 @@ function useRunAction(reservationId: string, onDone: () => void) {
     }
   }
   return { run, error, setError, pending: mutation.isPending };
-}
-
-function parseInteger(value: string): number | undefined {
-  return /^\d+$/.test(value.trim()) ? Number(value.trim()) : undefined;
-}
-
-// "1500,50" o "1500.50" -> 150050 unidades minimas. Sin float: se arma desde los digitos.
-function parseMoneyToMinorUnits(value: string): number | undefined {
-  const match = /^(\d+)(?:[.,](\d{1,2}))?$/.exec(value.trim());
-  if (!match) {
-    return undefined;
-  }
-  return Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
-}
-
-function FormDialog({
-  title,
-  onClose,
-  onSubmit,
-  error,
-  pending,
-  submitLabel,
-  submitDisabled,
-  children,
-  extraActions,
-}: {
-  title: string;
-  onClose: () => void;
-  onSubmit: () => void;
-  error: string | null;
-  pending: boolean;
-  submitLabel: string;
-  submitDisabled?: boolean;
-  children: ReactNode;
-  extraActions?: ReactNode;
-}) {
-  const formId = `form-${title.replace(/\s+/g, '-').toLowerCase()}`;
-  return (
-    <Dialog
-      open
-      title={title}
-      onClose={onClose}
-      footer={
-        <>
-          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-            Cancelar
-          </Button>
-          {extraActions}
-          <Button type="submit" form={formId} loading={pending} disabled={submitDisabled}>
-            {submitLabel}
-          </Button>
-        </>
-      }
-    >
-      <form
-        id={formId}
-        className={styles.form}
-        noValidate
-        onSubmit={(event: FormEvent) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-      >
-        {children}
-        {error ? <Alert tone="danger">{error}</Alert> : null}
-      </form>
-    </Dialog>
-  );
 }
 
 function InspectionFields({
