@@ -1588,6 +1588,97 @@ Nunca saltó porque no había e2e de reprogramar ni de extender, y los unit test
 
 **Gap que se mantiene** (preexistente, como #132): la ocupación se mueve en la transacción del calendario y la reserva se guarda en otra. Si guardar la reserva falla después de mover, quedan desfasadas. Es el mismo patrón que confirmar o cancelar.
 
+## #137 — Web de administración, Incremento 3: Flota, y 4 bugs de Flota encontrados en vivo
+
+**Contexto**: tercer incremento de la hoja de ruta de #134. Lección del anterior (#136): los bugs reales aparecieron al ejercitar el API real en endpoints sin e2e. Por eso, **antes de planear**, se auditó en vivo toda la superficie de Flota (categorías, tarifas, vehículos, documentos, mantenimientos, daños y fuera de servicio). El plan se validó después con un agente Plan contra el código, que encontró 4 errores de diseño, ya corregidos (ver más abajo).
+
+**Hallazgos de la auditoría**:
+
+| #   | Hallazgo                                                                                                                                                                                                                                                                       | Tipo          |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| A   | Un daño **leve** pasaba el vehículo a `Maintenance` **sin** `MaintenanceRecord`. Ninguna transición lo sacaba: `scheduleMaintenance` exige `Available`/`OutOfService` y `completeMaintenance` exige un registro. Reproducido en vivo: el vehículo quedaba trabado para siempre | bug           |
+| B   | Se podía programar mantenimiento, reportar un daño o marcar fuera de servicio con el vehículo **alquilado** o con **reservas confirmadas**. Por INV-009 el bloqueo empieza ya y por INV-103 no hay check-out: el cliente se quedaba sin auto                                   | gap de reglas |
+| C   | El estado del vehículo nunca refleja el alquiler (`Reserved`/`CheckedOut` nunca se asignan): un auto alquilado figura `Available`                                                                                                                                              | gap conocido  |
+| D   | 500 en vez de 4xx: nombre de categoría repetido (P2002 sin mapear), tarifa con `validTo < validFrom`, moneda inválida y VIN inválido. Causa de fondo: los VO lanzan `TypeError` crudo y ningún filtro lo mapea (gap ya anotado en #116)                                        | bug           |
+
+**Decisiones del usuario**:
+
+1. **A**: el daño leve crea un mantenimiento correctivo.
+2. **B**: el API rechaza con 409 y la web muestra las reservas afectadas.
+3. **C**: el estado de alquiler se deriva en la lectura, sin tocar la máquina de estados.
+4. **Documentos**: subida real del archivo (ver #138 para el almacenamiento local).
+
+**Por diseño, no se tocó**: un mantenimiento futuro bloquea el vehículo desde ya (INV-009, `08-STATE_MACHINES` §5); un documento cargado ya vencido queda `Pending` (y no se puede verificar).
+
+**Backend**:
+
+- **D, de raíz**: `InvalidValueError extends DomainError` en `shared-kernel`, registrado como 400 `INVALID_VALUE` en vehicles, reservations, calendar, payments e invoices (los módulos que construyen `Money` o `DateRange`).
+  - **Por qué `DomainError` y no una subclase de `TypeError`**: `DomainExceptionFilter` solo consulta el registry para `DomainError`; un `TypeError` cae en `AllExceptionsFilter` y responde 500. Lo detectó el agente Plan.
+  - **Se migraron solo las validaciones de entrada**: `VIN`, `LicensePlate`, `CategoryName`, `Rate`, `MaintenanceRecord`, `Money.from` y `DateRange.from`. `Money.add` (monedas distintas), hashes y `EntityId` siguen en `TypeError` → 500, porque si fallan es un bug del servidor.
+  - `INVALID_VALUE` es distinto de `VALIDATION_FAILED` (del `ValidationPipe`, con `errors[]`).
+- **Categoría repetida**: `DuplicateVehicleCategoryNameError`, 409 `DUPLICATE_VEHICLE_CATEGORY_NAME`. El nombre del índice se lee del mensaje del driver, igual que patente y VIN (Prisma 7 no puebla `meta.target`).
+- **A**: `Vehicle.reportDamage('Minor')` crea un `MaintenanceRecord` `Corrective` desde ahora hasta ahora + 7 días (`CORRECTIVE_MAINTENANCE_WINDOW_DAYS`, mismo valor que el re-intento, sin instrucción de negocio) y emite `MaintenanceScheduled.v1`. Devuelve hasta cuándo bloquea (`null` en el grave).
+- **B**: `ActiveBookingsGuard` (vehicles/application) consulta `CalendarPort.findActiveBookings(companyId, resourceType, resourceId)`, nuevo: solo `Booking` `Active`, con `companyId` explícito para no repetir el gap de #132.
+  - Mantenimiento y daño leve chocan con toda reserva que **empiece antes del fin del bloqueo**; daño grave y fuera de servicio, con cualquiera.
+  - Una `CheckedOut` conserva su slot hasta el check-in, así que también cuenta.
+  - Responde 409 `VEHICLE_HAS_ACTIVE_BOOKINGS` con los ids en `detail` (el contrato de errores no admite campos extra).
+  - Se usa el calendario y no las reservas: el lado de comandos no lee otro módulo.
+- **C**: `GET /vehicles` suma `activeReservation` (la `CheckedOut` o, si no hay, la próxima `Confirmed` que no terminó) y `GET /vehicles/:id`, `activeReservations` (todas las `Confirmed`/`CheckedOut` **sin filtro de fecha**, con `overdue`: un alquiler atrasado o un no-show sin marcar siguen bloqueando). Es una sola lectura del schema `rental` del lado query (precedente #135).
+  - **Solo para el personal**: mobile llama al mismo `GET /vehicles` con token de cliente (#116), así que sin esto un cliente vería reservas ajenas. Lo detectó el agente Plan. `RequestContextData.actorType` (nuevo, poblado por `TenantContextGuard`) decide si se incluyen.
+
+**Frontend**:
+
+- **`ui-kit-web`**: `Tabs` (links; recibe el componente de link de la app, con `createElement` porque la convención de nombres no admite variables en PascalCase) y `FileInput`.
+- **`domain-types`**: tipos de Flota; `VehicleSummary.activeReservation` opcional (mobile no cambia).
+- **`data-access-web`**: `fleet/` (consultas y acciones, que invalidan también ante error) y `files/use-upload-file.ts`: URL firmada → `PUT` con `fetch` crudo sin `Authorization` → confirmación, validando tipo y 20 MB antes de subir.
+- **`web-admin`**, pestañas Vehículos | Categorías:
+  - **listado** con el estado derivado ("En alquiler") y filtros de sucursal (API), estado y patente (cliente);
+  - **alta**;
+  - **detalle**: reservas activas (marca las atrasadas), documentos (subir, ver con URL firmada abriendo la pestaña en el click, verificar), mantenimientos y acciones según estado y permiso (`lib/vehicle-status.ts`, con tests). Los diálogos de mantenimiento, daño y fuera de servicio **muestran antes de confirmar** las reservas que quedarían sin auto (`blockingReservations`, misma regla que el API);
+  - **categorías** con tarifas (vigencias como fecha UTC, igual que el seed).
+  - La CSP suma `NEXT_PUBLIC_STORAGE_ORIGIN` en `connect-src`.
+  - `FormDialog` y el parseo de campos pasan a ser compartidos con Reservas; los estilos de página, a `admin-page.module.css`.
+
+**Verificación**:
+
+- **Tests unitarios**: lint, typecheck y tests de cada proyecto tocado (Node 20.19.4).
+- **Verificación en vivo contra el API real** (`fleet-verify.cjs`): **23/23**. Cero 500 en los casos de la auditoría, el daño leve se recupera, los 409 de conflicto dejan el vehículo intacto, y las reservas derivadas aparecen para el personal y no con token de cliente.
+- **e2e `fleet-management`** (nuevo) y `vehicles-lifecycle` (con subida real a RustFS), corridos individualmente contra el API local.
+- **`next build`** con las 5 rutas nuevas; rutas y CSP verificadas por HTTP.
+
+**Gaps aceptados**:
+
+- **Ids que no son UUID v7**: un id v4 en el body o el path de un comando pasa el `@IsUUID()`/`ParseUUIDPipe` y `EntityId.from` lanza `TypeError` → 500 (lo mostró la verificación en vivo). Es el mismo gap sistémico que D, para ids; la web no lo dispara porque siempre manda ids de los listados.
+- El resto de los VO de entrada (customers, settings, branches...) sigue lanzando `TypeError`.
+- Un dato corrupto al reconstituir un VO migrado desde la base daría 400 en vez de 500.
+- El chequeo de reservas y el guardado no son atómicos: una confirmación puede colarse entre ambos (mismo tipo que #136).
+- Sin edición de vehículo ni de categoría (el API no tiene `PATCH`), sin baja y sin paginación del listado de vehículos.
+- INV-103 menciona un `Blackout` del mantenimiento en el calendario, que no está implementado.
+
+## #138 — Almacenamiento S3: MinIO archivado, RustFS en local y URL de subida sin checksum
+
+**Contexto**: el Incremento 3 (#137) necesita la subida real de archivos, y el usuario eligió probarla en local. El almacenamiento previsto era MinIO nativo.
+
+**Hallazgo**: **el MinIO open source fue archivado**. `dl.min.io` responde `410 Gone`: no hay binarios, ni parches, ni avisos de seguridad. Ya había desaparecido la imagen `minio/minio` de Docker Hub (#125). El CI usa `cgr.dev/chainguard/minio` (fijada por digest) y `docker-compose.yml` sigue nombrando MinIO: hoy funcionan, pero dependen de un producto discontinuado.
+
+**Decisiones del usuario**:
+
+- **Local**: **RustFS** (compatible con S3, binario nativo para Windows, desarrollo activo).
+- **CI y compose**: se documenta ahora como riesgo y la migración va en un **PR aparte**, después de Flota.
+
+**Qué se hizo**:
+
+- **RustFS 1.0.1** instalado en esta máquina (checksum verificado), documentado en `docs/engineering/11-ENTORNO-LOCAL-NATIVO.md` §4.1 con instalación, arranque y bitácora. No es un servicio: hay que levantarlo en cada sesión.
+- **`npm run dev:storage-setup`** (`tooling/scripts/storage/setup-local.ts`): crea el bucket y la regla CORS que necesita el `PUT` directo del navegador. Es idempotente.
+- **Bug latente de producción, corregido**: el `S3Client` firmaba la URL de subida con `x-amz-checksum-crc32` calculado **sobre un cuerpo vacío** (el presigner no ve el archivo). MinIO y RustFS lo ignoran, pero **S3 real rechazaría el `PUT` con `BadDigest`**: la subida de archivos habría fallado en producción. `requestChecksumCalculation: 'WHEN_REQUIRED'` lo evita. El integration spec del adaptador suma la regresión.
+
+**Verificación**: subida de punta a punta a través del API real (preflight CORS, `PUT`, confirmación y lectura firmada, contenido idéntico). El integration spec del adaptador S3, escrito para MinIO, pasó 4/4 contra RustFS. El e2e `vehicles-lifecycle` pasó con subida real.
+
+**Riesgos y pendientes**:
+
+- Migrar el CI y `docker-compose.yml` a RustFS (PR aparte; el integration spec ya pasa contra RustFS).
+- `@aws-sdk/client-s3` avisa que desde enero de 2027 va a exigir Node 22 o superior, y el proyecto usa Node 20 (`.nvmrc`, CI).
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
