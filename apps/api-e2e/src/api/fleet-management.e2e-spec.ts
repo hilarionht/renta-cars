@@ -191,7 +191,8 @@ describe('Flota: validaciones, dano leve, conflictos con reservas y estado deriv
     expect((await getVehicle()).body.data.status).toBe('Available');
 
     // --- B: reserva confirmada a 60 dias
-    const customerPhone = '+5411000077001';
+    // #139: ya canonico (+54 con el 9 de movil); el desafio OTP se guarda con este numero.
+    const customerPhone = '+54911000077001';
     const customerResponse = await auth(request(baseUrl).post('/api/v1/customers')).send({
       name: 'Cliente fleet e2e',
       taxIdOrDocumentId: `doc-${taxId}`,
