@@ -25,8 +25,17 @@ Estado al 2026-10-15. El Incremento 3 (Flota) está mergeado (PR #7, CI 6/6). **
    - **B**: **teléfono único por empresa**: el alta y la edición responden 409. Antes de migrar, mostrar los duplicados existentes (en local solo está el par "Audit/Gemelo" de la auditoría, que es dato de prueba).
    - **D**: bloquear o revocar **se permite**, pero la web avisa qué reservas afecta, y el **check-out rechaza** a un cliente bloqueado o con el documento vencido.
    - **E**: país por defecto **Argentina +54**: los celulares se normalizan con el 9 (`11 5555-4444` pasa a `+5491155554444`).
-3. **Plan** (EnterPlanMode), validado con un agente Plan, y después la aprobación del usuario.
-4. Implementar en capas: backend, verificación en vivo, e2e, frontend, documentación (#139) y `next build`.
+3. ~~Plan~~: aprobado (2026-10-15) y validado con un agente Plan. Además de A a E, encontró **C2**: la validación de licencia toma el primer documento del conductor de cualquier tipo. Corrigió el alcance de C en vehículos: no se puede renovar y se puede habilitar con un documento vencido, pero un auto `Available` sigue operando aunque se le venza el seguro.
+4. **Implementar en capas** (marcar cada una al commitearla):
+   - [ ] 1. A: `PhoneNumber`/`Email`/`CustomerName`/`TaxIdOrDocumentId` lanzan `InvalidValueError`, e `INVALID_VALUE` se registra en customers, users, companies y notifications.
+   - [ ] 2. B: `@@unique([companyId, contactPhone])`; P2002 de `create` y `updateMany` → 409 `DUPLICATE_CUSTOMER_DOCUMENT_ID` / `DUPLICATE_CUSTOMER_PHONE`; los argentinos `+54` sin 9 pasan a `+549` en el alta, la edición y la búsqueda del OTP. Arreglar los teléfonos repetidos en `reports.e2e-spec.ts:81-94` y `tooling/load-testing/setup.ts:126`. En local, antes de migrar, corregir el par de prueba "Audit/Gemelo".
+   - [ ] 3. C y C2: estado `Replaced` (migración 1 solo de enums), índices `…_pending_key` y `…_verified_key` (migración 2 a mano), `upload()` reemplaza el `Pending` anterior, `verify()` rechaza vencido o `Replaced` y reemplaza el `Verified` anterior, los repositorios escriben primero los `Replaced` y ordenan por `createdAt`/`id`, la licencia filtra `DriversLicense`, y `Vehicle.enable` exige un documento no vencido.
+   - [ ] 4. D: el check-out consulta `isEligibleForConfirmation` y `Reservation.checkOut` recibe `isCustomerEligible`; ajustar las 7 llamadas a `checkOut` en specs y el mock del handler.
+   - [ ] 5. Verificación en vivo (auditorías en PASS/FAIL) y e2e `customer-documents-and-rules` (individual, más `reports` y `customers-lifecycle`).
+   - [ ] 6. `data-access-core/phone.ts` (`normalizePhoneNumber`, Argentina) reexportado en `@frontend/data-access`; mobile `login-phone.tsx` normaliza una vez.
+   - [ ] 7. Tipos, hooks `data-access-web/src/customers/` y pantallas `(admin)/customers/`.
+   - [ ] 8. Flota (badge `Replaced`, renovación) y Reservas (mensaje del check-out).
+   - [ ] 9. Docs: #139, `07-ERROR-CATALOG`, `08-STATE_MACHINES` §6.7, `02-AGGREGATES`, `03-ENTITIES`, `05-INDICES-Y-CONSTRAINTS`, comentarios de `rental.prisma` y `CLAUDE.md`.
 5. Push, PR y vigilar el CI hasta 6/6. Nunca aprobar ni mergear.
 6. Pendiente del usuario desde el Incremento 3: la validación visual de Flota (opcional; el PR #7 ya se mergeó).
 
