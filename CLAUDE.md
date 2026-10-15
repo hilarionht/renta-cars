@@ -14,7 +14,7 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 Estado al 2026-10-14, Incremento 3 (Flota), rama `feat/web-admin-fleet`:
 
-1. **Push de la rama**: estaba corriendo (el hook `pre-push` hace lint y typecheck de lo afectado y tarda varios minutos). Verificar con `git fetch origin && git rev-parse origin/feat/web-admin-fleet`. Si no existe o no coincide con `HEAD`, volver a pushear: `GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper= -c "credential.helper=!gh auth git-credential" push -u origin feat/web-admin-fleet`.
+1. ~~Push de la rama~~: hecho. Si hay commits nuevos, pushear con `GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper= -c "credential.helper=!gh auth git-credential" push origin feat/web-admin-fleet` (el hook `pre-push` tarda varios minutos).
 2. **Abrir el PR** contra `master`: título `feat(web-admin): incremento 3, flota`. La descripción resume las decisiones #137 y #138: bugs corregidos, almacenamiento, frontend, verificación y gaps. Termina con la línea de atribución de Claude Code.
 3. **Vigilar el CI** hasta 6/6 (`gh pr checks <n>`). Si algo falla, investigar la causa raíz y corregir en la misma rama.
 4. Avisarle al usuario que el PR queda para que lo apruebe y mergee `gameoverplay26-stack`. **Nunca** aprobar ni mergear.
@@ -110,6 +110,12 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 - Nunca mergear, aprobar ni bypassear PRs vos mismo (regla de abajo).
 
 ## Reglas operativas que aplicaron durante toda la sesión anterior (seguir aplicando salvo que el usuario diga lo contrario)
+
+- **Continuidad ante cortes (regla del usuario, 2026-10-14)**: si la sesión se corta por límite de tokens, cierre o error, el trabajo **no puede quedar suspendido hasta el otro día**. Cómo se cumple:
+  1. Al empezar o al reanudar una sesión, si existe la sección "Trabajo en curso — RETOMAR ACÁ", **continuar solo** desde el primer paso pendiente, sin esperar instrucciones ni volver a preguntar lo ya decidido. Solo se pregunta lo que de verdad es decisión del usuario.
+  2. Mantener esa sección al día **antes** de cada paso largo (push, CI, builds), para que un corte en el medio no pierda el estado.
+  3. Al arrancar una tanda larga, programar en la sesión un recordatorio recurrente (`CronCreate`, cada hora): "revisar 'Trabajo en curso' en CLAUDE.md y continuar el primer paso pendiente". Si el límite corta la sesión pero la terminal sigue abierta, el recordatorio la reactiva apenas se libere. Es solo de esa sesión (no sobrevive a cerrar la terminal) y vence a los 7 días.
+  4. Si la terminal se cerró, nada puede arrancarla solo: la próxima sesión que se abra aplica el punto 1.
 
 - Nunca mergear/aprobar/bypassear PRs vos mismo.
 - Nunca pushear a `origin/master` sin que el usuario lo pida explícitamente en ese momento (no alcanza con una autorización de una sesión anterior).
