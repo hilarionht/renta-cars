@@ -1,4 +1,8 @@
-import { ConcurrentModificationError, type DomainErrorEntries } from '@platform/shared-kernel';
+import {
+  ConcurrentModificationError,
+  type DomainErrorEntries,
+  InvalidValueError,
+} from '@platform/shared-kernel';
 import {
   CompanyNotFoundError,
   DuplicateEmailError,
@@ -10,6 +14,11 @@ import {
 } from '@platform/users/domain';
 
 export const USERS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
+  // #139 (patron de #137): VO con dato de entrada invalido (antes TypeError crudo -> 500).
+  [
+    InvalidValueError,
+    { status: 400, code: 'INVALID_VALUE', title: 'Un valor de la solicitud no es valido' },
+  ],
   [UserDisabledError, { status: 403, code: 'USER_DISABLED', title: 'Usuario deshabilitado' }],
   [UserNotFoundError, { status: 404, code: 'RESOURCE_NOT_FOUND', title: 'Usuario no encontrado' }],
   [DuplicateEmailError, { status: 409, code: 'RESOURCE_CONFLICT', title: 'Email duplicado' }],

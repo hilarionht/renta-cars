@@ -1,3 +1,5 @@
+import { InvalidValueError } from '../errors/invalid-value.error';
+
 // VO minimo compartido - validacion sintactica basica, nunca reglas de negocio (docs/model/
 // 04-VALUE_OBJECTS.md SS1). Normaliza a minusculas para que la igualdad de VO coincida con
 // la unicidad de base (docs/persistence/05-INDICES-Y-CONSTRAINTS.md: unique (company_id,
@@ -14,7 +16,7 @@ export class Email {
   static from(raw: string): Email {
     const normalized = raw.trim().toLowerCase();
     if (!EMAIL_PATTERN.test(normalized)) {
-      throw new TypeError(`Email invalido: "${raw}"`);
+      throw new InvalidValueError(`Email invalido: "${raw}"`);
     }
     return new Email(normalized);
   }

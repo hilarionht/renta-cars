@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // Gap del mismo tipo que BranchName - ningun documento nombra un campo de nombre/razon
 // social para Customer, a pesar de que todo otro aggregate lo tiene (User.PersonName,
 // Branch.BranchName, Company.LegalName). Se agrega aca, documentado en el mismo commit
@@ -11,7 +13,7 @@ export class CustomerName {
   static from(raw: string): CustomerName {
     const trimmed = raw.trim();
     if (trimmed.length < MIN_LENGTH || trimmed.length > MAX_LENGTH) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `CustomerName debe tener entre ${MIN_LENGTH} y ${MAX_LENGTH} caracteres: "${raw}"`,
       );
     }

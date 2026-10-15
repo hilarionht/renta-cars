@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // docs/model/04-VALUE_OBJECTS.md SS5.1: "identificacion fiscal/personal del cliente...
 // formato dependiente de pais, distinto por CustomerType" - sin catalogo de paises/formatos
 // especificado (mismo criterio que TaxId de Company: se valida solo no-vacio). Nombre
@@ -12,7 +14,7 @@ export class TaxIdOrDocumentId {
   static from(raw: string): TaxIdOrDocumentId {
     const trimmed = raw.trim();
     if (trimmed.length === 0) {
-      throw new TypeError('TaxIdOrDocumentId no puede estar vacio.');
+      throw new InvalidValueError('TaxIdOrDocumentId no puede estar vacio.');
     }
     return new TaxIdOrDocumentId(trimmed);
   }
