@@ -20,7 +20,11 @@ Estado al 2026-10-15. El Incremento 3 (Flota) está mergeado (PR #7, CI 6/6). **
    - **C (crítico, también en vehículos)**: los documentos nunca pasan a `Expired` (no hay proceso de vencimiento) y el índice único admite un solo documento `Pending`/`Verified` por tipo. Por eso **no se puede renovar** un documento, ni vigente ni vencido (409), y **se puede verificar uno vencido**. Un cliente con el DNI vencido queda inhabilitado para siempre, y lo mismo un vehículo con el seguro vencido.
    - **D (reglas)**: se puede revocar un conductor autorizado en una reserva confirmada (después el check-out falla con `DRIVER_NOT_VALIDATED`) y bloquear a un cliente con reservas confirmadas. Además, el check-out no vuelve a revisar si el cliente está bloqueado ni si su documento venció.
    - **E (gap de #133)**: el teléfono no se normaliza a E.164, y falta decidir el país por defecto.
-2. **Preguntarle al usuario** solo las decisiones de negocio que salgan de la auditoría (AskUserQuestion, 2 a 4 opciones).
+2. ~~Decisiones del usuario~~ (2026-10-15):
+   - **C**: el documento nuevo **reemplaza al anterior cuando se verifica**. Se puede cargar uno del mismo tipo aunque haya otro vigente o vencido; el anterior vale hasta que se verifique el nuevo. No se puede verificar un documento con la fecha vencida. Aplica a clientes y vehículos.
+   - **B**: **teléfono único por empresa**: el alta y la edición responden 409. Antes de migrar, mostrar los duplicados existentes (en local solo está el par "Audit/Gemelo" de la auditoría, que es dato de prueba).
+   - **D**: bloquear o revocar **se permite**, pero la web avisa qué reservas afecta, y el **check-out rechaza** a un cliente bloqueado o con el documento vencido.
+   - **E**: país por defecto **Argentina +54**: los celulares se normalizan con el 9 (`11 5555-4444` pasa a `+5491155554444`).
 3. **Plan** (EnterPlanMode), validado con un agente Plan, y después la aprobación del usuario.
 4. Implementar en capas: backend, verificación en vivo, e2e, frontend, documentación (#139) y `next build`.
 5. Push, PR y vigilar el CI hasta 6/6. Nunca aprobar ni mergear.
