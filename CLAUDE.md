@@ -12,14 +12,14 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-14, Incremento 3 (Flota), rama `feat/web-admin-fleet`:
+Estado al 2026-10-15. El Incremento 3 (Flota) está mergeado (PR #7, CI 6/6). **En curso: Incremento 4 (Clientes)**, rama `feat/web-admin-customers`, elegido por el usuario. Se sigue el mismo proceso que en Flota (#137):
 
-1. ~~Push de la rama~~: hecho. Si hay commits nuevos, pushear con `GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper= -c "credential.helper=!gh auth git-credential" push origin feat/web-admin-fleet` (el hook `pre-push` tarda varios minutos).
-2. **Abrir el PR** contra `master`: título `feat(web-admin): incremento 3, flota`. La descripción resume las decisiones #137 y #138: bugs corregidos, almacenamiento, frontend, verificación y gaps. Termina con la línea de atribución de Claude Code.
-3. **Vigilar el CI** hasta 6/6 (`gh pr checks <n>`). Si algo falla, investigar la causa raíz y corregir en la misma rama.
-4. Avisarle al usuario que el PR queda para que lo apruebe y mergee `gameoverplay26-stack`. **Nunca** aprobar ni mergear.
-5. **Pendiente del usuario**: la validación visual de Flota en http://localhost:4200 (pasos en #137). Antes de pedirla hay que levantar el API, la web y RustFS (§4.1 de la guía del entorno).
-6. Después: preguntarle si sigue con el Incremento 4 (Clientes) o con la migración del CI fuera de MinIO (#138).
+1. **Auditoría en vivo** de toda la superficie de `customers`: alta, edición, bloqueo, documentos de identidad (con subida real), conductores adicionales, OTP y listado. Hay que levantar el API (build desde `master`) y RustFS (§4.1 de la guía del entorno). Anotar los hallazgos acá antes de planear.
+2. **Preguntarle al usuario** solo las decisiones de negocio que salgan de la auditoría (AskUserQuestion, 2 a 4 opciones).
+3. **Plan** (EnterPlanMode), validado con un agente Plan, y después la aprobación del usuario.
+4. Implementar en capas: backend, verificación en vivo, e2e, frontend, documentación (#139) y `next build`.
+5. Push, PR y vigilar el CI hasta 6/6. Nunca aprobar ni mergear.
+6. Pendiente del usuario desde el Incremento 3: la validación visual de Flota (opcional; el PR #7 ya se mergeó).
 
 ## Última sesión (2026-10-14) — leer primero
 
