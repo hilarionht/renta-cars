@@ -8,6 +8,19 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#138` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
+## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
+
+**Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
+
+Estado al 2026-10-14, Incremento 3 (Flota), rama `feat/web-admin-fleet`:
+
+1. **Push de la rama**: estaba corriendo (el hook `pre-push` hace lint y typecheck de lo afectado y tarda varios minutos). Verificar con `git fetch origin && git rev-parse origin/feat/web-admin-fleet`. Si no existe o no coincide con `HEAD`, volver a pushear: `GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper= -c "credential.helper=!gh auth git-credential" push -u origin feat/web-admin-fleet`.
+2. **Abrir el PR** contra `master`: título `feat(web-admin): incremento 3, flota`. La descripción resume las decisiones #137 y #138: bugs corregidos, almacenamiento, frontend, verificación y gaps. Termina con la línea de atribución de Claude Code.
+3. **Vigilar el CI** hasta 6/6 (`gh pr checks <n>`). Si algo falla, investigar la causa raíz y corregir en la misma rama.
+4. Avisarle al usuario que el PR queda para que lo apruebe y mergee `gameoverplay26-stack`. **Nunca** aprobar ni mergear.
+5. **Pendiente del usuario**: la validación visual de Flota en http://localhost:4200 (pasos en #137). Antes de pedirla hay que levantar el API, la web y RustFS (§4.1 de la guía del entorno).
+6. Después: preguntarle si sigue con el Incremento 4 (Clientes) o con la migración del CI fuera de MinIO (#138).
+
 ## Última sesión (2026-10-14) — leer primero
 
 - **Web de administración, Incremento 3 (Flota)**: rama `feat/web-admin-fleet`. Ver **`docs/persistence/10-DECISIONES.md #137`**. Antes de planear se auditó en vivo toda la superficie de Flota; eso encontró 4 problemas que se corrigieron:
