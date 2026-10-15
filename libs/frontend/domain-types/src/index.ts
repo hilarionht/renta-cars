@@ -72,3 +72,19 @@ export type {
   VehicleRate,
   VehicleStatus,
 } from './fleet.types';
+export type {
+  AdditionalDriver,
+  AdditionalDriverStatus,
+  BlockCustomerRequest,
+  CustomerBlockStatus,
+  CustomerDetail,
+  CustomerStatus,
+  CustomerType,
+  DocumentStatus,
+  IdentityDocument,
+  IdentityDocumentType,
+  RegisterAdditionalDriverRequest,
+  RegisterCustomerRequest,
+  UpdateCustomerRequest,
+  UploadIdentityDocumentRequest,
+} from './customer.types';

@@ -62,6 +62,21 @@ export {
   type VehicleActionInput,
 } from './fleet/mutations';
 export {
+  CUSTOMERS_QUERY_KEY,
+  customerQueryKey,
+  useCustomer,
+  useCustomerActiveReservations,
+  useCustomers,
+} from './customers/queries';
+export {
+  customerActionPath,
+  useCustomerAction,
+  useRegisterCustomer,
+  useUpdateCustomer,
+  type CustomerAction,
+  type CustomerActionInput,
+} from './customers/mutations';
+export {
   UPLOAD_ALLOWED_TYPES,
   UPLOAD_MAX_BYTES,
   UploadValidationError,

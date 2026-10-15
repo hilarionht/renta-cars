@@ -31,6 +31,16 @@ const MESSAGES: Record<string, string> = {
     'Para habilitar el vehículo hace falta al menos un documento verificado.',
   VEHICLE_DOCUMENT_EXPIRED: 'El documento está vencido: no se puede verificar.',
   RATE_OVERLAP: 'La vigencia se superpone con otra tarifa de la categoría.',
+  // Clientes (#139)
+  DUPLICATE_CUSTOMER_DOCUMENT_ID: 'Ya existe un cliente con ese documento.',
+  DUPLICATE_CUSTOMER_PHONE: 'Ya existe un cliente con ese teléfono.',
+  DUPLICATE_ACTIVE_IDENTITY_DOCUMENT:
+    'Otra persona cargó o verificó un documento del mismo tipo al mismo tiempo. Se recargaron los datos.',
+  IDENTITY_DOCUMENT_EXPIRED: 'El documento está vencido: no se puede verificar.',
+  IDENTITY_DOCUMENT_REPLACED: 'El documento ya fue reemplazado por uno más nuevo.',
+  ADDITIONAL_DRIVER_MISSING_VALID_LICENSE:
+    'El conductor no tiene una licencia de conducir verificada y vigente.',
+  ADDITIONAL_DRIVER_REVOKED: 'El conductor está revocado.',
 };
 
 // Codigos que implican que los datos en pantalla quedaron viejos.
