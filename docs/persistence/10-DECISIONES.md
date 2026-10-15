@@ -1679,6 +1679,70 @@ Nunca saltó porque no había e2e de reprogramar ni de extender, y los unit test
 - Migrar el CI y `docker-compose.yml` a RustFS (PR aparte; el integration spec ya pasa contra RustFS).
 - `@aws-sdk/client-s3` avisa que desde enero de 2027 va a exigir Node 22 o superior, y el proyecto usa Node 20 (`.nvmrc`, CI).
 
+## #139 — Web de administración, Incremento 4: Clientes, renovación de documentos y reglas del check-out
+
+**Contexto**: cuarto incremento de la hoja de ruta de #134. Mismo proceso que Flota (#137): **antes de planear** se auditó en vivo toda la superficie de `customers` contra el API real. El plan se validó después con un agente Plan contra el código, que agregó un hallazgo (C2) y corrigió el alcance de C en vehículos.
+
+**Hallazgos de la auditoría**:
+
+| #   | Hallazgo                                                                                                                                                                                                                                                                                                                                                                                                                 | Tipo      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| A   | 500 en vez de 4xx: documento de cliente repetido (P2002 sin mapear, en el alta y en la edición), teléfono que no es E.164 y documento en blanco. Los VO de customers seguían lanzando `TypeError` (gap de #137)                                                                                                                                                                                                          | bug       |
+| B   | El teléfono no era único por company y el login OTP buscaba con `findFirst`: con un número compartido entraba siempre el primer cliente, y el otro nunca podía entrar                                                                                                                                                                                                                                                    | seguridad |
+| C   | Los documentos nunca pasan a `Expired` (no hay proceso de vencimiento) y el índice único admitía **un** documento `Pending`/`Verified` por tipo. Por eso **no se podía renovar** un documento, vigente ni vencido (409), y **se podía verificar uno vencido**. Un cliente con el DNI vencido quedaba inhabilitado para siempre. En vehículos tampoco se podía renovar, y se podía **habilitar con un documento vencido** | crítico   |
+| C2  | `validateAdditionalDriverLicense` tomaba el **primer** documento del conductor de **cualquier tipo**: un DNI contaba como licencia (lo encontró el agente Plan)                                                                                                                                                                                                                                                          | bug       |
+| D   | Se podía revocar un conductor autorizado en una reserva confirmada o bloquear un cliente con reservas confirmadas sin ningún aviso, y el **check-out no volvía a revisar al cliente**                                                                                                                                                                                                                                    | reglas    |
+| E   | El teléfono no se normalizaba a E.164 (gap de #133) y faltaba el país por defecto                                                                                                                                                                                                                                                                                                                                        | UX        |
+
+**Decisiones del usuario**:
+
+1. **C**: el documento nuevo **reemplaza al anterior cuando se verifica**. Se puede cargar uno del mismo tipo aunque haya otro vigente o vencido; el anterior vale hasta que se verifique el nuevo. No se verifica un documento con la fecha vencida. Aplica a clientes y vehículos.
+2. **B**: teléfono **único por company** (409 en el alta y en la edición).
+3. **D**: bloquear y revocar **se permiten**, pero la web avisa qué reservas afecta y el **check-out rechaza** a un cliente bloqueado o con el documento vencido.
+4. **E**: país por defecto **Argentina (+54)**, celulares con el 9 de móvil (`11 5555-4444` pasa a `+5491155554444`).
+
+**Backend**:
+
+- **A**: `PhoneNumber.from` y `Email.from` (shared-kernel), `CustomerName` y `TaxIdOrDocumentId` lanzan `InvalidValueError`, registrado como 400 `INVALID_VALUE` en customers, users, companies y notifications. El P2002 de `create` y `updateMany` de la raíz se distingue por nombre de índice (mismo criterio que vehículos): 409 `DUPLICATE_CUSTOMER_DOCUMENT_ID` y `DUPLICATE_CUSTOMER_PHONE`.
+- **B y E**: `@@unique([companyId, contactPhone])`. `canonicalCustomerPhone` (customers/domain) agrega el 9 a un `+54` que no lo tiene, en el alta, la edición y la búsqueda del OTP: `+5411…` y `+54911…` son el mismo cliente, así que la unicidad no se puede esquivar y el login lo encuentra aunque se haya guardado sin el 9. La migración `20261015120000_rental_customer_phone_unique` canonicaliza los existentes antes de crear el índice y falla si quedan duplicados, a propósito. Los otros países se guardan tal cual.
+- **C, renovación**:
+  - Estado nuevo `Replaced` en los dos enums: migración `20261015130000_rental_document_status_replaced`, solo `ADD VALUE` (Postgres no deja usar un valor nuevo en la misma transacción que lo agrega).
+  - Cada índice parcial `('Pending','Verified')` se reemplazó por **dos** (`…_pending_key` y `…_verified_key`) en `20261015130100_rental_document_renewal_indexes`, escrita a mano. Así una renovación `Pending` convive con el `Verified` vigente.
+  - Dominio (los dos agregados): `upload()` pasa a `Replaced` un `Pending` anterior del mismo lugar (mismo dueño y tipo). `verify()` rechaza un documento con la fecha vencida (`…_DOCUMENT_EXPIRED`) o `Replaced` (nuevo `…_DOCUMENT_REPLACED`, 409), y al verificar pasa a `Replaced` el `Verified` anterior del mismo lugar.
+  - Repositorios: los que pasan a `Replaced` se escriben **primero**, para liberar su lugar en el índice antes de que lo ocupe el nuevo. Los documentos se cargan ordenados por `createdAt` e `id` (historial estable). `DUPLICATE_ACTIVE_*` sigue existiendo, pero solo en una carrera.
+  - `Vehicle.enable()` exige un documento verificado **y vigente**. `Customer.isEligibleForConfirmation()` (dominio) acepta cualquier documento propio vigente, igual que el adaptador que usa `confirm()`.
+- **C2**: la licencia de un conductor tiene que ser `DriversLicense`, y si hay renovaciones se toma la vigente.
+- **D**: `CheckOutReservationHandler` consulta `isEligibleForConfirmation` (activo, no bloqueado y con un documento vigente) y `Reservation.checkOut` recibe `isCustomerEligible`: 422 `CUSTOMER_NOT_ELIGIBLE`, la reserva sigue `Confirmed`. El conductor revocado ya lo frenaba `DRIVER_NOT_VALIDATED`.
+
+**Frontend**:
+
+- **`data-access-core/phone.ts`**: `normalizePhoneNumber`, sin dependencias, reexportado en `@frontend/data-access`. Acepta el 0 de larga distancia, el 9 de móvil, `54` sin `+` y `00` internacional. Con el 15 (`011 15 …`) pide el número sin el 15: no se puede quitar a ciegas porque no se sabe dónde termina el código de área.
+- **Mobile**: `login-phone.tsx` normaliza una sola vez y usa ese valor en el pedido del código y en la navegación (cierra el gap de #133).
+- **`domain-types`** y **`data-access-web/customers/`**: listado con `q` y cursor, detalle, reservas activas del cliente (`Confirmed` y `CheckedOut`, dos llamadas porque el listado filtra un solo estado) y acciones.
+- **`web-admin`, Clientes**:
+  - **listado** con búsqueda en el servidor y "Cargar más";
+  - **alta** y **edición** con el teléfono normalizado y la vista previa de cómo se guarda;
+  - **detalle**: bloquear y desbloquear, documentos con el historial `Replaced`, conductores (cargar licencia, validar, revocar) y reservas del cliente. Bloquear y revocar **muestran antes** las reservas activas afectadas.
+  - El vencimiento de un documento de cliente se toma al final del día en la zona del navegador (el cliente no tiene sucursal).
+  - El OCR no se expone: el proveedor sigue siendo un fake.
+- **Flota**: `lib/document-status.ts`, común a clientes y vehículos: badge "Reemplazado", y la carga de documento explica la renovación. **Reservas**: el mensaje de `CUSTOMER_NOT_ELIGIBLE` explica el bloqueo o el documento vencido, y el cliente enlaza a su ficha.
+
+**Verificación**:
+
+- **Tests unitarios**: lint, typecheck y tests de cada proyecto tocado (Node 20.19.4), con mobile sin regresión.
+- **Migraciones** aplicadas en local con drift vacío. Antes de la del teléfono se corrigió el único par repetido, un dato de la auditoría.
+- **Verificación en vivo contra el API real** (`customers-verify.cjs`): **37/37**. Cero 500, unicidad del teléfono con y sin 9, el OTP entra como el cliente correcto, renovación de clientes y vehículos con historial, licencia que no es `DriversLicense`, check-out con cliente bloqueado y con documento vencido (422) y habilitación de un vehículo con documento vencido.
+- **e2e `customer-documents-and-rules`** (nuevo), `reports`, `customers-lifecycle` y `reservations-lifecycle`, corridos individualmente contra el API local.
+- **`next build`** con las 3 rutas nuevas.
+
+**Gaps aceptados**:
+
+- **Sin proceso de vencimiento**: la validez se sigue calculando por fecha. Un vehículo ya `Available` sigue operando aunque se le venza el seguro (el agente Plan corrigió el alcance de C: el bug era habilitarlo, no operarlo).
+- **Usuario de sucursal**: el aviso de reservas afectadas usa `GET /reservations`, que para ese usuario solo devuelve las de su sucursal.
+- **Otros países** no se normalizan: se escriben con `+`.
+- Un dato corrupto al reconstituir un VO migrado daría 400 en vez de 500 (mismo gap que #137).
+- No hay forma de sacar a un conductor revocado de una reserva confirmada: el retiro falla y la única salida es cancelarla (reprogramar no cambia los conductores).
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

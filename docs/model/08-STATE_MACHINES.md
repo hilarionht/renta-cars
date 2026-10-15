@@ -24,16 +24,16 @@ Nota: `reschedule()` (antes del `CheckOut`) y `requestExtension()`/`approveExten
 
 ### 1.1 Tabla de transiciones válidas
 
-| Desde        | Comando        | Hacia                         | Precondición                                                                                                                             |
-| ------------ | -------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| —            | `create()`     | `Draft`                       | —                                                                                                                                        |
-| `Draft`      | `confirm()`    | `Confirmed`                   | `Vehicle` disponible en todo el `DateRange` (INV-101); `Customer` elegible (INV-104); todo `AdditionalDriver` declarado está `Validated` |
-| `Draft`      | `cancel()`     | `Cancelled`                   | Ninguna (cancelación libre, sin penalidad)                                                                                               |
-| `Confirmed`  | `checkOut()`   | `CheckedOut`                  | `Inspection` de tipo `CheckOut` completa (INV-003); `Vehicle` no está en `Maintenance`/`OutOfService` (INV-103)                          |
-| `Confirmed`  | `cancel()`     | `Cancelled`                   | Evalúa `CancellationPolicy` vigente; puede generar `PriceAdjustment` de penalidad                                                        |
-| `Confirmed`  | `markNoShow()` | `Cancelled` (reason=`NoShow`) | Vencido el margen de tolerancia sin `CheckOut`                                                                                           |
-| `CheckedOut` | `checkIn()`    | `CheckedIn`                   | `Inspection` de tipo `CheckIn` completa y comparada contra la de `CheckOut` (INV-004)                                                    |
-| `CheckedIn`  | `close()`      | `Closed`                      | Evento `InvoiceIssued.v1` ya recibido (INV-005, INV-108)                                                                                 |
+| Desde        | Comando        | Hacia                         | Precondición                                                                                                                                                                                                                               |
+| ------------ | -------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| —            | `create()`     | `Draft`                       | —                                                                                                                                                                                                                                          |
+| `Draft`      | `confirm()`    | `Confirmed`                   | `Vehicle` disponible en todo el `DateRange` (INV-101); `Customer` elegible (INV-104); todo `AdditionalDriver` declarado está `Validated`                                                                                                   |
+| `Draft`      | `cancel()`     | `Cancelled`                   | Ninguna (cancelación libre, sin penalidad)                                                                                                                                                                                                 |
+| `Confirmed`  | `checkOut()`   | `CheckedOut`                  | `Inspection` de tipo `CheckOut` completa (INV-003); `Vehicle` no está en `Maintenance`/`OutOfService` (INV-103); `Customer` elegible otra vez (INV-104, desde #139: pudo quedar bloqueado o con el documento vencido después de confirmar) |
+| `Confirmed`  | `cancel()`     | `Cancelled`                   | Evalúa `CancellationPolicy` vigente; puede generar `PriceAdjustment` de penalidad                                                                                                                                                          |
+| `Confirmed`  | `markNoShow()` | `Cancelled` (reason=`NoShow`) | Vencido el margen de tolerancia sin `CheckOut`                                                                                                                                                                                             |
+| `CheckedOut` | `checkIn()`    | `CheckedIn`                   | `Inspection` de tipo `CheckIn` completa y comparada contra la de `CheckOut` (INV-004)                                                                                                                                                      |
+| `CheckedIn`  | `close()`      | `Closed`                      | Evento `InvoiceIssued.v1` ya recibido (INV-005, INV-108)                                                                                                                                                                                   |
 
 ### 1.2 Auto-transiciones (no cambian `ReservationStatus`)
 
@@ -271,11 +271,17 @@ stateDiagram-v2
     [*] --> Pending: upload()
     Pending --> Verified: verify()
     Verified --> Expired: (automático, por fecha)
+    Pending --> Replaced: upload() de otro del mismo tipo
+    Verified --> Replaced: verify() de su renovación
 ```
 
 `IdentityDocument` usa `Verified` como nombre de estado autoritativo (confirmado contra `docs/model/02-AGGREGATES.md §10`, `03-ENTITIES.md §4.7` y la persistencia — el rótulo `Valid` de una versión anterior de este diagrama era un error de rotulado). Ademas, sin job de expiración implementado todavía: la transición `Verified → Expired` no ocurre automáticamente en runtime — `IdentityDocument.isCurrentlyValid(asOf)` la computa on-demand comparando `status`+`expiryDate`, en lugar de confiar en que `status` ya diga `Expired` (mismo gap ya aceptado que `OutboxRelayWorker`).
 
 Inválida: `Expired` → `Verified` (una renovación crea un documento nuevo, nunca revive el vencido — mismo patrón append-only).
+
+**Renovación** ([persistence/10-DECISIONES.md #139](../persistence/10-DECISIONES.md)): se puede cargar un documento del mismo tipo y dueño aunque haya otro vigente o vencido. El nuevo reemplaza al anterior **cuando se verifica**: hasta entonces el `Verified` anterior sigue valiendo. Cargar uno nuevo pasa a `Replaced` un `Pending` anterior del mismo lugar (nunca fue válido). `Replaced` es terminal e historial: no se borra ni se revive.
+
+`verify()` rechaza un documento con la fecha vencida aunque su estado siga en `Pending` (`…_DOCUMENT_EXPIRED`) y uno `Replaced` (`…_DOCUMENT_REPLACED`). `Vehicle.enable()` exige un documento verificado **y vigente**. Un vehículo ya `Available` sigue operando aunque se le venza el seguro (sin proceso de vencimiento, fuera de alcance de #139).
 
 ### 6.8 `AvailabilitySlot` (Scheduling)
 
