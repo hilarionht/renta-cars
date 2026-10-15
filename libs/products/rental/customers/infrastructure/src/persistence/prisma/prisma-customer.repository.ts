@@ -32,6 +32,18 @@ const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
 // meta.target; mismo criterio que prisma-vehicle.repository.ts).
 const DOCUMENT_ID_UNIQUE = 'customers_company_id_tax_id_or_document_id_key';
 const PHONE_UNIQUE = 'customers_company_id_contact_phone_key';
+// #139: un Pending y un Verified por dueno y tipo (indices parciales de
+// 20261015130100_rental_document_renewal_indexes).
+const DOCUMENT_SLOT_UNIQUES = [
+  'identity_documents_owner_document_type_pending_key',
+  'identity_documents_owner_document_type_verified_key',
+];
+// #139: orden estable del historial de renovaciones (el dominio elige el vigente por estado,
+// pero la respuesta y los specs no deben depender del orden fisico de las filas).
+const DOCUMENT_ORDER: Prisma.IdentityDocumentOrderByWithRelationInput[] = [
+  { createdAt: 'asc' },
+  { id: 'asc' },
+];
 
 type CustomerWithChildren = PrismaCustomer & {
   identityDocuments: PrismaIdentityDocument[];
@@ -54,8 +66,8 @@ export class PrismaCustomerRepository implements CustomerRepository {
         tx.customer.findFirst({
           where: { id: id.toString() },
           include: {
-            identityDocuments: true,
-            additionalDrivers: { include: { identityDocuments: true } },
+            identityDocuments: { orderBy: DOCUMENT_ORDER },
+            additionalDrivers: { include: { identityDocuments: { orderBy: DOCUMENT_ORDER } } },
           },
         }),
       companyId,
@@ -71,8 +83,8 @@ export class PrismaCustomerRepository implements CustomerRepository {
         tx.customer.findFirst({
           where: { contactPhone: phone },
           include: {
-            identityDocuments: true,
-            additionalDrivers: { include: { identityDocuments: true } },
+            identityDocuments: { orderBy: DOCUMENT_ORDER },
+            additionalDrivers: { include: { identityDocuments: { orderBy: DOCUMENT_ORDER } } },
           },
         }),
       companyId,
@@ -115,7 +127,12 @@ export class PrismaCustomerRepository implements CustomerRepository {
       throw this.mapRootUniqueViolation(error, rootData);
     }
 
-    for (const document of customer.pullDirtyIdentityDocuments()) {
+    // #139: los que pasan a Replaced se escriben primero, para liberar su lugar en los indices
+    // parciales antes de que el documento nuevo lo ocupe.
+    const dirtyDocuments = [...customer.pullDirtyIdentityDocuments()].sort(
+      (a, b) => Number(b.status === 'Replaced') - Number(a.status === 'Replaced'),
+    );
+    for (const document of dirtyDocuments) {
       try {
         await prisma.identityDocument.upsert({
           where: { id: document.id.toString() },
@@ -138,8 +155,12 @@ export class PrismaCustomerRepository implements CustomerRepository {
       } catch (error) {
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === UNIQUE_CONSTRAINT_VIOLATION
+          error.code === UNIQUE_CONSTRAINT_VIOLATION &&
+          DOCUMENT_SLOT_UNIQUES.some((index) =>
+            this.extractDriverErrorMessage(error).includes(index),
+          )
         ) {
+          // Solo en una carrera (dos verificaciones o cargas simultaneas del mismo lugar).
           throw new DuplicateActiveIdentityDocumentError(document.documentType);
         }
         throw error;

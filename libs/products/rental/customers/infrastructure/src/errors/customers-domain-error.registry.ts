@@ -14,6 +14,7 @@ import {
   DuplicateCustomerPhoneError,
   IdentityDocumentExpiredError,
   IdentityDocumentNotFoundError,
+  IdentityDocumentReplacedError,
   InvalidCustomerOtpCodeError,
   InvalidCustomerRefreshTokenError,
   OtpChallengeNotFoundError,
@@ -47,6 +48,15 @@ export const CUSTOMERS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [
     IdentityDocumentExpiredError,
     { status: 409, code: 'IDENTITY_DOCUMENT_EXPIRED', title: 'El documento esta vencido' },
+  ],
+  // #139: un documento reemplazado por una renovacion ya no se puede verificar.
+  [
+    IdentityDocumentReplacedError,
+    {
+      status: 409,
+      code: 'IDENTITY_DOCUMENT_REPLACED',
+      title: 'El documento fue reemplazado por uno mas nuevo',
+    },
   ],
   [
     AdditionalDriverRevokedError,

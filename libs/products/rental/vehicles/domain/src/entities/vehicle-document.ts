@@ -1,6 +1,7 @@
 import { EntityId } from '@platform/shared-kernel';
 
 import { VehicleDocumentExpiredError } from '../errors/vehicle-document-expired.error';
+import { VehicleDocumentReplacedError } from '../errors/vehicle-document-replaced.error';
 import type { VehicleDocumentStatusValue } from '../value-objects/vehicle-document-status';
 import type { VehicleDocumentTypeValue } from '../value-objects/vehicle-document-type';
 
@@ -63,14 +64,25 @@ export class VehicleDocument {
     return this.props.status;
   }
 
-  verify(): void {
-    if (this.props.status === 'Expired') {
+  // #139: tambien rechaza un documento con la fecha vencida (el estado nunca pasa a Expired) y
+  // uno ya reemplazado.
+  verify(asOf: Date = new Date()): void {
+    if (this.props.status === 'Replaced') {
+      throw new VehicleDocumentReplacedError(this.props.id.toString());
+    }
+    if (this.props.status === 'Expired' || this.props.expiryDate.getTime() <= asOf.getTime()) {
       throw new VehicleDocumentExpiredError(this.props.id.toString());
     }
     if (this.props.status === 'Verified') {
       return;
     }
     this.props.status = 'Verified';
+    this.props.updatedAt = new Date();
+  }
+
+  // #139: renovacion. Append-only: el reemplazado queda como historial.
+  replace(): void {
+    this.props.status = 'Replaced';
     this.props.updatedAt = new Date();
   }
 

@@ -28,6 +28,7 @@ export { CustomerNotFoundError } from './errors/customer-not-found.error';
 export { IdentityDocumentNotFoundError } from './errors/identity-document-not-found.error';
 export { AdditionalDriverNotFoundError } from './errors/additional-driver-not-found.error';
 export { IdentityDocumentExpiredError } from './errors/identity-document-expired.error';
+export { IdentityDocumentReplacedError } from './errors/identity-document-replaced.error';
 export { AdditionalDriverRevokedError } from './errors/additional-driver-revoked.error';
 export { AdditionalDriverMissingValidLicenseError } from './errors/additional-driver-missing-valid-license.error';
 export { DuplicateActiveIdentityDocumentError } from './errors/duplicate-active-identity-document.error';

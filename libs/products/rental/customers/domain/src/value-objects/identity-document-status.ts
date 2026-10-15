@@ -3,4 +3,6 @@
 // estado intermedio "Valid" - inconsistencia real entre docs, se trata "Verified" como
 // autoritativo (2 de 3 documentos + persistencia coinciden), ver docs/persistence/
 // 10-DECISIONES.md.
-export type IdentityDocumentStatus = 'Pending' | 'Verified' | 'Expired';
+// Replaced (docs/persistence/10-DECISIONES.md #139): el documento fue reemplazado por una
+// renovacion (append-only: el viejo queda como historial, nunca se borra ni se revive).
+export type IdentityDocumentStatus = 'Pending' | 'Verified' | 'Expired' | 'Replaced';

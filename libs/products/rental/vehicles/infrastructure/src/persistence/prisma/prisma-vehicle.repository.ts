@@ -26,6 +26,12 @@ import {
 import type { VehicleRepository } from '@rental/vehicles/application';
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
+// #139: un Pending y un Verified por vehiculo y tipo (indices parciales de
+// 20261015130100_rental_document_renewal_indexes).
+const DOCUMENT_SLOT_UNIQUES = [
+  'vehicle_documents_vehicle_id_document_type_pending_key',
+  'vehicle_documents_vehicle_id_document_type_verified_key',
+];
 
 type VehicleWithChildren = PrismaVehicle & {
   vehicleDocuments: PrismaVehicleDocument[];
@@ -44,7 +50,11 @@ export class PrismaVehicleRepository implements VehicleRepository {
     const record = await this.readTransaction.run((tx) =>
       tx.vehicle.findFirst({
         where: { id: id.toString() },
-        include: { vehicleDocuments: true, maintenanceRecords: true },
+        include: {
+          // #139: orden estable del historial de renovaciones.
+          vehicleDocuments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+          maintenanceRecords: true,
+        },
       }),
     );
     return record ? this.toDomain(record) : null;
@@ -80,7 +90,12 @@ export class PrismaVehicleRepository implements VehicleRepository {
       }
     }
 
-    for (const document of vehicle.pullDirtyVehicleDocuments()) {
+    // #139: los que pasan a Replaced se escriben primero, para liberar su lugar en los indices
+    // parciales antes de que el documento nuevo lo ocupe.
+    const dirtyDocuments = [...vehicle.pullDirtyVehicleDocuments()].sort(
+      (a, b) => Number(b.status === 'Replaced') - Number(a.status === 'Replaced'),
+    );
+    for (const document of dirtyDocuments) {
       try {
         await prisma.vehicleDocument.upsert({
           where: { id: document.id.toString() },
@@ -100,8 +115,12 @@ export class PrismaVehicleRepository implements VehicleRepository {
       } catch (error) {
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === UNIQUE_CONSTRAINT_VIOLATION
+          error.code === UNIQUE_CONSTRAINT_VIOLATION &&
+          DOCUMENT_SLOT_UNIQUES.some((index) =>
+            this.extractDriverErrorMessage(error).includes(index),
+          )
         ) {
+          // Solo en una carrera (dos verificaciones o cargas simultaneas del mismo lugar).
           throw new DuplicateActiveVehicleDocumentError(document.documentType);
         }
         throw error;

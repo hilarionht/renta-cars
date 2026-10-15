@@ -77,6 +77,8 @@ enum IdentityDocumentStatus {
   Pending
   Verified
   Expired
+  // docs/persistence/10-DECISIONES.md #139: reemplazado por una renovacion (historial).
+  Replaced
 
   @@schema("rental")
 }
@@ -315,6 +317,8 @@ enum VehicleDocumentStatus {
   Pending
   Verified
   Expired
+  // docs/persistence/10-DECISIONES.md #139: reemplazado por una renovacion (historial).
+  Replaced
 
   @@schema("rental")
 }

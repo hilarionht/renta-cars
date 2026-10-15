@@ -195,6 +195,15 @@ export class Customer {
     if (params.owner.type === 'AdditionalDriver' && !this.findDriverOrUndefined(params.owner.id)) {
       throw new AdditionalDriverNotFoundError(params.owner.id);
     }
+    // #139: renovacion. Un Pending anterior del mismo dueno y tipo nunca fue valido: lo
+    // reemplaza el nuevo (si no, un Pending vencido trabaria las cargas para siempre). El
+    // Verified anterior sigue valiendo hasta que se verifique el nuevo.
+    for (const previous of this.identityDocuments) {
+      if (previous.status === 'Pending' && previous.isSameSlot(params)) {
+        previous.replace();
+        this.dirtyDocumentIds.add(previous.id.toString());
+      }
+    }
     const document = IdentityDocument.upload(params);
     this.identityDocuments.push(document);
     this.dirtyDocumentIds.add(document.id.toString());
@@ -213,6 +222,17 @@ export class Customer {
     document.verify();
     if (wasAlreadyVerified) {
       return;
+    }
+    // #139: el nuevo reemplaza al Verified anterior del mismo dueno y tipo al verificarse.
+    for (const previous of this.identityDocuments) {
+      if (
+        previous !== document &&
+        previous.status === 'Verified' &&
+        previous.isSameSlot(document)
+      ) {
+        previous.replace();
+        this.dirtyDocumentIds.add(previous.id.toString());
+      }
     }
     this.dirtyDocumentIds.add(documentId);
     this.domainEvents.push({
@@ -245,9 +265,15 @@ export class Customer {
   validateAdditionalDriverLicense(driverId: string): void {
     const driver = this.findDriver(driverId);
     const wasAlreadyValidated = driver.status === 'Validated';
-    const license = this.identityDocuments.find(
-      (document) => document.owner.type === 'AdditionalDriver' && document.owner.id === driverId,
+    // #139: solo una licencia (antes tomaba el primer documento del conductor de cualquier
+    // tipo: un DNI contaba como licencia) y, si hay renovaciones, la que este vigente.
+    const licenses = this.identityDocuments.filter(
+      (document) =>
+        document.owner.type === 'AdditionalDriver' &&
+        document.owner.id === driverId &&
+        document.documentType === 'DriversLicense',
     );
+    const license = licenses.find((document) => document.isCurrentlyValid()) ?? licenses[0];
     driver.validateLicense(license);
     if (wasAlreadyValidated) {
       return;
@@ -315,10 +341,11 @@ export class Customer {
     if (this.props.blockStatus === 'Blocked' || this.props.status !== 'Active') {
       return false;
     }
-    const ownDocument = this.identityDocuments.find(
-      (document) => document.owner.type === 'Customer',
+    // #139: con renovaciones hay varios documentos propios; alcanza con uno vigente (mismo
+    // criterio que PrismaCustomerLookupAdapter.isEligibleForConfirmation, el que usa confirm).
+    return this.identityDocuments.some(
+      (document) => document.owner.type === 'Customer' && document.isCurrentlyValid(),
     );
-    return ownDocument ? ownDocument.isCurrentlyValid() : false;
   }
 
   pullDomainEvents(): CustomerDomainEvent[] {

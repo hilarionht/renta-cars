@@ -1,6 +1,7 @@
 import { EntityId } from '@platform/shared-kernel';
 
 import { IdentityDocumentExpiredError } from '../errors/identity-document-expired.error';
+import { IdentityDocumentReplacedError } from '../errors/identity-document-replaced.error';
 import type { DocumentType } from '../value-objects/document-type';
 import type { IdentityDocumentStatus } from '../value-objects/identity-document-status';
 
@@ -94,14 +95,35 @@ export class IdentityDocument {
   // CUALQUIER IdentityDocument - eso satisface la regla estructuralmente sin necesitar logica
   // nueva (unica lectura consistente del diagrama de un solo tramo Pending->Verified en
   // docs/model/08-STATE_MACHINES.md SS6.7).
-  verify(): void {
-    if (this.props.status === 'Expired') {
+  //
+  // #139: tambien rechaza un documento cuya fecha ya vencio (antes solo miraba el estado, que
+  // nunca pasa a Expired: se podia verificar un DNI vencido) y uno ya reemplazado.
+  verify(asOf: Date = new Date()): void {
+    if (this.props.status === 'Replaced') {
+      throw new IdentityDocumentReplacedError(this.props.id.toString());
+    }
+    if (this.props.status === 'Expired' || this.props.expiryDate.getTime() <= asOf.getTime()) {
       throw new IdentityDocumentExpiredError(this.props.id.toString());
     }
     if (this.props.status === 'Verified') {
       return;
     }
     this.props.status = 'Verified';
+    this.props.updatedAt = new Date();
+  }
+
+  // #139: mismo dueno (tipo + id) y mismo tipo de documento: el "lugar" que ocupa una renovacion.
+  isSameSlot(other: { owner: IdentityDocumentOwner; documentType: DocumentType }): boolean {
+    return (
+      this.props.owner.type === other.owner.type &&
+      this.props.owner.id === other.owner.id &&
+      this.props.documentType === other.documentType
+    );
+  }
+
+  // #139: renovacion. Append-only: el reemplazado queda como historial.
+  replace(): void {
+    this.props.status = 'Replaced';
     this.props.updatedAt = new Date();
   }
 
