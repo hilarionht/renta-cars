@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { MinimumBookingLeadTime } from './minimum-booking-lead-time';
 
 describe('MinimumBookingLeadTime', () => {
@@ -6,7 +8,7 @@ describe('MinimumBookingLeadTime', () => {
   });
 
   it('from() rechaza negativo', () => {
-    expect(() => MinimumBookingLeadTime.from(-1)).toThrow(TypeError);
+    expect(() => MinimumBookingLeadTime.from(-1)).toThrow(InvalidValueError);
   });
 
   it('default() es 0 (sin restriccion)', () => {

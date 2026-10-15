@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // VO agregado (docs/persistence/10-DECISIONES.md #135): zona horaria IANA de la sucursal. Las
 // fechas de una reserva se muestran e ingresan en la zona de la sucursal del vehiculo. Se
 // valida con Intl (sin dependencias) y se guarda el nombre tal como viene: NO el de
@@ -15,12 +17,12 @@ export class BranchTimeZone {
   static from(raw: string): BranchTimeZone {
     const trimmed = raw.trim();
     if (trimmed.length === 0) {
-      throw new TypeError('BranchTimeZone no puede estar vacia');
+      throw new InvalidValueError('BranchTimeZone no puede estar vacia');
     }
     try {
       new Intl.DateTimeFormat('en-US', { timeZone: trimmed });
     } catch {
-      throw new TypeError(`BranchTimeZone no es una zona IANA valida: "${raw}"`);
+      throw new InvalidValueError(`BranchTimeZone no es una zona IANA valida: "${raw}"`);
     }
     return new BranchTimeZone(trimmed);
   }

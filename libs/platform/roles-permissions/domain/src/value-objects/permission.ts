@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { PERMISSION_CATALOG, type PermissionKey } from './permission-catalog';
 
 // docs/model/04-VALUE_OBJECTS.md - una clave de permiso validada contra PERMISSION_CATALOG,
@@ -7,7 +9,7 @@ export class Permission {
 
   static from(raw: string): Permission {
     if (!(PERMISSION_CATALOG as readonly string[]).includes(raw)) {
-      throw new TypeError(`Permiso desconocido, no esta en PERMISSION_CATALOG: "${raw}"`);
+      throw new InvalidValueError(`Permiso desconocido, no esta en PERMISSION_CATALOG: "${raw}"`);
     }
     return new Permission(raw as PermissionKey);
   }

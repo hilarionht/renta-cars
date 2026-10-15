@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // Gap-fill (Reservations, docs/persistence/10-DECISIONES.md #30/#59) - RN-06 ("no permitir
 // reservar para 'dentro de 10 minutos'"). Default 0 = sin restriccion, RN-06 es Opcional.
 export class MinimumBookingLeadTime {
@@ -5,7 +7,7 @@ export class MinimumBookingLeadTime {
 
   static from(leadTimeMinutes: number): MinimumBookingLeadTime {
     if (!Number.isFinite(leadTimeMinutes) || leadTimeMinutes < 0) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `MinimumBookingLeadTime.leadTimeMinutes debe ser >= 0: ${leadTimeMinutes}`,
       );
     }

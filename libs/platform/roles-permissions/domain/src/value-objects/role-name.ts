@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // docs/model/04-VALUE_OBJECTS.md - nombre de un Role, unico por company (o global si es
 // System, docs/persistence/05-INDICES-Y-CONSTRAINTS.md). Validacion sintactica minima -
 // nunca reglas de negocio en un VO.
@@ -14,7 +16,7 @@ export class RoleName {
   static from(raw: string): RoleName {
     const trimmed = raw.trim();
     if (trimmed.length < MIN_LENGTH || trimmed.length > MAX_LENGTH) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `RoleName debe tener entre ${MIN_LENGTH} y ${MAX_LENGTH} caracteres: "${raw}"`,
       );
     }

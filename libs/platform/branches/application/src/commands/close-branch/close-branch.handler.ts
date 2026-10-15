@@ -27,7 +27,13 @@ export class CloseBranchHandler {
       throw new BranchNotFoundError(command.branchId);
     }
 
+    // #140 (patron de #56): si no cambio nada (ya estaba asi) es un no-op idempotente; guardar
+    // sin subir la version daria un CONCURRENT_MODIFICATION espurio.
+    const versionBefore = branch.version;
     branch.close();
+    if (branch.version === versionBefore) {
+      return;
+    }
 
     await this.unitOfWork.run(async (tx) => {
       await this.branchRepository.save(branch, tx);

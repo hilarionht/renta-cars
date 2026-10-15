@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // docs/model/04-VALUE_OBJECTS.md SS3 - razon social de la Company. Validacion sintactica
 // minima, nunca regla de negocio en un VO (mismo criterio que RoleName/PersonName).
 const MIN_LENGTH = 2;
@@ -13,7 +15,7 @@ export class LegalName {
   static from(raw: string): LegalName {
     const trimmed = raw.trim();
     if (trimmed.length < MIN_LENGTH || trimmed.length > MAX_LENGTH) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `LegalName debe tener entre ${MIN_LENGTH} y ${MAX_LENGTH} caracteres: "${raw}"`,
       );
     }

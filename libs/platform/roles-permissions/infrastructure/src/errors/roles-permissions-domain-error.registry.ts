@@ -1,4 +1,8 @@
-import { ConcurrentModificationError, type DomainErrorEntries } from '@platform/shared-kernel';
+import {
+  ConcurrentModificationError,
+  type DomainErrorEntries,
+  InvalidValueError,
+} from '@platform/shared-kernel';
 import {
   DuplicateRoleNameError,
   EmptyPermissionSetError,
@@ -9,6 +13,11 @@ import {
 // docs/technical/09-CODING-STANDARDS.md SS3: mapa declarativo, mergeado en AppModule via
 // domainErrorRegistryProvider(...) - nunca un switch creciente en el filter global.
 export const ROLES_PERMISSIONS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
+  // #140 (patron de #137): VO con dato de entrada invalido (antes TypeError crudo -> 500).
+  [
+    InvalidValueError,
+    { status: 400, code: 'INVALID_VALUE', title: 'Un valor de la solicitud no es valido' },
+  ],
   [
     SystemRoleImmutableError,
     { status: 403, code: 'FORBIDDEN', title: 'Role de sistema inmutable' },

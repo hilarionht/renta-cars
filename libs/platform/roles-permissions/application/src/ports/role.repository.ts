@@ -7,9 +7,20 @@ import type { Role, RoleId } from '@platform/roles-permissions/domain';
 // dominio (DomainEventPublisher.publish) deben ocurrir en la misma transaccion.
 export const ROLE_REPOSITORY = Symbol('RoleRepository');
 
+// docs/persistence/10-DECISIONES.md #140: lectura liviana por el id crudo (sin EntityId ni
+// reconstituir el agregado), para decidir 404/403 antes de cargar. Los roles System de los
+// seeds viejos tienen id v4 y EntityId.from exige v7: cargarlos daba 500.
+export interface RoleRecordSummary {
+  scope: 'System' | 'Custom';
+  companyId: string | null;
+  status: 'Active' | 'Inactive';
+}
+
 export interface RoleRepository {
   findById(id: RoleId): Promise<Role | null>;
-  findByCompanyAndName(companyId: string | null, roleName: string): Promise<Role | null>;
+  findSummaryById(id: string): Promise<RoleRecordSummary | null>;
+  // #140: sin distinguir mayusculas, contra los Custom de la company y contra todos los System.
+  existsWithName(companyId: string, roleName: string): Promise<boolean>;
   findAllForCompany(companyId: string): Promise<Role[]>;
   save(role: Role, tx: UnitOfWorkTransaction): Promise<void>;
 }

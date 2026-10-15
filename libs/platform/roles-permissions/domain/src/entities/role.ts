@@ -136,8 +136,12 @@ export class Role {
     }
   }
 
+  // #140: desactivar uno ya inactivo es un no-op (antes subia la version y re-emitia el evento).
   deactivate(): void {
     this.assertNotSystem();
+    if (this.props.status === 'Inactive') {
+      return;
+    }
     this.props.status = 'Inactive';
     this.props.updatedAt = new Date();
     this.props.version += 1;

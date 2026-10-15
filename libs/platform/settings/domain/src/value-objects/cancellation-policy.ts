@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // Gap-fill (Reservations, docs/persistence/10-DECISIONES.md #30/#59) - RN-26 no fija una
 // forma concreta ("plazos sin penalidad, porcentaje de penalidad segun anticipacion"),
 // modelado como tramos ordenados por antelacion minima. Porcentual, no Money - el monto real
@@ -13,11 +15,11 @@ export class CancellationPolicy {
 
   static from(tiers: CancellationPolicyTier[]): CancellationPolicy {
     if (tiers.length === 0) {
-      throw new TypeError('CancellationPolicy requiere al menos un tramo.');
+      throw new InvalidValueError('CancellationPolicy requiere al menos un tramo.');
     }
     for (const tier of tiers) {
       if (!Number.isFinite(tier.minHoursBeforeStart) || tier.minHoursBeforeStart < 0) {
-        throw new TypeError(
+        throw new InvalidValueError(
           `CancellationPolicy.minHoursBeforeStart debe ser >= 0: ${tier.minHoursBeforeStart}`,
         );
       }
@@ -26,7 +28,7 @@ export class CancellationPolicy {
         tier.penaltyPercentage < 0 ||
         tier.penaltyPercentage > 100
       ) {
-        throw new TypeError(
+        throw new InvalidValueError(
           `CancellationPolicy.penaltyPercentage debe estar entre 0 y 100: ${tier.penaltyPercentage}`,
         );
       }

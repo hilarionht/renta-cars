@@ -20,7 +20,13 @@ export class RevokeRoleHandler {
       throw new UserNotFoundError(command.userId);
     }
 
+    // #140 (patron de #56): si no cambio nada (ya estaba asi) es un no-op idempotente; guardar
+    // sin subir la version daria un CONCURRENT_MODIFICATION espurio.
+    const versionBefore = user.version;
     user.revokeRole(command.roleId);
+    if (user.version === versionBefore) {
+      return;
+    }
 
     await this.unitOfWork.run(async (tx) => {
       await this.userRepository.save(user, tx);

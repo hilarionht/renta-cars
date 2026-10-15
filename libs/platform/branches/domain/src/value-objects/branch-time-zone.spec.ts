@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { BranchTimeZone, DEFAULT_BRANCH_TIME_ZONE } from './branch-time-zone';
 
 // docs/persistence/10-DECISIONES.md #135.
@@ -13,11 +15,11 @@ describe('BranchTimeZone', () => {
   });
 
   it('rechaza una zona inexistente', () => {
-    expect(() => BranchTimeZone.from('Mars/Olympus_Mons')).toThrow(TypeError);
+    expect(() => BranchTimeZone.from('Mars/Olympus_Mons')).toThrow(InvalidValueError);
   });
 
   it('rechaza un valor vacio', () => {
-    expect(() => BranchTimeZone.from('   ')).toThrow(TypeError);
+    expect(() => BranchTimeZone.from('   ')).toThrow(InvalidValueError);
   });
 
   it('default() es Buenos Aires', () => {

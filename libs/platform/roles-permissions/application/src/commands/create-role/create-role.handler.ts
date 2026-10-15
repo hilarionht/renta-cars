@@ -29,11 +29,9 @@ export class CreateRoleHandler {
     const roleName = RoleName.from(command.roleName);
     const permissions = command.permissions.map((p) => Permission.from(p));
 
-    const existing = await this.roleRepository.findByCompanyAndName(
-      command.companyId,
-      roleName.toString(),
-    );
-    if (existing) {
+    // #140: sin distinguir mayusculas y tampoco con el nombre de un role System (confundiria al
+    // asignar). El indice unico sobre lower(role_name) cubre la carrera.
+    if (await this.roleRepository.existsWithName(command.companyId, roleName.toString())) {
       throw new DuplicateRoleNameError(roleName.toString());
     }
 

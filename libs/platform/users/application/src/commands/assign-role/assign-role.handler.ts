@@ -30,7 +30,13 @@ export class AssignRoleHandler {
       throw new InvalidRoleAssignmentError(command.roleId);
     }
 
+    // #140 (patron de #56): si no cambio nada (ya estaba asi) es un no-op idempotente; guardar
+    // sin subir la version daria un CONCURRENT_MODIFICATION espurio.
+    const versionBefore = user.version;
     user.assignRole(command.roleId);
+    if (user.version === versionBefore) {
+      return;
+    }
 
     await this.unitOfWork.run(async (tx) => {
       await this.userRepository.save(user, tx);

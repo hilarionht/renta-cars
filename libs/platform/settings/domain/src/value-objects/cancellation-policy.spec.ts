@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { CancellationPolicy } from './cancellation-policy';
 
 describe('CancellationPolicy', () => {
@@ -11,19 +13,19 @@ describe('CancellationPolicy', () => {
   });
 
   it('from() rechaza un arreglo vacio', () => {
-    expect(() => CancellationPolicy.from([])).toThrow(TypeError);
+    expect(() => CancellationPolicy.from([])).toThrow(InvalidValueError);
   });
 
   it('from() rechaza minHoursBeforeStart negativo', () => {
     expect(() =>
       CancellationPolicy.from([{ minHoursBeforeStart: -1, penaltyPercentage: 0 }]),
-    ).toThrow(TypeError);
+    ).toThrow(InvalidValueError);
   });
 
   it('from() rechaza penaltyPercentage fuera de [0,100]', () => {
     expect(() =>
       CancellationPolicy.from([{ minHoursBeforeStart: 0, penaltyPercentage: 101 }]),
-    ).toThrow(TypeError);
+    ).toThrow(InvalidValueError);
   });
 
   it('default() no aplica penalidad en ningun tramo', () => {

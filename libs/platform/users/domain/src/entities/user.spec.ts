@@ -68,6 +68,16 @@ describe('User', () => {
       expect(user.status).toBe('Active');
       expect(user.pullDomainEvents()).toHaveLength(0);
     });
+
+    // #140: igual que disable(); antes subia la version y el handler daba un 409 espurio.
+    it('reactivate() sobre un usuario Active es un no-op (sin version)', () => {
+      const user = createUser();
+      const versionBefore = user.version;
+
+      user.reactivate();
+
+      expect(user.version).toBe(versionBefore);
+    });
   });
 
   describe('assertCanAuthenticate', () => {

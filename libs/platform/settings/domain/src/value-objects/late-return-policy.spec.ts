@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { LateReturnPolicy } from './late-return-policy';
 
 describe('LateReturnPolicy', () => {
@@ -9,13 +11,13 @@ describe('LateReturnPolicy', () => {
 
   it('from() rechaza graceMinutes negativo', () => {
     expect(() => LateReturnPolicy.from({ graceMinutes: -1, penaltyPercentagePerHour: 0 })).toThrow(
-      TypeError,
+      InvalidValueError,
     );
   });
 
   it('from() rechaza penaltyPercentagePerHour negativo', () => {
     expect(() => LateReturnPolicy.from({ graceMinutes: 0, penaltyPercentagePerHour: -1 })).toThrow(
-      TypeError,
+      InvalidValueError,
     );
   });
 

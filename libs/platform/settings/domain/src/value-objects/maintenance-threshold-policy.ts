@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // docs/model/04-VALUE_OBJECTS.md §6, RN-29: "el mantenimiento preventivo se programa segun
 // umbrales de kilometraje y/o tiempo transcurrido, definidos por Company". Novena y ultima
 // de las 9 politicas documentadas de CompanySettings (docs/persistence/10-DECISIONES.md #30).
@@ -22,14 +24,14 @@ export class MaintenanceThresholdPolicy {
   static from(props: MaintenanceThresholdPolicyProps): MaintenanceThresholdPolicy {
     if (props.odometerThresholdKm !== undefined) {
       if (!Number.isFinite(props.odometerThresholdKm) || props.odometerThresholdKm <= 0) {
-        throw new TypeError(
+        throw new InvalidValueError(
           `MaintenanceThresholdPolicy.odometerThresholdKm debe ser mayor a 0: ${props.odometerThresholdKm}`,
         );
       }
     }
     if (props.daysThreshold !== undefined) {
       if (!Number.isFinite(props.daysThreshold) || props.daysThreshold <= 0) {
-        throw new TypeError(
+        throw new InvalidValueError(
           `MaintenanceThresholdPolicy.daysThreshold debe ser mayor a 0: ${props.daysThreshold}`,
         );
       }
@@ -39,7 +41,7 @@ export class MaintenanceThresholdPolicy {
       props.odometerThresholdKm === undefined &&
       props.daysThreshold === undefined
     ) {
-      throw new TypeError(
+      throw new InvalidValueError(
         'MaintenanceThresholdPolicy.applies=true requiere al menos un umbral (odometerThresholdKm y/o daysThreshold).',
       );
     }

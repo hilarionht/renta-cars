@@ -8,7 +8,7 @@ import {
 } from '@platform/shared-kernel';
 import { asPrismaTransaction, ReadTransaction } from '@platform/persistence-kernel';
 import { Permission, Role, type RoleId, RoleName } from '@platform/roles-permissions/domain';
-import type { RoleRepository } from '@platform/roles-permissions/application';
+import type { RoleRepository, RoleRecordSummary } from '@platform/roles-permissions/application';
 
 // El unico lugar que traduce entre el modelo de Prisma y el agregado de dominio - ningun
 // otro archivo de infrastructure/, y ningun archivo de application/, conoce la forma de la
@@ -27,11 +27,24 @@ export class PrismaRoleRepository implements RoleRepository {
     return record ? this.toDomain(record) : null;
   }
 
-  async findByCompanyAndName(companyId: string | null, roleName: string): Promise<Role | null> {
+  async findSummaryById(id: string): Promise<RoleRecordSummary | null> {
     const record = await this.readTransaction.run((tx) =>
-      tx.role.findFirst({ where: { companyId, roleName } }),
+      tx.role.findFirst({ where: { id }, select: { scope: true, companyId: true, status: true } }),
     );
-    return record ? this.toDomain(record) : null;
+    return record;
+  }
+
+  async existsWithName(companyId: string, roleName: string): Promise<boolean> {
+    const record = await this.readTransaction.run((tx) =>
+      tx.role.findFirst({
+        where: {
+          roleName: { equals: roleName, mode: 'insensitive' },
+          OR: [{ companyId, scope: 'Custom' }, { scope: 'System' }],
+        },
+        select: { id: true },
+      }),
+    );
+    return record !== null;
   }
 
   async findAllForCompany(companyId: string): Promise<Role[]> {

@@ -161,7 +161,11 @@ export class User {
     });
   }
 
+  // #140: reactivar a alguien activo es un no-op (sin version ni evento), como disable().
   reactivate(): void {
+    if (this.props.status === 'Active') {
+      return;
+    }
     this.props.status = 'Active';
     this.props.updatedAt = new Date();
     this.props.version += 1;

@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // docs/model/03-ENTITIES.md - "nombre" como propiedad conceptual, sin split de
 // firstName/lastName especificado en los docs (huella abierta, ver plan de esta tanda) -
 // se implementa como un unico campo, el mas simple que satisface lo que si esta escrito.
@@ -14,7 +16,7 @@ export class PersonName {
   static from(raw: string): PersonName {
     const trimmed = raw.trim();
     if (trimmed.length < MIN_LENGTH || trimmed.length > MAX_LENGTH) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `PersonName debe tener entre ${MIN_LENGTH} y ${MAX_LENGTH} caracteres: "${raw}"`,
       );
     }

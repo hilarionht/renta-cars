@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // docs/model/04-VALUE_OBJECTS.md SS3 - "Direccion fisica... sin identidad propia". Sin mas
 // estructura especificada en los docs, se modela el minimo pragmatico: linea1/ciudad/pais
 // obligatorios, el resto opcional (formato varia demasiado entre paises para exigirlo).
@@ -18,7 +20,7 @@ export class Address {
     const city = raw.city.trim();
     const country = raw.country.trim();
     if (line1.length === 0 || city.length === 0 || country.length === 0) {
-      throw new TypeError('Address requiere line1, city y country no vacios.');
+      throw new InvalidValueError('Address requiere line1, city y country no vacios.');
     }
     return new Address({
       line1,

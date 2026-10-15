@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { DepositPolicy } from './deposit-policy';
 
 describe('DepositPolicy', () => {
@@ -8,8 +10,12 @@ describe('DepositPolicy', () => {
   });
 
   it('from() rechaza percentageOfTotal fuera de [0,100]', () => {
-    expect(() => DepositPolicy.from({ applies: true, percentageOfTotal: 101 })).toThrow(TypeError);
-    expect(() => DepositPolicy.from({ applies: true, percentageOfTotal: -1 })).toThrow(TypeError);
+    expect(() => DepositPolicy.from({ applies: true, percentageOfTotal: 101 })).toThrow(
+      InvalidValueError,
+    );
+    expect(() => DepositPolicy.from({ applies: true, percentageOfTotal: -1 })).toThrow(
+      InvalidValueError,
+    );
   });
 
   it('default() no aplica deposito', () => {

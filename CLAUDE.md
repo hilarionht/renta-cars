@@ -12,32 +12,44 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-15. El Incremento 3 (Flota) está mergeado (PR #7, CI 6/6). **En curso: Incremento 4 (Clientes)**, rama `feat/web-admin-customers`, elegido por el usuario. Se sigue el mismo proceso que en Flota (#137):
+Estado al 2026-10-15. El Incremento 4 (Clientes) está mergeado (PR #8, CI 6/6, #139). **En curso: Incremento 5 (Administración)**, rama `feat/web-admin-administration`, pedido por el usuario. Alcance según #134: usuarios, roles, sucursales (incluida la zona horaria, pendiente 8 de abajo), configuración de la empresa, datos de la empresa y auditoría. Mismo proceso que Flota y Clientes (#137, #139):
 
-1. ~~Auditoría en vivo~~: hecha (2026-10-15; scripts `customers-audit*.cjs` del scratchpad). Hallazgos:
-   - **A (bug técnico)**: 500 con documento de cliente repetido (P2002 sin mapear), teléfono que no es E.164 (alta y PATCH) y documento en blanco (los VO de customers siguen con `TypeError`). Se corrige con el mismo patrón que #137.
-   - **B (seguridad)**: el teléfono no es único por empresa y el login OTP busca con `findFirst`. Si dos clientes comparten número, entra siempre el primero, y el otro nunca puede entrar.
-   - **C (crítico, también en vehículos)**: los documentos nunca pasan a `Expired` (no hay proceso de vencimiento) y el índice único admite un solo documento `Pending`/`Verified` por tipo. Por eso **no se puede renovar** un documento, ni vigente ni vencido (409), y **se puede verificar uno vencido**. Un cliente con el DNI vencido queda inhabilitado para siempre, y lo mismo un vehículo con el seguro vencido.
-   - **D (reglas)**: se puede revocar un conductor autorizado en una reserva confirmada (después el check-out falla con `DRIVER_NOT_VALIDATED`) y bloquear a un cliente con reservas confirmadas. Además, el check-out no vuelve a revisar si el cliente está bloqueado ni si su documento venció.
-   - **E (gap de #133)**: el teléfono no se normaliza a E.164, y falta decidir el país por defecto.
-2. ~~Decisiones del usuario~~ (2026-10-15):
-   - **C**: el documento nuevo **reemplaza al anterior cuando se verifica**. Se puede cargar uno del mismo tipo aunque haya otro vigente o vencido; el anterior vale hasta que se verifique el nuevo. No se puede verificar un documento con la fecha vencida. Aplica a clientes y vehículos.
-   - **B**: **teléfono único por empresa**: el alta y la edición responden 409. Antes de migrar, mostrar los duplicados existentes (en local solo está el par "Audit/Gemelo" de la auditoría, que es dato de prueba).
-   - **D**: bloquear o revocar **se permite**, pero la web avisa qué reservas afecta, y el **check-out rechaza** a un cliente bloqueado o con el documento vencido.
-   - **E**: país por defecto **Argentina +54**: los celulares se normalizan con el 9 (`11 5555-4444` pasa a `+5491155554444`).
-3. ~~Plan~~: aprobado (2026-10-15) y validado con un agente Plan. Además de A a E, encontró **C2**: la validación de licencia toma el primer documento del conductor de cualquier tipo. Corrigió el alcance de C en vehículos: no se puede renovar y se puede habilitar con un documento vencido, pero un auto `Available` sigue operando aunque se le venza el seguro.
-4. **Implementar en capas** (marcar cada una al commitearla):
-   - [x] 1. A: `PhoneNumber`/`Email`/`CustomerName`/`TaxIdOrDocumentId` lanzan `InvalidValueError`, e `INVALID_VALUE` se registra en customers, users, companies y notifications.
-   - [x] 2. B: `@@unique([companyId, contactPhone])`; P2002 de `create` y `updateMany` → 409 `DUPLICATE_CUSTOMER_DOCUMENT_ID` / `DUPLICATE_CUSTOMER_PHONE`; los argentinos `+54` sin 9 pasan a `+549` en el alta, la edición y la búsqueda del OTP. Arreglar los teléfonos repetidos en `reports.e2e-spec.ts:81-94` y `tooling/load-testing/setup.ts:126`. En local, antes de migrar, corregir el par de prueba "Audit/Gemelo".
-   - [x] 3. C y C2: estado `Replaced` (migración 1 solo de enums), índices `…_pending_key` y `…_verified_key` (migración 2 a mano), `upload()` reemplaza el `Pending` anterior, `verify()` rechaza vencido o `Replaced` y reemplaza el `Verified` anterior, los repositorios escriben primero los `Replaced` y ordenan por `createdAt`/`id`, la licencia filtra `DriversLicense`, y `Vehicle.enable` exige un documento no vencido.
-   - [x] 4. D: el check-out consulta `isEligibleForConfirmation` y `Reservation.checkOut` recibe `isCustomerEligible`; ajustar las 7 llamadas a `checkOut` en specs y el mock del handler.
-   - [x] 5. Verificación en vivo (auditorías en PASS/FAIL) y e2e `customer-documents-and-rules` (individual, más `reports` y `customers-lifecycle`).
-   - [x] 6. `data-access-core/phone.ts` (`normalizePhoneNumber`, Argentina) reexportado en `@frontend/data-access`; mobile `login-phone.tsx` normaliza una vez.
-   - [x] 7. Tipos, hooks `data-access-web/src/customers/` y pantallas `(admin)/customers/`.
-   - [x] 8. Flota (badge `Replaced`, renovación) y Reservas (mensaje del check-out).
-   - [x] 9. Docs: #139, `07-ERROR-CATALOG`, `08-STATE_MACHINES` §6.7, `02-AGGREGATES`, `03-ENTITIES`, `05-INDICES-Y-CONSTRAINTS`, comentarios de `rental.prisma` y `CLAUDE.md`.
-5. Push, PR y vigilar el CI hasta 6/6. Nunca aprobar ni mergear. **PR #8** abierto (2026-10-15). La primera corrida falló en 2 e2e por la regla nueva del teléfono (`audit-log` repetía un número y `fleet-management` buscaba el OTP con un `+54` sin el 9); se corrigieron y se volvió a pushear. **CI 6/6 en verde** (run `38766748061`). Solo falta lo del usuario: validación visual de Clientes, aprobación y merge (nunca hacerlo Claude).
-6. Pendiente del usuario desde el Incremento 3: la validación visual de Flota (opcional; el PR #7 ya se mergeó).
+1. [x] Auditoría en vivo (2026-10-15, `admin-audit.cjs` del scratchpad). Hallazgos:
+   - **A (500)**: sucursal con cierre antes de apertura o día repetido; rol con permiso inexistente; editar o desactivar un rol System; política de cancelación sin tramos; mantenimiento `applies` sin umbrales.
+   - **B (falso 409)**: una operación que no cambia nada (asignar un rol que ya tiene, revocar uno que no tiene, deshabilitar dos veces, cerrar una sucursal cerrada) responde `CONCURRENT_MODIFICATION`: el dominio no sube la versión pero el repositorio guarda igual.
+   - **C (seguridad, crítico)**: el único admin puede quitarse su rol o deshabilitarse; la empresa queda sin nadie que administre y no hay camino por API para recuperarla.
+   - **D (seguridad)**: asignar y revocar roles y reactivar usuarios no emiten evento: no quedan en la auditoría.
+   - **E (datos)**: se acepta un usuario con una sucursal inexistente o sin roles, un módulo de producto inexistente o repetido, un teléfono de facturación `abc`, y un rol cuyo nombre solo difiere en mayúsculas o copia uno System.
+   - **F (reglas)**: cerrar una sucursal con reservas confirmadas no avisa (después el check-out falla con `BRANCH_CLOSED`); se crea un usuario en una sucursal cerrada; desactivar un rol asignado deja a sus usuarios sin permisos sin aviso.
+   - **G (políticas)**: se aceptan tramos de cancelación repetidos o incoherentes (más anticipación con más multa), recargo tardío del 1000 %/h, depósito que "aplica" con 0 % y recordatorio de 10 años.
+   - **H**: `GET /audit-log` no pagina ni filtra por fecha (devuelve todo) y muestra el actor solo por id.
+2. [x] Decisiones del usuario (2026-10-15):
+   - **C**: la empresa **siempre conserva al menos un usuario activo que puede administrar usuarios y roles**; el API rechaza con 409 revocar o deshabilitar si eso la deja sin ninguno (también si lo hace otro admin).
+   - **F, sucursal**: cerrar una sucursal con reservas confirmadas o en curso se **rechaza con 409 y la lista de reservas** (como mantenimiento en Flota, #137).
+   - **F, rol**: desactivar un rol con usuarios asignados se **rechaza con 409** (primero hay que reasignarlos).
+   - **G**: la política de cancelación exige **coherencia**: al menos un tramo, sin horas repetidas, y a más anticipación la multa es menor o igual. Los topes de recargo tardío y depósito **no se tocan** (calibración de negocio).
+3. [x] Plan aprobado (2026-10-15), validado con un agente Plan (plan completo en `~/.claude/plans/drifting-leaping-emerson.md` de esta máquina; resumen acá). El agente encontró además **I (seguridad)**: un usuario deshabilitado puede seguir renovando su sesión (el refresh no mira el estado). Decisiones extra del usuario: se suma `PATCH /users/:id` (nombre y sucursal); los módulos de producto, de solo lectura en la web. Regla transversal: validar estricto solo lo que entra; al cargar de la base, tolerante (si no, los datos viejos quedan trabados).
+4. Implementar en capas (marcar cada una al commitearla):
+   - [x] 1. A y B: VO de branches/roles/settings/users/companies con `InvalidValueError`; no-op idempotente en disable-user, assign-role, revoke-role, close-branch, reopen-branch (patrón #56), `User.reactivate` y `Role.deactivate` no-op; lookup del rol por id crudo antes de `EntityId.from` (System → 403) y `existsWithName`; seeds en `uuidv7` (también `companyId` de `seedCompanyWithAdmin`).
+   - [ ] 2. C, D e I: `ROLE_ASSIGNMENTS_PORT` en roles-permissions (application + infrastructure), administrador = activo con `users:assign-role` y `roles:create`, `pg_advisory_xact_lock`, 409 `LAST_ADMINISTRATOR` en revoke-role, disable-user y edit-role-permissions; eventos `UserRoleAssigned/Revoked/Reactivated.v1`; refresh rechaza usuario no `Active`.
+   - [ ] 3. E: alta de usuario con roles ≥1 y activos y sucursal existente y activa (422); `PATCH /users/:id`; módulos deduplicados y con formato; teléfono de facturación E.164 al entrar; nombre de rol único sin mayúsculas y distinto de los System (migración, limpiar antes los datos de la auditoría local).
+   - [ ] 4. F: `BRANCH_ACTIVE_RESERVATIONS_PORT` (branches/application, `@Optional`), adapter en rental/reservations/infrastructure, enlazado en `apps/api/src/app/composition/product-ports.module.ts` (`@Global`); 409 `BRANCH_HAS_ACTIVE_RESERVATIONS` y `ROLE_HAS_USERS`.
+   - [ ] 5. G y H: cancelación coherente y mantenimiento sin umbrales (400, carga tolerante); `GET /audit-log` con cursor, limit (50, máx. 100), `from`/`to` e índice.
+   - [ ] 6. Verificación en vivo (`admin-audit.cjs` en PASS/FAIL) y e2e `administration-rules` + los 11 de la lista del plan, individuales.
+   - [ ] 7. `Checkbox` en ui-kit-web, tipos y hooks `data-access-web/src/admin/`.
+   - [ ] 8. Pantallas `(admin)/admin/`: Usuarios, Roles, Sucursales, Empresa, Auditoría.
+   - [ ] 9. Docs: #140, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, `06-DOMAIN_EVENTS`, `04-EVENT-CONTRACTS`, `09-SEGURIDAD`, `05-INDICES-Y-CONSTRAINTS`, CLAUDE.md.
+5. [ ] Push, PR y CI 6/6. Nunca aprobar ni mergear.
+
+Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
+
+## Incremento 4 (2026-10-15) — Clientes
+
+- PR #8, mergeado. Ver **`docs/persistence/10-DECISIONES.md #139`**:
+  - renovación de documentos de clientes y vehículos (estado `Replaced`);
+  - teléfono único por empresa, normalizado con Argentina por defecto;
+  - el check-out rechaza a un cliente bloqueado o con el documento vencido;
+  - pantallas de Clientes en la web.
 
 ## Última sesión (2026-10-14) — leer primero
 
@@ -79,7 +91,7 @@ Estado al 2026-10-15. El Incremento 3 (Flota) está mergeado (PR #7, CI 6/6). **
 
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
-- **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, rama `feat/web-admin-customers`). Sigue Administración (5). Arquitectura y restricciones en #134 y `docs/06` §3.
+- **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, PR #8). Sigue Administración (5), en curso. Arquitectura y restricciones en #134 y `docs/06` §3.
 - Últimas 3 decisiones: `#137` (Incremento 3: Flota y 4 bugs encontrados en vivo), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)

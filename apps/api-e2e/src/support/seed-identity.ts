@@ -31,7 +31,8 @@ export async function seedAdminForCompany(companyId: string): Promise<SeededAdmi
   const client = new Client({ connectionString: process.env.TEST_DATABASE_URL });
   await client.connect();
   try {
-    const systemRoleId = randomUUID();
+    // v7 (#140): EntityId.from exige v7; un role System v4 daba 500 al editarlo o desactivarlo.
+    const systemRoleId = uuidv7();
     // v7, no v4 - User.id se reconstituye via EntityId.from<'User'>() (PrismaUserRepository.
     // toDomain()), que exige UUID v7 (bug real encontrado por el e2e de recuperacion de
     // contraseña, docs/persistence/10-DECISIONES.md #113 - primer caller de
@@ -71,7 +72,8 @@ export async function seedAdminForCompany(companyId: string): Promise<SeededAdmi
 export async function seedCompanyWithAdmin(): Promise<SeededCompany> {
   const client = new Client({ connectionString: process.env.TEST_DATABASE_URL });
   await client.connect();
-  const companyId = randomUUID();
+  // v7 (#140): UpdateCompanyDetailsHandler hace EntityId.from(companyId).
+  const companyId = uuidv7();
   try {
     await client.query(
       `INSERT INTO organization.companies (id, legal_name, tax_id, billing_contact_email, status, updated_at, version)

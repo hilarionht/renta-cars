@@ -15,7 +15,6 @@
 //
 // Nunca corre en CI ni en tests.
 
-import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -78,7 +77,8 @@ async function api<T>(
 }
 
 async function seedAdmin(client: Client, companyId: string): Promise<string> {
-  const systemRoleId = randomUUID();
+  // v7 (#140): EntityId.from exige v7; un role System v4 daba 500 al editarlo o desactivarlo.
+  const systemRoleId = uuidv7();
   // v7, no v4: User.id se reconstituye via EntityId.from<'User'>(), que exige UUID v7 (#113).
   const adminUserId = uuidv7();
   await client.query(

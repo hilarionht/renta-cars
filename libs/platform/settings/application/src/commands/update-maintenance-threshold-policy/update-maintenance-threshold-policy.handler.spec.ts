@@ -1,4 +1,8 @@
-import type { DomainEventPublisher, UnitOfWork } from '@platform/shared-kernel';
+import {
+  type DomainEventPublisher,
+  InvalidValueError,
+  type UnitOfWork,
+} from '@platform/shared-kernel';
 import { CompanySettings } from '@platform/settings/domain';
 
 import type { SettingsRepository } from '../../ports/settings.repository';
@@ -41,12 +45,12 @@ describe('UpdateMaintenanceThresholdPolicyHandler', () => {
     expect(settingsRepository.save).not.toHaveBeenCalled();
   });
 
-  it('propaga el TypeError de dominio si applies=true sin ningun umbral', async () => {
+  it('propaga el InvalidValueError de dominio si applies=true sin ningun umbral', async () => {
     const settings = CompanySettings.create({ companyId: 'company-a' });
     const { handler } = buildHandler(settings);
 
     await expect(handler.execute({ companyId: 'company-a', applies: true })).rejects.toThrow(
-      TypeError,
+      InvalidValueError,
     );
   });
 });

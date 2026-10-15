@@ -7,7 +7,11 @@ import {
   UNIT_OF_WORK,
   type UnitOfWork,
 } from '@platform/shared-kernel';
-import { type RoleId, RoleNotFoundError } from '@platform/roles-permissions/domain';
+import {
+  type RoleId,
+  RoleNotFoundError,
+  SystemRoleImmutableError,
+} from '@platform/roles-permissions/domain';
 
 import { ROLE_REPOSITORY, type RoleRepository } from '../../ports/role.repository';
 import type { DeactivateRoleCommand } from './deactivate-role.command';
@@ -21,14 +25,32 @@ export class DeactivateRoleHandler {
   ) {}
 
   async execute(command: DeactivateRoleCommand): Promise<void> {
+    // #140: primero la lectura liviana por el id crudo - un role System (inmutable) responde 403
+    // sin cargar el agregado (los System de los seeds viejos tienen id v4 y daban 500).
+    const summary = await this.roleRepository.findSummaryById(command.roleId);
+    // Un Custom role de otra company no existe desde la perspectiva de esta request - mismo
+    // codigo (RESOURCE_NOT_FOUND) que un id inexistente, nunca revela que el recurso existe
+    // en otro tenant (docs/09-SEGURIDAD.md SS5).
+    if (!summary || (summary.scope === 'Custom' && summary.companyId !== command.companyId)) {
+      throw new RoleNotFoundError(command.roleId);
+    }
+    if (summary.scope === 'System') {
+      throw new SystemRoleImmutableError(command.roleId);
+    }
+
     const roleId: RoleId = EntityId.from(command.roleId);
     const role = await this.roleRepository.findById(roleId);
-
-    if (!role || (role.scope === 'Custom' && role.companyId !== command.companyId)) {
+    if (!role) {
       throw new RoleNotFoundError(command.roleId);
     }
 
+    // #140 (patron de #56): si no cambio nada (ya estaba asi) es un no-op idempotente; guardar
+    // sin subir la version daria un CONCURRENT_MODIFICATION espurio.
+    const versionBefore = role.version;
     role.deactivate();
+    if (role.version === versionBefore) {
+      return;
+    }
 
     await this.unitOfWork.run(async (tx) => {
       await this.roleRepository.save(role, tx);

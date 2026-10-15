@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // VO agregado - docs/model/04-VALUE_OBJECTS.md SS3 no lista un nombre para Branch (solo
 // Address/OperatingHours/BranchStatus), mismo hueco que PersonName tuvo para User. Una
 // sucursal sin nombre no es usable en ningun flujo real - validacion sintactica minima,
@@ -15,7 +17,7 @@ export class BranchName {
   static from(raw: string): BranchName {
     const trimmed = raw.trim();
     if (trimmed.length < MIN_LENGTH || trimmed.length > MAX_LENGTH) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `BranchName debe tener entre ${MIN_LENGTH} y ${MAX_LENGTH} caracteres: "${raw}"`,
       );
     }
