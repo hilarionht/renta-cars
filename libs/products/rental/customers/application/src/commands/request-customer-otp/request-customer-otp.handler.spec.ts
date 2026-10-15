@@ -79,6 +79,22 @@ describe('RequestCustomerOtpHandler', () => {
     );
   });
 
+  // docs/persistence/10-DECISIONES.md #139: el mismo celular argentino con o sin el 9 es el
+  // mismo customer; el codigo va al telefono guardado.
+  it('busca por la forma canonica y manda el codigo al telefono guardado del customer', async () => {
+    const { handler, customerRepository, sendNotification } = buildHandler();
+
+    await handler.execute({ companyId: 'company-1', phone: '+541155554444' });
+
+    expect(customerRepository.findByCompanyIdAndPhone).toHaveBeenCalledWith(
+      'company-1',
+      '+5491155554444',
+    );
+    expect(sendNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ recipient: { phone: '+525512345678' } }),
+    );
+  });
+
   it('propaga el error si el envio por WhatsApp falla (NotificationDeliveryFailedError, dejado pasar tal cual)', async () => {
     const sendExecute = jest.fn().mockRejectedValue(new Error('WhatsApp no disponible'));
     const { handler } = buildHandler({ sendExecute });

@@ -36,6 +36,9 @@ model Customer {
 
   // Clave natural (docs/persistence/04-COLUMNAS-CONCEPTUALES.md §6).
   @@unique([companyId, taxIdOrDocumentId])
+  // docs/persistence/10-DECISIONES.md #139: el telefono identifica al customer en el login por
+  // WhatsApp; se guarda en forma canonica (canonicalCustomerPhone).
+  @@unique([companyId, contactPhone])
   // GET /customers paginado por cursor (orden id desc, docs/persistence/10-DECISIONES.md #135).
   @@index([companyId, id], map: "customers_company_id_id_idx")
   @@map("customers")

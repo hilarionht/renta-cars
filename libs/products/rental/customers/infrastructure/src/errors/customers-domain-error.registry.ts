@@ -10,6 +10,8 @@ import {
   CustomerNotFoundError,
   CustomerRefreshTokenReusedError,
   DuplicateActiveIdentityDocumentError,
+  DuplicateCustomerDocumentIdError,
+  DuplicateCustomerPhoneError,
   IdentityDocumentExpiredError,
   IdentityDocumentNotFoundError,
   InvalidCustomerOtpCodeError,
@@ -21,6 +23,22 @@ import {
 // InvalidRefreshTokenError/RefreshTokenReusedError - el camino de robo de CustomerSession
 // (CustomerRefreshTokenReusedError) tampoco filtra al cliente que se detecto un reuso.
 export const CUSTOMERS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
+  [
+    DuplicateCustomerDocumentIdError,
+    {
+      status: 409,
+      code: 'DUPLICATE_CUSTOMER_DOCUMENT_ID',
+      title: 'Ya existe un customer con ese documento',
+    },
+  ],
+  [
+    DuplicateCustomerPhoneError,
+    {
+      status: 409,
+      code: 'DUPLICATE_CUSTOMER_PHONE',
+      title: 'Ya existe un customer con ese telefono',
+    },
+  ],
   // #139 (patron de #137): VO con dato de entrada invalido (antes TypeError crudo -> 500).
   [
     InvalidValueError,

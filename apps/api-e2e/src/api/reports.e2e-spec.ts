@@ -91,7 +91,8 @@ describe('Reports (Fase 4 item 1)', () => {
         name: `Cliente Reports E2E ${suffix}`,
         taxIdOrDocumentId: `doc-${taxId}-${suffix}`,
         contactEmail: customerEmail,
-        contactPhone: '+525500000002',
+        // #139: telefono unico por company (A y B son de la misma).
+        contactPhone: suffix === 'A' ? '+525500000002' : '+525500000003',
         customerType: 'Individual',
       });
       const customerId: string = customerResponse.body.data.id;

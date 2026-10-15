@@ -17,6 +17,7 @@ export {
 export { CustomerName } from './value-objects/customer-name';
 export { TaxIdOrDocumentId } from './value-objects/tax-id-or-document-id';
 export { ContactInfo } from './value-objects/contact-info';
+export { canonicalCustomerPhone } from './value-objects/customer-phone';
 export type { CustomerType } from './value-objects/customer-type';
 export type { CustomerStatus } from './value-objects/customer-status';
 export type { CustomerBlockStatusValue } from './value-objects/customer-block-status';
@@ -30,6 +31,8 @@ export { IdentityDocumentExpiredError } from './errors/identity-document-expired
 export { AdditionalDriverRevokedError } from './errors/additional-driver-revoked.error';
 export { AdditionalDriverMissingValidLicenseError } from './errors/additional-driver-missing-valid-license.error';
 export { DuplicateActiveIdentityDocumentError } from './errors/duplicate-active-identity-document.error';
+export { DuplicateCustomerDocumentIdError } from './errors/duplicate-customer-document-id.error';
+export { DuplicateCustomerPhoneError } from './errors/duplicate-customer-phone.error';
 export type { CustomerRegisteredEvent } from './events/customer-registered.event';
 export type { CustomerDocumentValidatedEvent } from './events/customer-document-validated.event';
 export type { CustomerDocumentExpiredEvent } from './events/customer-document-expired.event';

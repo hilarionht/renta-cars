@@ -1,7 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { UNIT_OF_WORK, type UnitOfWork } from '@platform/shared-kernel';
-import { CustomerOtpChallenge, CustomerOtpCodeHash } from '@rental/customers/domain';
+import {
+  canonicalCustomerPhone,
+  CustomerOtpChallenge,
+  CustomerOtpCodeHash,
+} from '@rental/customers/domain';
 import { SendNotificationHandler } from '@platform/notifications/application';
 
 import {
@@ -38,9 +42,10 @@ export class RequestCustomerOtpHandler {
   // caller (customer-auth.controller, commit 3) siempre responde 204 sin impostar si el
   // telefono existe.
   async execute(command: RequestCustomerOtpCommand): Promise<void> {
+    // #139: misma forma canonica que se guarda (celular argentino con el 9).
     const customer = await this.customerRepository.findByCompanyIdAndPhone(
       command.companyId,
-      command.phone,
+      canonicalCustomerPhone(command.phone),
     );
     if (!customer) {
       return;
@@ -50,7 +55,7 @@ export class RequestCustomerOtpHandler {
     const challenge = CustomerOtpChallenge.request({
       companyId: command.companyId,
       customerId: customer.id.toString(),
-      phone: command.phone,
+      phone: customer.contactInfo.toPhone().toString(),
       codeHash: CustomerOtpCodeHash.fromHash(hash),
       expiresAt: new Date(Date.now() + OTP_EXPIRATION_MS),
       maxAttempts: OTP_MAX_ATTEMPTS,
@@ -67,7 +72,7 @@ export class RequestCustomerOtpHandler {
     await this.sendNotification.execute({
       companyId: command.companyId,
       kind: 'SecurityCode',
-      recipient: { phone: command.phone },
+      recipient: { phone: customer.contactInfo.toPhone().toString() },
       templateId: 'customer-otp-login',
       templateParams: { code },
       requireExactChannel: 'WhatsApp',

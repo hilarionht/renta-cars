@@ -7,6 +7,7 @@ import {
   type UnitOfWork,
 } from '@platform/shared-kernel';
 import {
+  canonicalCustomerPhone,
   CustomerDeviceContext,
   CustomerOtpCodeHash,
   CustomerRefreshTokenHash,
@@ -61,7 +62,7 @@ export class VerifyCustomerOtpHandler {
     // RequestCustomerOtpHandler.
     const customer = await this.customerRepository.findByCompanyIdAndPhone(
       command.companyId,
-      command.phone,
+      canonicalCustomerPhone(command.phone),
     );
     if (!customer) {
       throw new OtpChallengeNotFoundError();

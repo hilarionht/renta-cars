@@ -123,7 +123,8 @@ async function seedCustomers(
         name: `LoadTest-${companyIndex}-${i}`,
         taxIdOrDocumentId: `doc-loadtest-${companyIndex}-${i}-${randomUUID()}`,
         contactEmail: `customer-${companyIndex}-${i}@example.com`,
-        contactPhone: '+541100000000',
+        // #139: telefono unico por company.
+        contactPhone: `+5255${String(companyIndex).padStart(4, '0')}${String(i).padStart(4, '0')}`,
         customerType: 'Individual',
       }),
     });
