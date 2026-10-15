@@ -4,6 +4,7 @@ import type { CustomerLookupPort } from '@rental/customers/application';
 import type { VehicleStatusPort } from '@rental/vehicles/application';
 import {
   BranchClosedError,
+  CustomerNotEligibleError,
   Reservation,
   VehicleNotAvailableError,
 } from '@rental/reservations/domain';
@@ -32,6 +33,7 @@ function buildHandler(overrides?: {
   isOperational?: boolean | null;
   branchStatus?: 'Active' | 'Closed' | null;
   areDriversValidated?: boolean;
+  isCustomerEligible?: boolean | null;
 }) {
   const reservation = buildConfirmed();
   const reservationRepository: ReservationRepository = {
@@ -47,7 +49,11 @@ function buildHandler(overrides?: {
     getStatus: jest.fn().mockResolvedValue(overrides?.branchStatus ?? 'Active'),
   };
   const customerLookupPort: CustomerLookupPort = {
-    isEligibleForConfirmation: jest.fn(),
+    isEligibleForConfirmation: jest
+      .fn()
+      .mockResolvedValue(
+        overrides && 'isCustomerEligible' in overrides ? overrides.isCustomerEligible : true,
+      ),
     areAdditionalDriversValidated: jest
       .fn()
       .mockResolvedValue(overrides?.areDriversValidated ?? true),
@@ -114,4 +120,25 @@ describe('CheckOutReservationHandler', () => {
       }),
     ).rejects.toThrow(VehicleNotAvailableError);
   });
+
+  // #139: el cliente pudo quedar bloqueado o con el documento vencido despues de confirmar.
+  it.each([false, null])(
+    'lanza CustomerNotEligibleError si el cliente no es elegible (%s) y no guarda',
+    async (isCustomerEligible) => {
+      const { handler, reservation, reservationRepository } = buildHandler({ isCustomerEligible });
+
+      await expect(
+        handler.execute({
+          companyId: 'company-1',
+          reservationId: reservation.id.toString(),
+          odometer: 1000,
+          fuelLevelPercentage: 100,
+          photoFileIds: [],
+          inspectedBy: 'user-1',
+        }),
+      ).rejects.toThrow(CustomerNotEligibleError);
+      expect(reservation.status).toBe('Confirmed');
+      expect(reservationRepository.save).not.toHaveBeenCalled();
+    },
+  );
 });

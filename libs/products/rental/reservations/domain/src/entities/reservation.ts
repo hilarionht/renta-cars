@@ -258,6 +258,10 @@ export class Reservation {
     isBranchActive: boolean;
     branchId: string;
     areDriversValidated: boolean;
+    // docs/persistence/10-DECISIONES.md #139: el cliente se revisa de nuevo al retirar (pudo
+    // quedar bloqueado o con el documento vencido despues de confirmar). Mismo criterio que
+    // confirm().
+    isCustomerEligible: boolean;
   }): InspectionId {
     this.assertStatus('Confirmed', 'checkOut');
     if (!params.isBranchActive) {
@@ -265,6 +269,9 @@ export class Reservation {
     }
     if (!params.isVehicleOperational) {
       throw new VehicleNotAvailableError(this.props.vehicleId);
+    }
+    if (!params.isCustomerEligible) {
+      throw new CustomerNotEligibleError(this.props.customerId);
     }
     if (!params.areDriversValidated) {
       throw new DriverNotValidatedError(this.props.id.toString());

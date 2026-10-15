@@ -54,6 +54,7 @@ function createCheckedOut(): Reservation {
     isBranchActive: true,
     branchId: 'branch-1',
     areDriversValidated: true,
+    isCustomerEligible: true,
   });
   reservation.pullDomainEvents();
   return reservation;
@@ -189,6 +190,7 @@ describe('Reservation', () => {
       isBranchActive: true,
       branchId: 'branch-1',
       areDriversValidated: true,
+      isCustomerEligible: true,
     };
 
     it('Confirmed -> CheckedOut, registra Inspection CheckOut y emite ReservationCheckedOut.v1', () => {
@@ -226,6 +228,15 @@ describe('Reservation', () => {
       expect(() => reservation.checkOut({ ...validParams, areDriversValidated: false })).toThrow(
         DriverNotValidatedError,
       );
+    });
+
+    // #139: bloqueado o con el documento vencido despues de confirmar.
+    it('lanza CustomerNotEligibleError si isCustomerEligible=false', () => {
+      const reservation = createConfirmed();
+      expect(() => reservation.checkOut({ ...validParams, isCustomerEligible: false })).toThrow(
+        CustomerNotEligibleError,
+      );
+      expect(reservation.status).toBe('Confirmed');
     });
 
     it('lanza ReservationInvalidStateTransitionError si no esta Confirmed (p. ej. Draft)', () => {

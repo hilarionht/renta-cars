@@ -34,6 +34,7 @@ function buildCheckedOut(): Reservation {
     isBranchActive: true,
     branchId: 'branch-1',
     areDriversValidated: true,
+    isCustomerEligible: true,
   });
   reservation.pullDomainEvents();
   return reservation;

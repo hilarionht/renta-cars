@@ -27,6 +27,7 @@ describe('RequestExtensionHandler', () => {
       isBranchActive: true,
       branchId: 'branch-1',
       areDriversValidated: true,
+      isCustomerEligible: true,
     });
     reservation.pullDomainEvents();
 
