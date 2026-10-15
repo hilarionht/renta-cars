@@ -34,7 +34,7 @@ import {
   reservationStatusTone,
   type ReservationUiAction,
 } from '../../../../lib/reservation-status';
-import styles from '../reservations.module.css';
+import styles from '../../admin-page.module.css';
 import { ReservationActionDialog } from './action-dialogs';
 
 // Detalle de una reserva para el personal (docs/persistence/10-DECISIONES.md #135): datos,

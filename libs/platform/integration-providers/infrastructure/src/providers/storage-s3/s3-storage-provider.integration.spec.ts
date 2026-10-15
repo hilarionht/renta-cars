@@ -55,6 +55,19 @@ describe('S3StorageProviderAdapter (MinIO real)', () => {
     expect(verificationAfterDelete.exists).toBe(false);
   });
 
+  // docs/persistence/10-DECISIONES.md #138: la URL de subida no lleva checksum. El presigner
+  // lo calcula sobre un cuerpo vacio; S3 real rechazaria el PUT con BadDigest (MinIO/RustFS no).
+  it('la URL de subida no trae x-amz-checksum-* (requestChecksumCalculation WHEN_REQUIRED)', async () => {
+    const { uploadUrl } = await adapter.getUploadUrl({
+      companyId: 'company-test',
+      contentType: 'application/pdf',
+      uploadedBy: 'user-test',
+    });
+
+    const params = [...new URL(uploadUrl).searchParams.keys()].map((key) => key.toLowerCase());
+    expect(params.some((key) => key.includes('checksum'))).toBe(false);
+  });
+
   it('verifyUploadedObject de una storageRef nunca subida da exists:false', async () => {
     const result = await adapter.verifyUploadedObject({ storageRef: 'company-test/nunca-existio' });
     expect(result.exists).toBe(false);

@@ -7,6 +7,16 @@ export interface VehicleCategoryRef {
   name: string;
 }
 
+// docs/persistence/10-DECISIONES.md #137: reserva activa derivada en la lectura (el estado del
+// vehiculo nunca pasa a Reserved/CheckedOut). Solo para el personal: con token de cliente
+// (mobile) el API no la devuelve.
+export interface VehicleReservationRef {
+  id: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+}
+
 export interface VehicleSummary {
   id: string;
   branchId: string;
@@ -15,4 +25,5 @@ export interface VehicleSummary {
   vin: string;
   status: string;
   vehicleCategory?: VehicleCategoryRef;
+  activeReservation?: VehicleReservationRef;
 }

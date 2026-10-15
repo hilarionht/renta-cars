@@ -11,7 +11,7 @@ Está escrita para que **cualquier máquina nueva** llegue al mismo estado sigui
 | Node **20.19.4** (`.nvmrc`)           | Sí                                                                                                               | Es la versión de CI (`setup-node` usa `node-version-file: .nvmrc`). Correr con otra versión no es evidencia válida de que CI va a pasar                    |
 | PostgreSQL 16                         | Sí                                                                                                               | `DATABASE_URL`, `APP_DATABASE_URL` y `PLATFORM_ADMIN_DATABASE_URL` son obligatorias (`apps/api/src/config/env.validation.ts`), y `/health/ready` hace ping |
 | Redis 7 (API compatible)              | Sí                                                                                                               | `REDIS_URL` es obligatoria. `/health/ready` lo chequea y BullMQ (#121) lo necesita                                                                         |
-| Almacenamiento S3 (MinIO)             | Solo las **variables** `STORAGE_*` son obligatorias. El servicio solo hace falta para subir y descargar archivos | `S3Client` se construye al iniciar, pero no hay chequeo de bucket                                                                                          |
+| Almacenamiento S3 (RustFS, §4.1)      | Solo las **variables** `STORAGE_*` son obligatorias. El servicio solo hace falta para subir y descargar archivos | `S3Client` se construye al iniciar, pero no hay chequeo de bucket. MinIO OSS está archivado (#138)                                                         |
 | Pagos, notificaciones, OCR, Expo push | No                                                                                                               | Fakes por defecto: `PAYMENT_GATEWAY_PROVIDER=fake`, `NOTIFICATION_SENDER_PROVIDER=fake`, OCR fake fijo, `EXPO_PUSH_ACCESS_TOKEN` opcional                  |
 
 **Tests**: sin Docker solo corren los tests que no usan testcontainers (`domain`, `application`, `apps/*` unitarios, `frontend/*`), además de lint, typecheck y build. Los `*-infrastructure` (17 proyectos) y `apps/api-e2e` levantan contenedores y **solo corren en CI** (decisión del usuario, #124). Ver §6.
@@ -100,6 +100,40 @@ Remove-Item Env:PGPASSWORD
 
 `renta` es **SUPERUSER** a propósito: es el mismo rol que la imagen de Docker crea con `POSTGRES_USER`, y las migraciones lo necesitan para crear roles con `BYPASSRLS` (`platform_admin`, #121). Los roles `app_runtime` y `platform_admin` **los crean las migraciones**, no a mano.
 
+## 4.1 Almacenamiento S3: RustFS (#138)
+
+Hace falta solo para **subir y ver archivos** (documentos de vehículos desde la web, fotos de inspección desde mobile). Sin él, `apps/api` arranca igual.
+
+**Por qué RustFS y no MinIO**: el MinIO open source fue **archivado**. `dl.min.io` responde `410 Gone`, ya no hay binarios ni parches de seguridad, y la imagen `minio/minio` desapareció de Docker Hub (#125). RustFS es compatible con S3, tiene binario nativo para Windows y se desarrolla activamente. El adaptador del API (`S3StorageProviderAdapter`, `forcePathStyle: true`) funciona igual: su integration spec, escrito para MinIO, pasa completo contra RustFS.
+
+Instalación (PowerShell, sin elevar). Fuera del repo:
+
+```powershell
+$d = "$env:LOCALAPPDATA\rustfs"
+New-Item -ItemType Directory -Force "$d\dl", "$d\data" | Out-Null
+Invoke-WebRequest "https://github.com/rustfs/rustfs/releases/download/1.0.1/rustfs-windows-x86_64-v1.0.1.zip" -OutFile "$d\dl\rustfs.zip"
+(Get-FileHash "$d\dl\rustfs.zip" -Algorithm SHA256).Hash   # 624259622524255D0000131E095F37A11299FD76926AABFD8F831A9DBE6A39F7 (publicado en el release)
+Expand-Archive "$d\dl\rustfs.zip" -DestinationPath "$d\bin" -Force
+```
+
+Arranque (en cada sesión, en una terminal aparte; **no es un servicio**: si se cierra la terminal o la sesión, RustFS se detiene). Usa las credenciales `STORAGE_*` del `.env` y el puerto de `STORAGE_ENDPOINT` (`9002`):
+
+```bash
+RUSTFS_ACCESS_KEY=renta RUSTFS_SECRET_KEY=renta1234 \
+  "$LOCALAPPDATA/rustfs/bin/rustfs.exe" server --address 127.0.0.1:9002 --region us-east-1 "$LOCALAPPDATA/rustfs/data"
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:9002/health   # 200
+```
+
+Una sola vez (y cada vez que se borre `data`), con RustFS corriendo:
+
+```bash
+npm run dev:storage-setup   # crea STORAGE_BUCKET y la regla CORS para http://localhost:4200 (idempotente)
+```
+
+- **CORS**: el navegador sube el archivo con un `PUT` directo a la URL firmada. `application/pdf` e `image/*` disparan preflight, así que el bucket necesita la regla que crea `dev:storage-setup`. Mobile no la necesita.
+- **CSP de la web**: `apps/web-admin/.env.local` necesita `NEXT_PUBLIC_STORAGE_ORIGIN=http://localhost:9002`, **exactamente** el origen de `STORAGE_ENDPOINT`. La URL se firma con ese host; `localhost` y `127.0.0.1` no son intercambiables.
+- **Riesgo anotado (#138)**: el SDK de AWS (`@aws-sdk/client-s3`) avisa que desde enero de 2027 va a exigir Node 22 o superior, y el proyecto usa Node 20.
+
 ## 5. Arranque
 
 ```bash
@@ -132,11 +166,9 @@ npm run smoke:reminder   # smoke de punta a punta del Reminder: PASS/FAIL con ex
 - **Datos que crea**: sucursal, 2 vehículos habilitados (`DEMO-001`, `DEMO-002`), 2 clientes verificados (Ana `+525500009001`, Luis `+525500009002`), R1 `Confirmed` en +2 h (dentro de la ventana del Reminder) y R2 `Confirmed` en +3 días (para check-out/check-in).
 - **OTP de cliente** (login en mobile): con el proveedor fake el código no viaja por WhatsApp. Pedilo desde la app y leelo con `npm run dev:last-otp -- +525500009001`.
 - `smoke:reminder` crea y cancela su propia reserva en cada corrida, así que se puede repetir. No espera los 15 minutos del scheduler: encola el scan a mano en la cola BullMQ real.
-- **`apps/mobile/node_modules` tiene que ser un enlace a la raíz** (#133): `New-Item -ItemType Junction -Path appsmobile
-ode_modules -Target <raíz>
-ode_modules` en Windows, `ln -s ../../node_modules apps/mobile/node_modules` en macOS/Linux. Nunca correr `npm install` dentro de `apps/mobile`: crea un árbol con otras versiones y Metro no resuelve las libs del workspace.
+- **`apps/mobile/node_modules` tiene que ser un enlace a la raíz** (#133): `New-Item -ItemType Junction -Path apps\mobile\node_modules -Target <raíz>\node_modules` en Windows, `ln -s ../../node_modules apps/mobile/node_modules` en macOS/Linux. Nunca correr `npm install` dentro de `apps/mobile`: crea un árbol con otras versiones y Metro no resuelve las libs del workspace.
 - **Mobile en un celular (Expo Go)**: `cd apps/mobile`, con `EXPO_PUBLIC_API_URL=http://<IP-de-la-PC>:3000` y `npx expo start --lan`. En Expo Go se abre `exp://<IP-de-la-PC>:8081`; celular y PC tienen que estar en la misma red y el firewall tiene que permitir Node. Si el editor exporta `NX_WORKSPACE_ROOT_PATH` con la unidad en minúscula, hay que corregirla. La versión web de mobile no es viable por diseño (SecureStore).
-- **Web de administración (#134)**: `npx nx dev web-admin` (puerto **4200**), o `npx nx run web-admin:build` y después `npx next start --port 4200` dentro de `apps/web-admin` para probar la CSP estricta de producción. En el `.env` raíz, `CORS_ORIGINS` tiene que incluir `http://localhost:4200`. En `apps/web-admin/.env.local` (copiado de `.env.local.example`) se puede poner `NEXT_PUBLIC_DEFAULT_COMPANY_ID` con el `companyId` del seed. Login: el admin del seed.
+- **Web de administración (#134)**: `npx nx dev web-admin` (puerto **4200**), o `npx nx run web-admin:build` y después `npx next start --port 4200` dentro de `apps/web-admin` para probar la CSP estricta de producción. En el `.env` raíz, `CORS_ORIGINS` tiene que incluir `http://localhost:4200`. En `apps/web-admin/.env.local` (copiado de `.env.local.example`) se puede poner `NEXT_PUBLIC_DEFAULT_COMPANY_ID` con el `companyId` del seed. Login: el admin del seed. Para subir documentos (Flota, #137) hace falta RustFS corriendo (§4.1) y `NEXT_PUBLIC_STORAGE_ORIGIN` en `.env.local`.
 - **Empezar de cero**: `npx prisma migrate reset` (borra la base local; Prisma pide confirmación explícita) y después `npm run db:seed`. Si quedaron jobs viejos en BullMQ, `memurai-cli FLUSHDB` vacía el Redis local.
 
 Mobile: `cd apps/mobile && npx expo start --web`.
@@ -157,7 +189,8 @@ Para reproducir el job `ci / lint-typecheck` completo: `npx nx affected --target
 ## 7. Apagado
 
 1. Ctrl+C en Expo y en `nx serve api`. El cierre de Nest también cierra los workers de BullMQ.
-2. Los servicios `Memurai` y `postgresql-x64-16` quedan corriendo (inicio automático, consumo bajo). Para liberar memoria, elevado: `Stop-Service Memurai, postgresql-x64-16`.
+2. RustFS se detiene con Ctrl+C en su terminal (§4.1).
+3. Los servicios `Memurai` y `postgresql-x64-16` quedan corriendo (inicio automático, consumo bajo). Para liberar memoria, elevado: `Stop-Service Memurai, postgresql-x64-16`.
 
 ## 8. Bitácora por máquina
 
@@ -172,3 +205,4 @@ Cada máquina donde se arme este entorno agrega una entrada: qué se instaló, c
 - `apps/api` arrancado con este entorno: `/health/ready` 200 (postgres up, redis up). BullMQ sobre Memurai verificado (#124).
 - `apps/mobile` tests: los 11 specs fallan localmente por #108 (`node_modules` duplicado).
 - RAM libre típica con VS Code y Chrome abiertos: alrededor de 1,3 GB. Correr `nx` con `--parallel=1`.
+- **2026-10-14 (#138)**: RustFS 1.0.1 en `%LOCALAPPDATA%\rustfs` (zip oficial del release de GitHub, SHA-256 verificado contra el publicado), datos en `%LOCALAPPDATA%\rustfs\data`, `127.0.0.1:9002`. Bucket `renta-dev` y CORS creados con `npm run dev:storage-setup`. Verificado: subida real de punta a punta (preflight CORS, `PUT`, confirmación y lectura firmada), integration spec del adaptador S3 4/4 y e2e `vehicles-lifecycle` con subida real. MinIO no se pudo instalar: `dl.min.io` responde `410 Gone` (proyecto archivado).

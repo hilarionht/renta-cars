@@ -18,7 +18,7 @@ import { Alert, Badge, Button, PageHeader, Select, TextField } from '@frontend/u
 
 import { apiErrorMessage } from '../../../../lib/api-error-message';
 import { useDebouncedValue } from '../../../../lib/use-debounced-value';
-import styles from '../reservations.module.css';
+import styles from '../../admin-page.module.css';
 
 // Nueva reserva (docs/persistence/10-DECISIONES.md #135). Las fechas se ingresan en la zona
 // horaria de la sucursal elegida y viajan al API en UTC. Se anticipan los errores comunes:

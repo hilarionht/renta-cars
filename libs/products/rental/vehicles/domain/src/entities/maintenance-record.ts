@@ -1,4 +1,4 @@
-import { EntityId } from '@platform/shared-kernel';
+import { EntityId, InvalidValueError } from '@platform/shared-kernel';
 
 import { MaintenanceRecordInvalidStateTransitionError } from '../errors/maintenance-record-invalid-state-transition.error';
 import type { MaintenanceStatusValue } from '../value-objects/maintenance-status';
@@ -33,7 +33,9 @@ export class MaintenanceRecord {
     responsibleUserId?: string;
   }): MaintenanceRecord {
     if (params.scheduledEnd.getTime() <= params.scheduledStart.getTime()) {
-      throw new TypeError('MaintenanceRecord: scheduledEnd debe ser posterior a scheduledStart.');
+      throw new InvalidValueError(
+        'MaintenanceRecord: scheduledEnd debe ser posterior a scheduledStart.',
+      );
     }
     const now = new Date();
     return new MaintenanceRecord({

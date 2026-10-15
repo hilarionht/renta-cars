@@ -6,7 +6,12 @@ export {
   AVAILABILITY_SLOT_REPOSITORY,
   type AvailabilitySlotRepository,
 } from './ports/availability-slot.repository';
-export { CALENDAR_PORT, type CalendarPort, type OccupySlotParams } from './ports/calendar.port';
+export {
+  CALENDAR_PORT,
+  type ActiveBooking,
+  type CalendarPort,
+  type OccupySlotParams,
+} from './ports/calendar.port';
 
 export { OccupySlotHandler } from './commands/occupy-slot/occupy-slot.handler';
 export type { OccupySlotCommand } from './commands/occupy-slot/occupy-slot.command';

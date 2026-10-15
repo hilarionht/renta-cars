@@ -1,4 +1,4 @@
-import { EntityId, type Money } from '@platform/shared-kernel';
+import { EntityId, InvalidValueError, type Money } from '@platform/shared-kernel';
 
 import type { RateUnitValue } from '../value-objects/rate-unit';
 
@@ -30,7 +30,7 @@ export class Rate {
   }): Rate {
     const validTo = params.validTo ?? null;
     if (validTo !== null && validTo.getTime() <= params.validFrom.getTime()) {
-      throw new TypeError(
+      throw new InvalidValueError(
         'Rate: validTo debe ser posterior a validFrom (o null, vigencia abierta).',
       );
     }

@@ -5,6 +5,7 @@ import {
   MoveSlotHandler,
   OccupySlotHandler,
   ReleaseSlotHandler,
+  type ActiveBooking,
   type CalendarPort,
   type OccupySlotParams,
 } from '@platform/calendar/application';
@@ -80,6 +81,28 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
       companyId,
     );
     return record?.id ?? null;
+  }
+
+  // docs/persistence/10-DECISIONES.md #137.
+  async findActiveBookings(
+    companyId: string,
+    resourceType: string,
+    resourceId: string,
+  ): Promise<ActiveBooking[]> {
+    const records = await this.readTransaction.run(
+      (tx) =>
+        tx.availabilitySlot.findMany({
+          where: { resourceType, resourceId, slotType: 'Booking', status: 'Active' },
+          select: { referenceId: true, startDate: true, endDate: true },
+          orderBy: { startDate: 'asc' },
+        }),
+      companyId,
+    );
+    return records.map((record) => ({
+      referenceId: record.referenceId ?? '',
+      startDate: record.startDate,
+      endDate: record.endDate,
+    }));
   }
 
   // docs/persistence/10-DECISIONES.md #116: misma condicion de solapamiento que

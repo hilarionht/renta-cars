@@ -1,3 +1,5 @@
+import { InvalidValueError } from '../errors/invalid-value.error';
+
 // VO minimo compartido - docs/model/04-VALUE_OBJECTS.md SS1.1, catalogado como
 // "verdaderamente universal" junto a Email/PhoneNumber/DateRange/EntityId, pero nunca
 // implementado hasta esta tanda (Vehicles) - mismo tipo de hueco que PhoneNumber antes de
@@ -17,12 +19,14 @@ export class Money {
 
   static from(amountMinorUnits: number, currency: string): Money {
     if (!Number.isInteger(amountMinorUnits) || amountMinorUnits < 0) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `Money.amountMinorUnits debe ser un entero no negativo: ${amountMinorUnits}`,
       );
     }
     if (!CURRENCY_PATTERN.test(currency)) {
-      throw new TypeError(`Money.currency invalido (se espera ISO-4217, 3 letras): "${currency}"`);
+      throw new InvalidValueError(
+        `Money.currency invalido (se espera ISO-4217, 3 letras): "${currency}"`,
+      );
     }
     return new Money(amountMinorUnits, currency);
   }

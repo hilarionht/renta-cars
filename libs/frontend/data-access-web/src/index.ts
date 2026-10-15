@@ -42,3 +42,30 @@ export {
   type ReservationAction,
   type ReservationActionInput,
 } from './reservations/mutations';
+export {
+  VEHICLES_QUERY_KEY,
+  VEHICLE_CATEGORIES_QUERY_KEY,
+  useVehicle,
+  useVehicleCategories,
+  useVehicleCategory,
+  useVehicles,
+  vehicleCategoryQueryKey,
+  vehicleQueryKey,
+} from './fleet/queries';
+export {
+  useAddRate,
+  useCreateVehicleCategory,
+  useRegisterVehicle,
+  useVehicleAction,
+  vehicleActionPath,
+  type VehicleAction,
+  type VehicleActionInput,
+} from './fleet/mutations';
+export {
+  UPLOAD_ALLOWED_TYPES,
+  UPLOAD_MAX_BYTES,
+  UploadValidationError,
+  useFileSignedUrl,
+  useUploadFile,
+  validateUploadFile,
+} from './files/use-upload-file';

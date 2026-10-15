@@ -8,6 +8,7 @@ export {
   type VehicleCategoryRepository,
 } from './ports/vehicle-category.repository';
 export { VEHICLE_STATUS_PORT, type VehicleStatusPort } from './ports/vehicle-status.port';
+export { ActiveBookingsGuard } from './services/active-bookings-guard';
 export {
   VEHICLE_CATEGORY_LOOKUP_PORT,
   type VehicleCategoryLookupPort,
@@ -44,6 +45,8 @@ export type {
   MaintenanceRecordSummary,
   ListVehiclesQuery,
   VehicleSummary,
+  VehicleReservationRef,
+  VehicleActiveReservation,
 } from './queries/get-vehicle/get-vehicle.query';
 export type {
   GetVehicleCategoryQuery,

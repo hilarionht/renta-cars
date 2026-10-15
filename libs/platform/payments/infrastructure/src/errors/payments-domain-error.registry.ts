@@ -1,4 +1,8 @@
-import { ConcurrentModificationError, type DomainErrorEntries } from '@platform/shared-kernel';
+import {
+  ConcurrentModificationError,
+  type DomainErrorEntries,
+  InvalidValueError,
+} from '@platform/shared-kernel';
 import {
   DepositRetentionExceedsHeldError,
   InvalidPaymentMethodError,
@@ -16,6 +20,11 @@ import {
 // docs/contracts/07-ERROR-CATALOG.md - mapeo code/status ya reservado, activado en esta
 // tanda (primer consumidor real de Payments).
 export const PAYMENTS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
+  // #137: VO con dato de entrada invalido (antes TypeError crudo -> 500).
+  [
+    InvalidValueError,
+    { status: 400, code: 'INVALID_VALUE', title: 'Un valor de la solicitud no es valido' },
+  ],
   [
     PaymentAlreadyProcessedError,
     { status: 409, code: 'PAYMENT_ALREADY_PROCESSED', title: 'Idempotency key ya procesada' },

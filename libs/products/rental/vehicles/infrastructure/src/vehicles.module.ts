@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { BranchesModule } from '@platform/branches/infrastructure';
 import { CalendarModule } from '@platform/calendar/infrastructure';
 import {
+  ActiveBookingsGuard,
   AddRateHandler,
   CompleteMaintenanceHandler,
   CreateVehicleCategoryHandler,
@@ -47,6 +48,7 @@ import { ListVehiclesHandler } from './queries/list-vehicles.handler';
     { provide: VEHICLE_CATEGORY_REPOSITORY, useClass: PrismaVehicleCategoryRepository },
     { provide: VEHICLE_STATUS_PORT, useClass: PrismaVehicleStatusAdapter },
     { provide: VEHICLE_CATEGORY_LOOKUP_PORT, useClass: PrismaVehicleCategoryLookupAdapter },
+    ActiveBookingsGuard,
     RegisterVehicleHandler,
     UploadVehicleDocumentHandler,
     VerifyVehicleDocumentHandler,

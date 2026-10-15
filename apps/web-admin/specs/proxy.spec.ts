@@ -39,6 +39,19 @@ describe('proxy', () => {
     expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/');
   });
 
+  // docs/persistence/10-DECISIONES.md #137: la subida de archivos hace PUT directo al almacenamiento.
+  it('connect-src incluye el API y el origen del almacenamiento', () => {
+    const previous = { ...process.env };
+    process.env.NEXT_PUBLIC_API_URL = 'http://localhost:3000';
+    process.env.NEXT_PUBLIC_STORAGE_ORIGIN = 'http://localhost:9002';
+    try {
+      const csp = proxy(request('/', true)).headers.get('content-security-policy') ?? '';
+      expect(csp).toContain("connect-src 'self' http://localhost:3000 http://localhost:9002");
+    } finally {
+      process.env = previous;
+    }
+  });
+
   it('con sesion, la CSP lleva un nonce distinto en cada request', () => {
     const first = proxy(request('/', true)).headers.get('content-security-policy') ?? '';
     const second = proxy(request('/', true)).headers.get('content-security-policy') ?? '';

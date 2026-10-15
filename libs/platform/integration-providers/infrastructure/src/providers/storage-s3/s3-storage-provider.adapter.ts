@@ -50,6 +50,11 @@ export class S3StorageProviderAdapter implements StorageProviderPort {
       region: storage.region,
       forcePathStyle: true,
       credentials: { accessKeyId: storage.accessKey, secretAccessKey: storage.secretKey },
+      // docs/persistence/10-DECISIONES.md #138: por defecto el SDK (3.1111) firma la URL de
+      // subida con x-amz-checksum-crc32 calculado sobre un cuerpo VACIO (el presigner no ve
+      // el archivo). MinIO y RustFS lo ignoran, pero S3 real rechaza el PUT con BadDigest.
+      // WHEN_REQUIRED solo agrega checksums donde la operacion los exige.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
     });
   }
 

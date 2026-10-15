@@ -69,9 +69,11 @@ export class VehiclesController {
   // implementacion real de docs/contracts/10-DECISIONES.md #3.
   @Get()
   async list(@Query() dto: ListVehiclesRequestDto): Promise<VehicleSummaryResponseDto[]> {
-    const { companyId, branchId } = this.requestContext.get();
+    const { companyId, branchId, actorType } = this.requestContext.get();
     return this.listVehicles.execute({
       companyId,
+      // #137: un cliente (mobile, busqueda #116) nunca ve reservas ajenas.
+      includeReservations: actorType !== 'Customer',
       // #135: el branchId del token manda (excepcion acotada a SS7).
       branchId: branchId ?? dto.branchId,
       status: dto.status,
@@ -83,8 +85,12 @@ export class VehiclesController {
 
   @Get(':id')
   async get(@Param('id', ParseUUIDPipe) id: string): Promise<VehicleResponseDto> {
-    const { companyId } = this.requestContext.get();
-    return this.getVehicle.execute({ vehicleId: id, companyId });
+    const { companyId, actorType } = this.requestContext.get();
+    return this.getVehicle.execute({
+      vehicleId: id,
+      companyId,
+      includeReservations: actorType !== 'Customer',
+    });
   }
 
   @Post(':id/documents')

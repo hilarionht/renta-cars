@@ -1,16 +1,17 @@
+import { InvalidValueError } from '../errors/invalid-value.error';
 import { DateRange } from './date-range';
 
 describe('DateRange', () => {
   describe('from', () => {
-    it('lanza TypeError si endDate no es posterior a startDate', () => {
+    it('lanza InvalidValueError (#137) si endDate no es posterior a startDate', () => {
       expect(() => DateRange.from(new Date('2026-06-01'), new Date('2026-01-01'))).toThrow(
-        TypeError,
+        InvalidValueError,
       );
     });
 
-    it('lanza TypeError si endDate es igual a startDate', () => {
+    it('lanza InvalidValueError si endDate es igual a startDate', () => {
       const date = new Date('2026-01-01');
-      expect(() => DateRange.from(date, date)).toThrow(TypeError);
+      expect(() => DateRange.from(date, date)).toThrow(InvalidValueError);
     });
   });
 

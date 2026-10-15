@@ -23,7 +23,7 @@ export type {
   ConfirmUploadRequest,
   ConfirmUploadResponse,
 } from './file.types';
-export type { VehicleCategoryRef, VehicleSummary } from './vehicle.types';
+export type { VehicleCategoryRef, VehicleReservationRef, VehicleSummary } from './vehicle.types';
 export type {
   CurrentUser,
   MfaRequiredResponse,
@@ -51,3 +51,24 @@ export type {
   ReservationVehicleRef,
   SwapVehicleRequest,
 } from './staff-reservation.types';
+export type {
+  AddRateRequest,
+  CompleteMaintenanceRequest,
+  CreateVehicleCategoryRequest,
+  DamageSeverityLevel,
+  MaintenanceRecord,
+  MaintenanceType,
+  MarkOutOfServiceRequest,
+  RateUnit,
+  RegisterVehicleRequest,
+  ReportVehicleDamageRequest,
+  ScheduleMaintenanceRequest,
+  UploadVehicleDocumentRequest,
+  VehicleActiveReservation,
+  VehicleCategoryDetail,
+  VehicleDetail,
+  VehicleDocument,
+  VehicleDocumentType,
+  VehicleRate,
+  VehicleStatus,
+} from './fleet.types';

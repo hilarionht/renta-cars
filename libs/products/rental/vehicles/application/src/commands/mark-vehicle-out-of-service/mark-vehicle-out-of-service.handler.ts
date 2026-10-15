@@ -10,6 +10,7 @@ import {
 import { type VehicleId, VehicleNotFoundError } from '@rental/vehicles/domain';
 
 import { VEHICLE_REPOSITORY, type VehicleRepository } from '../../ports/vehicle.repository';
+import { ActiveBookingsGuard } from '../../services/active-bookings-guard';
 import type { MarkVehicleOutOfServiceCommand } from './mark-vehicle-out-of-service.command';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class MarkVehicleOutOfServiceHandler {
     @Inject(VEHICLE_REPOSITORY) private readonly vehicleRepository: VehicleRepository,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
+    private readonly activeBookingsGuard: ActiveBookingsGuard,
   ) {}
 
   async execute(command: MarkVehicleOutOfServiceCommand): Promise<void> {
@@ -28,6 +30,12 @@ export class MarkVehicleOutOfServiceHandler {
     }
 
     vehicle.markOutOfService(command.reason);
+    // #137: fuera de servicio es un bloqueo sin fin: cualquier reserva activa choca.
+    await this.activeBookingsGuard.assertNoneBlocked({
+      companyId: vehicle.companyId,
+      vehicleId: vehicle.id.toString(),
+      blockedUntil: null,
+    });
 
     await this.unitOfWork.run(async (tx) => {
       await this.vehicleRepository.save(vehicle, tx);

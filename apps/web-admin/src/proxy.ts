@@ -18,6 +18,10 @@ function isPublicPath(pathname: string): boolean {
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV === 'development';
   const apiOrigin = process.env.NEXT_PUBLIC_API_URL ?? '';
+  // docs/persistence/10-DECISIONES.md #137: la subida de archivos hace un PUT directo a la URL
+  // firmada del almacenamiento S3. Tiene que ser EXACTAMENTE el origen de STORAGE_ENDPOINT del
+  // API (la URL se firma con ese host; localhost y 127.0.0.1 no son intercambiables).
+  const storageOrigin = process.env.NEXT_PUBLIC_STORAGE_ORIGIN ?? '';
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''}`,
@@ -25,7 +29,7 @@ function buildCsp(nonce: string): string {
     isDev ? "style-src 'self' 'unsafe-inline'" : `style-src 'self' 'nonce-${nonce}'`,
     "img-src 'self' blob: data:",
     "font-src 'self'",
-    `connect-src ${["'self'", apiOrigin].filter(Boolean).join(' ')}`,
+    `connect-src ${["'self'", apiOrigin, storageOrigin].filter(Boolean).join(' ')}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

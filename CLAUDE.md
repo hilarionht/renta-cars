@@ -6,9 +6,32 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#136` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#138` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
-## Última sesión (2026-10-12 a 2026-10-13) — leer primero
+## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
+
+**Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
+
+Estado al 2026-10-14, Incremento 3 (Flota), rama `feat/web-admin-fleet`:
+
+1. ~~Push de la rama~~: hecho. Si hay commits nuevos, pushear con `GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper= -c "credential.helper=!gh auth git-credential" push origin feat/web-admin-fleet` (el hook `pre-push` tarda varios minutos).
+2. **Abrir el PR** contra `master`: título `feat(web-admin): incremento 3, flota`. La descripción resume las decisiones #137 y #138: bugs corregidos, almacenamiento, frontend, verificación y gaps. Termina con la línea de atribución de Claude Code.
+3. **Vigilar el CI** hasta 6/6 (`gh pr checks <n>`). Si algo falla, investigar la causa raíz y corregir en la misma rama.
+4. Avisarle al usuario que el PR queda para que lo apruebe y mergee `gameoverplay26-stack`. **Nunca** aprobar ni mergear.
+5. **Pendiente del usuario**: la validación visual de Flota en http://localhost:4200 (pasos en #137). Antes de pedirla hay que levantar el API, la web y RustFS (§4.1 de la guía del entorno).
+6. Después: preguntarle si sigue con el Incremento 4 (Clientes) o con la migración del CI fuera de MinIO (#138).
+
+## Última sesión (2026-10-14) — leer primero
+
+- **Web de administración, Incremento 3 (Flota)**: rama `feat/web-admin-fleet`. Ver **`docs/persistence/10-DECISIONES.md #137`**. Antes de planear se auditó en vivo toda la superficie de Flota; eso encontró 4 problemas que se corrigieron:
+  - un daño leve dejaba el vehículo trabado para siempre en mantenimiento: ahora crea un mantenimiento correctivo;
+  - mantenimiento, daño y fuera de servicio dejaban sin auto a reservas activas: ahora el API responde 409 `VEHICLE_HAS_ACTIVE_BOOKINGS`;
+  - un auto alquilado figuraba "Disponible": la reserva activa se deriva en la lectura, solo para el personal;
+  - 500 en vez de 400/409: nuevo `InvalidValueError` (400 `INVALID_VALUE`).
+- **#138**: **el MinIO open source fue archivado** (`dl.min.io` responde 410). En local se usa **RustFS** (guía del entorno §4.1, `npm run dev:storage-setup`). Además se corrigió un bug latente de producción: la URL de subida llevaba un checksum de un cuerpo vacío que S3 real rechaza. **Pendiente**: migrar el CI y `docker-compose.yml` fuera de MinIO, en un PR aparte.
+- Siguen los incrementos 4 (Clientes) y 5 (Administración).
+
+## Sesión anterior (2026-10-12 a 2026-10-13)
 
 - **Web de administración, Incremento 2 (Reservas)**: hecho en el PR #6, rama `feat/web-admin-reservations`. Ver **`docs/persistence/10-DECISIONES.md #135`**:
   - zona horaria por sucursal (`Branch.timeZone`);
@@ -38,8 +61,8 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
-- **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). Siguen Flota (3), Clientes (4) y Administración (5). Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas 3 decisiones: `#134` (web de administración: hoja de ruta e Incremento 1), `#135` (Incremento 2: Reservas), `#136` (reprogramar y extender chocaban con su propia ocupación).
+- **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). Siguen Clientes (4) y Administración (5). Arquitectura y restricciones en #134 y `docs/06` §3.
+- Últimas 3 decisiones: `#136` (reprogramar y extender chocaban con su propia ocupación), `#137` (Incremento 3: Flota y 4 bugs encontrados en vivo), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 
@@ -60,11 +83,14 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
    - `inspectedBy` y `cancelledBy` todavía los manda el cliente; el API no los deriva del token;
    - la zona horaria de una sucursal todavía no se edita desde la UI (va en el Incremento 5);
    - la búsqueda de clientes usa `ILIKE` sin índice trigram.
-9. **Reserva y ocupación en transacciones separadas** (#136, preexistente): mover la ocupación y guardar la reserva no son atómicos entre sí. Es el mismo patrón que confirmar y cancelar.
+9. **Reserva y ocupación en transacciones separadas** (#136, preexistente): mover la ocupación y guardar la reserva no son atómicos entre sí. Es el mismo patrón que confirmar y cancelar. Lo mismo vale para el chequeo de reservas de Flota (#137).
+10. **MinIO archivado** (#138): el CI (`cgr.dev/chainguard/minio`) y `docker-compose.yml` dependen de un producto sin parches. La migración a RustFS va en un PR aparte (el integration spec del adaptador S3 ya pasa contra RustFS).
+11. **500 por ids que no son UUID v7 y por VO no migrados** (#137): un id v4 en un comando pasa `@IsUUID()` y `EntityId.from` responde 500; el resto de los VO de entrada (customers, settings, branches...) sigue lanzando `TypeError`. La web no los dispara.
+12. **`@aws-sdk/client-s3` va a exigir Node 22 o superior desde enero de 2027** (#138); el proyecto usa Node 20.
 
 ## Entorno — cómo levantar todo
 
-**Sin Docker (vigente desde #124)**: seguir [`docs/engineering/11-ENTORNO-LOCAL-NATIVO.md`](docs/engineering/11-ENTORNO-LOCAL-NATIVO.md). Usar siempre **Node 20.19.4** (`.nvmrc`, el mismo que CI). Con otra versión, un resultado local no es evidencia válida. Los tests `*-infrastructure` y `api-e2e` no corren localmente (testcontainers), solo en CI. Los pasos de abajo son el camino original con Docker; siguen válidos si Docker está disponible.
+**Sin Docker (vigente desde #124)**: seguir [`docs/engineering/11-ENTORNO-LOCAL-NATIVO.md`](docs/engineering/11-ENTORNO-LOCAL-NATIVO.md). Usar siempre **Node 20.19.4** (`.nvmrc`, el mismo que CI). Con otra versión, un resultado local no es evidencia válida. Los tests `*-infrastructure` y `api-e2e` no corren localmente (testcontainers), solo en CI. Para subir archivos en local hace falta **RustFS** corriendo (guía §4.1; MinIO está archivado, #138). Los pasos de abajo son el camino original con Docker; siguen válidos si Docker está disponible.
 
 1. `npm install` en la raíz.
 2. Copiar `.env.example` → `.env` (los valores por defecto ya coinciden con `docker-compose.yml`, son credenciales triviales de desarrollo, no secretos reales).
@@ -84,6 +110,12 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 - Nunca mergear, aprobar ni bypassear PRs vos mismo (regla de abajo).
 
 ## Reglas operativas que aplicaron durante toda la sesión anterior (seguir aplicando salvo que el usuario diga lo contrario)
+
+- **Continuidad ante cortes (regla del usuario, 2026-10-14)**: si la sesión se corta por límite de tokens, cierre o error, el trabajo **no puede quedar suspendido hasta el otro día**. Cómo se cumple:
+  1. Al empezar o al reanudar una sesión, si existe la sección "Trabajo en curso — RETOMAR ACÁ", **continuar solo** desde el primer paso pendiente, sin esperar instrucciones ni volver a preguntar lo ya decidido. Solo se pregunta lo que de verdad es decisión del usuario.
+  2. Mantener esa sección al día **antes** de cada paso largo (push, CI, builds), para que un corte en el medio no pierda el estado.
+  3. Al arrancar una tanda larga, programar en la sesión un recordatorio recurrente (`CronCreate`, cada hora): "revisar 'Trabajo en curso' en CLAUDE.md y continuar el primer paso pendiente". Si el límite corta la sesión pero la terminal sigue abierta, el recordatorio la reactiva apenas se libere. Es solo de esa sesión (no sobrevive a cerrar la terminal) y vence a los 7 días.
+  4. Si la terminal se cerró, nada puede arrancarla solo: la próxima sesión que se abra aplica el punto 1.
 
 - Nunca mergear/aprobar/bypassear PRs vos mismo.
 - Nunca pushear a `origin/master` sin que el usuario lo pida explícitamente en ese momento (no alcanza con una autorización de una sesión anterior).

@@ -18,6 +18,10 @@ export interface RequestContextData {
   readonly branchId?: string;
   readonly userId: string;
   readonly roles: readonly string[];
+  // docs/persistence/10-DECISIONES.md #137: presente solo en tokens de Customer (mobile
+  // autogestion). Permite que un endpoint compartido por personal y clientes (GET /vehicles)
+  // no le muestre a un cliente datos que solo ve el personal.
+  readonly actorType?: 'Customer';
 }
 
 const REQUEST_CONTEXT_KEY = 'requestContext';

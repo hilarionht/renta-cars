@@ -4,23 +4,35 @@ import { ReadTransaction } from '@platform/persistence-kernel';
 import type { GetVehicleQuery, VehicleDetail } from '@rental/vehicles/application';
 import { VehicleNotFoundError } from '@rental/vehicles/domain';
 
+import { loadActiveReservations, withOverdueFlag } from './vehicle-reservations.read';
+
 @Injectable()
 export class GetVehicleHandler {
   constructor(private readonly readTransaction: ReadTransaction) {}
 
   async execute(query: GetVehicleQuery): Promise<VehicleDetail> {
-    const record = await this.readTransaction.run(
-      (tx) =>
-        tx.vehicle.findFirst({
-          where: { id: query.vehicleId },
-          include: { vehicleDocuments: true, maintenanceRecords: true },
-        }),
-      query.companyId,
-    );
+    const loaded = await this.readTransaction.run(async (tx) => {
+      const vehicle = await tx.vehicle.findFirst({
+        where: { id: query.vehicleId },
+        include: {
+          vehicleDocuments: { orderBy: { createdAt: 'asc' } },
+          maintenanceRecords: { orderBy: { scheduledStart: 'asc' } },
+        },
+      });
+      if (!vehicle) {
+        return null;
+      }
+      // docs/persistence/10-DECISIONES.md #137: reservas activas, solo para el personal.
+      const reservations = query.includeReservations
+        ? await loadActiveReservations(tx, [vehicle.id])
+        : undefined;
+      return { vehicle, reservations };
+    }, query.companyId);
 
-    if (!record) {
+    if (!loaded) {
       throw new VehicleNotFoundError(query.vehicleId);
     }
+    const { vehicle: record, reservations } = loaded;
 
     return {
       id: record.id,
@@ -45,6 +57,9 @@ export class GetVehicleHandler {
         scheduledEnd: maintenance.scheduledEnd.toISOString(),
         fitForService: maintenance.fitForService ?? undefined,
       })),
+      ...(reservations
+        ? { activeReservations: withOverdueFlag(reservations.get(record.id), new Date()) }
+        : {}),
     };
   }
 }

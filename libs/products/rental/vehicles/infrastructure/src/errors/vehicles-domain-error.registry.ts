@@ -1,10 +1,12 @@
 import {
   ConcurrentModificationError,
   type DomainErrorEntries,
+  InvalidValueError,
   UnsupportedExpandError,
 } from '@platform/shared-kernel';
 import {
   DuplicateActiveVehicleDocumentError,
+  DuplicateVehicleCategoryNameError,
   DuplicateVehicleLicensePlateError,
   DuplicateVehicleVinError,
   InvalidDateRangeError,
@@ -17,11 +19,33 @@ import {
   VehicleDocumentExpiredError,
   VehicleDocumentNotFoundError,
   VehicleDocumentationIncompleteError,
+  VehicleHasActiveBookingsError,
   VehicleInvalidStateTransitionError,
   VehicleNotFoundError,
 } from '@rental/vehicles/domain';
 
 export const VEHICLES_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
+  [
+    DuplicateVehicleCategoryNameError,
+    {
+      status: 409,
+      code: 'DUPLICATE_VEHICLE_CATEGORY_NAME',
+      title: 'Ya existe una categoria con ese nombre',
+    },
+  ],
+  [
+    VehicleHasActiveBookingsError,
+    {
+      status: 409,
+      code: 'VEHICLE_HAS_ACTIVE_BOOKINGS',
+      title: 'El vehiculo tiene reservas que quedarian sin auto',
+    },
+  ],
+  // #137: VO con dato de entrada invalido (antes TypeError crudo -> 500).
+  [
+    InvalidValueError,
+    { status: 400, code: 'INVALID_VALUE', title: 'Un valor de la solicitud no es valido' },
+  ],
   [
     VehicleDocumentExpiredError,
     { status: 409, code: 'VEHICLE_DOCUMENT_EXPIRED', title: 'El documento esta vencido' },
