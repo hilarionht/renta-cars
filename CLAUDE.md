@@ -34,7 +34,7 @@ Estado al 2026-10-15. El Incremento 3 (Flota) está mergeado (PR #7, CI 6/6). **
    - [x] 5. Verificación en vivo (auditorías en PASS/FAIL) y e2e `customer-documents-and-rules` (individual, más `reports` y `customers-lifecycle`).
    - [x] 6. `data-access-core/phone.ts` (`normalizePhoneNumber`, Argentina) reexportado en `@frontend/data-access`; mobile `login-phone.tsx` normaliza una vez.
    - [x] 7. Tipos, hooks `data-access-web/src/customers/` y pantallas `(admin)/customers/`.
-   - [ ] 8. Flota (badge `Replaced`, renovación) y Reservas (mensaje del check-out).
+   - [x] 8. Flota (badge `Replaced`, renovación) y Reservas (mensaje del check-out).
    - [ ] 9. Docs: #139, `07-ERROR-CATALOG`, `08-STATE_MACHINES` §6.7, `02-AGGREGATES`, `03-ENTITIES`, `05-INDICES-Y-CONSTRAINTS`, comentarios de `rental.prisma` y `CLAUDE.md`.
 5. Push, PR y vigilar el CI hasta 6/6. Nunca aprobar ni mergear.
 6. Pendiente del usuario desde el Incremento 3: la validación visual de Flota (opcional; el PR #7 ya se mergeó).

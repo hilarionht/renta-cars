@@ -32,15 +32,14 @@ import { apiErrorMessage } from '../../../../lib/api-error-message';
 import { formatDateTime } from '../../../../lib/format';
 import { reservationStatusLabel } from '../../../../lib/reservation-status';
 import {
-  DOCUMENT_STATUS_LABELS,
   DOCUMENT_TYPE_LABELS,
   MAINTENANCE_STATUS_LABELS,
   MAINTENANCE_TYPE_LABELS,
   availableVehicleActions,
   displayVehicleStatus,
-  isDocumentExpired,
   type VehicleUiAction,
 } from '../../../../lib/vehicle-status';
+import { canVerifyDocument, displayDocumentStatus } from '../../../../lib/document-status';
 import styles from '../../admin-page.module.css';
 import { VehicleDialogs, type VehicleDialog } from './vehicle-dialogs';
 
@@ -152,14 +151,11 @@ export default function VehicleDetailPage() {
     {
       key: 'status',
       header: 'Estado',
-      render: (row) =>
-        isDocumentExpired(row) ? (
-          <Badge tone="danger">Vencido</Badge>
-        ) : (
-          <Badge tone={row.status === 'Verified' ? 'success' : 'warning'}>
-            {DOCUMENT_STATUS_LABELS[row.status] ?? row.status}
-          </Badge>
-        ),
+      // #139: Replaced es historial de renovaciones.
+      render: (row) => {
+        const status = displayDocumentStatus(row);
+        return <Badge tone={status.tone}>{status.label}</Badge>;
+      },
     },
     {
       key: 'actions',
@@ -169,7 +165,7 @@ export default function VehicleDetailPage() {
           <Button variant="ghost" onClick={() => void openDocument(row.fileId)}>
             Ver
           </Button>
-          {canManage && row.status === 'Pending' && !isDocumentExpired(row) ? (
+          {canManage && canVerifyDocument(row) ? (
             <Button
               variant="secondary"
               onClick={() => void quick({ action: 'verify-document', documentId: row.id })}
@@ -305,7 +301,7 @@ export default function VehicleDetailPage() {
           columns={documentColumns}
           rows={data.vehicleDocuments}
           rowKey={(row) => row.id}
-          emptyMessage="Sin documentos. Para habilitar el vehículo hace falta uno verificado."
+          emptyMessage="Sin documentos. Para habilitar el vehículo hace falta uno verificado y vigente."
         />
       </section>
 

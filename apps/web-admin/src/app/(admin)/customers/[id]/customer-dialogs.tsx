@@ -24,6 +24,7 @@ import {
   IDENTITY_DOCUMENT_TYPE_LABELS,
   reservationsAuthorizingDriver,
 } from '../../../../lib/customer-status';
+import { RENEWAL_HINT } from '../../../../lib/document-status';
 import { formatDateTime } from '../../../../lib/format';
 import { reservationStatusLabel } from '../../../../lib/reservation-status';
 import { FormDialog } from '../../form-dialog';
@@ -264,10 +265,7 @@ function UploadDocumentDialog({
         hint="PDF o imagen, hasta 20 MB."
         onFileChange={setFile}
       />
-      <Alert tone="info">
-        Si ya hay uno del mismo tipo, el nuevo lo reemplaza recién cuando se verifica. Hasta
-        entonces sigue valiendo el anterior.
-      </Alert>
+      <Alert tone="info">{RENEWAL_HINT}</Alert>
     </FormDialog>
   );
 }

@@ -28,13 +28,12 @@ import {
   CUSTOMER_TYPE_LABELS,
   DRIVER_STATUS,
   IDENTITY_DOCUMENT_TYPE_LABELS,
-  canVerifyDocument,
   displayCustomerStatus,
-  displayDocumentStatus,
   documentsOwnedBy,
   driverActions,
   hasValidLicense,
 } from '../../../../lib/customer-status';
+import { canVerifyDocument, displayDocumentStatus } from '../../../../lib/document-status';
 import { useReservationColumns } from '../../reservations/reservation-columns';
 import styles from '../../admin-page.module.css';
 import { CustomerDialogs, type CustomerDialog } from './customer-dialogs';

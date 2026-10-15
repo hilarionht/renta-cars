@@ -1,6 +1,5 @@
 import type {
   VehicleActiveReservation,
-  VehicleDocument,
   VehicleStatus,
   VehicleSummary,
 } from '@frontend/domain-types';
@@ -82,10 +81,6 @@ export function availableVehicleActions(status: string, canManage: boolean): Veh
   return [...(ACTIONS_BY_STATUS[status as VehicleStatus] ?? [])];
 }
 
-export function isDocumentExpired(document: Pick<VehicleDocument, 'expiryDate'>, now = new Date()) {
-  return new Date(document.expiryDate).getTime() < now.getTime();
-}
-
 export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   PropertyCard: 'Tarjeta de propiedad',
   Insurance: 'Seguro',
@@ -101,12 +96,6 @@ export const MAINTENANCE_STATUS_LABELS: Record<string, string> = {
   Scheduled: 'Programado',
   InProgress: 'En curso',
   Completed: 'Completado',
-};
-
-export const DOCUMENT_STATUS_LABELS: Record<string, string> = {
-  Pending: 'Pendiente',
-  Verified: 'Verificado',
-  Expired: 'Vencido',
 };
 
 // Misma regla que ActiveBookingsGuard en el API (#137): el bloqueo empieza ya, asi que choca

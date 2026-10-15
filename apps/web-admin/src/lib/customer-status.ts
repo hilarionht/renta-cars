@@ -4,6 +4,7 @@ import type {
   ReservationListItem,
 } from '@frontend/domain-types';
 
+import { isDocumentExpired } from './document-status';
 import type { BadgeToneName } from './reservation-status';
 
 // Estados de un cliente, sus documentos y conductores en la web (docs/persistence/
@@ -41,38 +42,6 @@ export const DRIVER_STATUS: Record<string, DisplayStatus> = {
   Validated: { label: 'Validado', tone: 'success' },
   Revoked: { label: 'Revocado', tone: 'danger' },
 };
-
-// La validez se calcula por fecha: ningun proceso pasa los documentos a Expired (#139, fuera de
-// alcance), igual que IdentityDocument.isCurrentlyValid() en el dominio.
-export function isDocumentExpired(
-  document: Pick<IdentityDocument, 'expiryDate'>,
-  now = new Date(),
-) {
-  return new Date(document.expiryDate).getTime() <= now.getTime();
-}
-
-export function displayDocumentStatus(
-  document: Pick<IdentityDocument, 'expiryDate' | 'status'>,
-  now = new Date(),
-): DisplayStatus {
-  if (document.status === 'Replaced') {
-    return { label: 'Reemplazado', tone: 'neutral' };
-  }
-  if (document.status === 'Expired' || isDocumentExpired(document, now)) {
-    return { label: 'Vencido', tone: 'danger' };
-  }
-  return document.status === 'Verified'
-    ? { label: 'Verificado', tone: 'success' }
-    : { label: 'Pendiente', tone: 'warning' };
-}
-
-// El API rechaza verificar uno vencido (IDENTITY_DOCUMENT_EXPIRED) o reemplazado.
-export function canVerifyDocument(
-  document: Pick<IdentityDocument, 'expiryDate' | 'status'>,
-  now = new Date(),
-): boolean {
-  return document.status === 'Pending' && !isDocumentExpired(document, now);
-}
 
 // Licencia vigente de un conductor: DriversLicense verificada y no vencida (#139, C2).
 export function hasValidLicense(

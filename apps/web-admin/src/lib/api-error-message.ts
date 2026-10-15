@@ -9,8 +9,9 @@ const MESSAGES: Record<string, string> = {
     'Otra persona modificó este registro mientras tanto. Se recargaron los datos: revisalos y volvé a intentar.',
   INVALID_STATE_TRANSITION:
     'El registro ya no está en un estado que permita esta acción. Se recargaron los datos.',
+  // #139: tambien lo responde el check-out (bloqueado o documento vencido despues de confirmar).
   CUSTOMER_NOT_ELIGIBLE:
-    'El cliente no está habilitado para alquilar (registro incompleto o bloqueado).',
+    'El cliente no está habilitado para alquilar: está bloqueado o no tiene un documento verificado y vigente. Revisalo en Clientes.',
   DRIVER_NOT_VALIDATED: 'Hay conductores autorizados sin licencia validada.',
   BRANCH_CLOSED: 'La sucursal del vehículo está cerrada.',
   VEHICLE_NOT_AVAILABLE: 'El vehículo no está disponible en esas fechas.',
@@ -26,10 +27,13 @@ const MESSAGES: Record<string, string> = {
   DUPLICATE_VEHICLE_LICENSE_PLATE: 'Ya existe un vehículo con esa patente.',
   DUPLICATE_VEHICLE_VIN: 'Ya existe un vehículo con ese VIN.',
   DUPLICATE_VEHICLE_CATEGORY_NAME: 'Ya existe una categoría con ese nombre.',
-  DUPLICATE_ACTIVE_VEHICLE_DOCUMENT: 'Ya hay un documento vigente de ese tipo.',
+  // #139: con la renovacion solo pasa en una carrera (dos cargas o verificaciones a la vez).
+  DUPLICATE_ACTIVE_VEHICLE_DOCUMENT:
+    'Otra persona cargó o verificó un documento del mismo tipo al mismo tiempo. Se recargaron los datos.',
   VEHICLE_DOCUMENTATION_INCOMPLETE:
-    'Para habilitar el vehículo hace falta al menos un documento verificado.',
+    'Para habilitar el vehículo hace falta al menos un documento verificado y vigente.',
   VEHICLE_DOCUMENT_EXPIRED: 'El documento está vencido: no se puede verificar.',
+  VEHICLE_DOCUMENT_REPLACED: 'El documento ya fue reemplazado por uno más nuevo.',
   RATE_OVERLAP: 'La vigencia se superpone con otra tarifa de la categoría.',
   // Clientes (#139)
   DUPLICATE_CUSTOMER_DOCUMENT_ID: 'Ya existe un cliente con ese documento.',

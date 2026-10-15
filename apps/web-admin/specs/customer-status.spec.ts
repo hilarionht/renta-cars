@@ -1,14 +1,13 @@
 import type { IdentityDocument, ReservationListItem } from '@frontend/domain-types';
 
 import {
-  canVerifyDocument,
   displayCustomerStatus,
-  displayDocumentStatus,
   documentsOwnedBy,
   driverActions,
   hasValidLicense,
   reservationsAuthorizingDriver,
-} from './customer-status';
+} from '../src/lib/customer-status';
+import { canVerifyDocument, displayDocumentStatus } from '../src/lib/document-status';
 
 // docs/persistence/10-DECISIONES.md #139.
 const NOW = new Date('2026-10-15T12:00:00.000Z');
