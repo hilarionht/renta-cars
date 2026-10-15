@@ -31,7 +31,7 @@ Estado al 2026-10-15. El Incremento 3 (Flota) está mergeado (PR #7, CI 6/6). **
    - [x] 2. B: `@@unique([companyId, contactPhone])`; P2002 de `create` y `updateMany` → 409 `DUPLICATE_CUSTOMER_DOCUMENT_ID` / `DUPLICATE_CUSTOMER_PHONE`; los argentinos `+54` sin 9 pasan a `+549` en el alta, la edición y la búsqueda del OTP. Arreglar los teléfonos repetidos en `reports.e2e-spec.ts:81-94` y `tooling/load-testing/setup.ts:126`. En local, antes de migrar, corregir el par de prueba "Audit/Gemelo".
    - [x] 3. C y C2: estado `Replaced` (migración 1 solo de enums), índices `…_pending_key` y `…_verified_key` (migración 2 a mano), `upload()` reemplaza el `Pending` anterior, `verify()` rechaza vencido o `Replaced` y reemplaza el `Verified` anterior, los repositorios escriben primero los `Replaced` y ordenan por `createdAt`/`id`, la licencia filtra `DriversLicense`, y `Vehicle.enable` exige un documento no vencido.
    - [x] 4. D: el check-out consulta `isEligibleForConfirmation` y `Reservation.checkOut` recibe `isCustomerEligible`; ajustar las 7 llamadas a `checkOut` en specs y el mock del handler.
-   - [ ] 5. Verificación en vivo (auditorías en PASS/FAIL) y e2e `customer-documents-and-rules` (individual, más `reports` y `customers-lifecycle`).
+   - [x] 5. Verificación en vivo (auditorías en PASS/FAIL) y e2e `customer-documents-and-rules` (individual, más `reports` y `customers-lifecycle`).
    - [ ] 6. `data-access-core/phone.ts` (`normalizePhoneNumber`, Argentina) reexportado en `@frontend/data-access`; mobile `login-phone.tsx` normaliza una vez.
    - [ ] 7. Tipos, hooks `data-access-web/src/customers/` y pantallas `(admin)/customers/`.
    - [ ] 8. Flota (badge `Replaced`, renovación) y Reservas (mensaje del check-out).
