@@ -5,6 +5,7 @@
 export { apiRequest, ApiError, AuthenticationExpiredError } from './auth/api-client';
 export { AuthProvider, useAuth } from './auth/auth-context';
 export { decodeAccessToken, type AccessTokenClaims } from './auth/decode-access-token';
+export { normalizePhoneNumber, type NormalizedPhone } from './shared/phone';
 export {
   useReservationsToCheckOut,
   useReservationsToCheckIn,

@@ -10,15 +10,25 @@ import { Controller, useForm } from 'react-hook-form';
 import { Text, StyleSheet } from 'react-native';
 import { z } from 'zod';
 
-import { ApiError, useCustomerAuth } from '@frontend/data-access';
+import { ApiError, normalizePhoneNumber, useCustomerAuth } from '@frontend/data-access';
 import { Button, Screen, TextField } from '@frontend/ui-kit-mobile';
 
 const loginPhoneSchema = z.object({
   companyId: z.string().uuid('companyId debe ser un UUID valido.'),
-  phone: z.string().min(1, 'Ingresa tu numero de telefono.'),
+  // #139: se normaliza a E.164 (Argentina por defecto) antes de enviar; el valor
+  // normalizado es el que se usa en el pedido del codigo y en la verificacion.
+  phone: z.string().transform((value, context) => {
+    const result = normalizePhoneNumber(value);
+    if (!result.ok) {
+      context.addIssue({ code: 'custom', message: result.error });
+      return z.NEVER;
+    }
+    return result.e164;
+  }),
 });
 
-type LoginPhoneFormValues = z.infer<typeof loginPhoneSchema>;
+type LoginPhoneFormInput = z.input<typeof loginPhoneSchema>;
+type LoginPhoneFormValues = z.output<typeof loginPhoneSchema>;
 
 export default function CustomerLoginPhone() {
   const { requestOtp } = useCustomerAuth();
@@ -27,7 +37,7 @@ export default function CustomerLoginPhone() {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginPhoneFormValues>({
+  } = useForm<LoginPhoneFormInput, unknown, LoginPhoneFormValues>({
     resolver: zodResolver(loginPhoneSchema),
     defaultValues: { companyId: '', phone: '' },
   });
@@ -73,7 +83,7 @@ export default function CustomerLoginPhone() {
         name="phone"
         render={({ field }) => (
           <TextField
-            label="Teléfono (ej. +525512345678)"
+            label="Teléfono (ej. 11 5555-4444)"
             value={field.value}
             onChangeText={field.onChange}
             keyboardType="phone-pad"
