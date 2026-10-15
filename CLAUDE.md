@@ -14,7 +14,12 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 Estado al 2026-10-15. El Incremento 3 (Flota) está mergeado (PR #7, CI 6/6). **En curso: Incremento 4 (Clientes)**, rama `feat/web-admin-customers`, elegido por el usuario. Se sigue el mismo proceso que en Flota (#137):
 
-1. **Auditoría en vivo** de toda la superficie de `customers`: alta, edición, bloqueo, documentos de identidad (con subida real), conductores adicionales, OTP y listado. Hay que levantar el API (build desde `master`) y RustFS (§4.1 de la guía del entorno). Anotar los hallazgos acá antes de planear.
+1. ~~Auditoría en vivo~~: hecha (2026-10-15; scripts `customers-audit*.cjs` del scratchpad). Hallazgos:
+   - **A (bug técnico)**: 500 con documento de cliente repetido (P2002 sin mapear), teléfono que no es E.164 (alta y PATCH) y documento en blanco (los VO de customers siguen con `TypeError`). Se corrige con el mismo patrón que #137.
+   - **B (seguridad)**: el teléfono no es único por empresa y el login OTP busca con `findFirst`. Si dos clientes comparten número, entra siempre el primero, y el otro nunca puede entrar.
+   - **C (crítico, también en vehículos)**: los documentos nunca pasan a `Expired` (no hay proceso de vencimiento) y el índice único admite un solo documento `Pending`/`Verified` por tipo. Por eso **no se puede renovar** un documento, ni vigente ni vencido (409), y **se puede verificar uno vencido**. Un cliente con el DNI vencido queda inhabilitado para siempre, y lo mismo un vehículo con el seguro vencido.
+   - **D (reglas)**: se puede revocar un conductor autorizado en una reserva confirmada (después el check-out falla con `DRIVER_NOT_VALIDATED`) y bloquear a un cliente con reservas confirmadas. Además, el check-out no vuelve a revisar si el cliente está bloqueado ni si su documento venció.
+   - **E (gap de #133)**: el teléfono no se normaliza a E.164, y falta decidir el país por defecto.
 2. **Preguntarle al usuario** solo las decisiones de negocio que salgan de la auditoría (AskUserQuestion, 2 a 4 opciones).
 3. **Plan** (EnterPlanMode), validado con un agente Plan, y después la aprobación del usuario.
 4. Implementar en capas: backend, verificación en vivo, e2e, frontend, documentación (#139) y `next build`.
