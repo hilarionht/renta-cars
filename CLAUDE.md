@@ -6,20 +6,38 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#138` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#139` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
 ## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-14, Incremento 3 (Flota), rama `feat/web-admin-fleet`:
+Estado al 2026-10-15. El Incremento 3 (Flota) está mergeado (PR #7, CI 6/6). **En curso: Incremento 4 (Clientes)**, rama `feat/web-admin-customers`, elegido por el usuario. Se sigue el mismo proceso que en Flota (#137):
 
-1. ~~Push de la rama~~: hecho. Si hay commits nuevos, pushear con `GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper= -c "credential.helper=!gh auth git-credential" push origin feat/web-admin-fleet` (el hook `pre-push` tarda varios minutos).
-2. **Abrir el PR** contra `master`: título `feat(web-admin): incremento 3, flota`. La descripción resume las decisiones #137 y #138: bugs corregidos, almacenamiento, frontend, verificación y gaps. Termina con la línea de atribución de Claude Code.
-3. **Vigilar el CI** hasta 6/6 (`gh pr checks <n>`). Si algo falla, investigar la causa raíz y corregir en la misma rama.
-4. Avisarle al usuario que el PR queda para que lo apruebe y mergee `gameoverplay26-stack`. **Nunca** aprobar ni mergear.
-5. **Pendiente del usuario**: la validación visual de Flota en http://localhost:4200 (pasos en #137). Antes de pedirla hay que levantar el API, la web y RustFS (§4.1 de la guía del entorno).
-6. Después: preguntarle si sigue con el Incremento 4 (Clientes) o con la migración del CI fuera de MinIO (#138).
+1. ~~Auditoría en vivo~~: hecha (2026-10-15; scripts `customers-audit*.cjs` del scratchpad). Hallazgos:
+   - **A (bug técnico)**: 500 con documento de cliente repetido (P2002 sin mapear), teléfono que no es E.164 (alta y PATCH) y documento en blanco (los VO de customers siguen con `TypeError`). Se corrige con el mismo patrón que #137.
+   - **B (seguridad)**: el teléfono no es único por empresa y el login OTP busca con `findFirst`. Si dos clientes comparten número, entra siempre el primero, y el otro nunca puede entrar.
+   - **C (crítico, también en vehículos)**: los documentos nunca pasan a `Expired` (no hay proceso de vencimiento) y el índice único admite un solo documento `Pending`/`Verified` por tipo. Por eso **no se puede renovar** un documento, ni vigente ni vencido (409), y **se puede verificar uno vencido**. Un cliente con el DNI vencido queda inhabilitado para siempre, y lo mismo un vehículo con el seguro vencido.
+   - **D (reglas)**: se puede revocar un conductor autorizado en una reserva confirmada (después el check-out falla con `DRIVER_NOT_VALIDATED`) y bloquear a un cliente con reservas confirmadas. Además, el check-out no vuelve a revisar si el cliente está bloqueado ni si su documento venció.
+   - **E (gap de #133)**: el teléfono no se normaliza a E.164, y falta decidir el país por defecto.
+2. ~~Decisiones del usuario~~ (2026-10-15):
+   - **C**: el documento nuevo **reemplaza al anterior cuando se verifica**. Se puede cargar uno del mismo tipo aunque haya otro vigente o vencido; el anterior vale hasta que se verifique el nuevo. No se puede verificar un documento con la fecha vencida. Aplica a clientes y vehículos.
+   - **B**: **teléfono único por empresa**: el alta y la edición responden 409. Antes de migrar, mostrar los duplicados existentes (en local solo está el par "Audit/Gemelo" de la auditoría, que es dato de prueba).
+   - **D**: bloquear o revocar **se permite**, pero la web avisa qué reservas afecta, y el **check-out rechaza** a un cliente bloqueado o con el documento vencido.
+   - **E**: país por defecto **Argentina +54**: los celulares se normalizan con el 9 (`11 5555-4444` pasa a `+5491155554444`).
+3. ~~Plan~~: aprobado (2026-10-15) y validado con un agente Plan. Además de A a E, encontró **C2**: la validación de licencia toma el primer documento del conductor de cualquier tipo. Corrigió el alcance de C en vehículos: no se puede renovar y se puede habilitar con un documento vencido, pero un auto `Available` sigue operando aunque se le venza el seguro.
+4. **Implementar en capas** (marcar cada una al commitearla):
+   - [x] 1. A: `PhoneNumber`/`Email`/`CustomerName`/`TaxIdOrDocumentId` lanzan `InvalidValueError`, e `INVALID_VALUE` se registra en customers, users, companies y notifications.
+   - [x] 2. B: `@@unique([companyId, contactPhone])`; P2002 de `create` y `updateMany` → 409 `DUPLICATE_CUSTOMER_DOCUMENT_ID` / `DUPLICATE_CUSTOMER_PHONE`; los argentinos `+54` sin 9 pasan a `+549` en el alta, la edición y la búsqueda del OTP. Arreglar los teléfonos repetidos en `reports.e2e-spec.ts:81-94` y `tooling/load-testing/setup.ts:126`. En local, antes de migrar, corregir el par de prueba "Audit/Gemelo".
+   - [x] 3. C y C2: estado `Replaced` (migración 1 solo de enums), índices `…_pending_key` y `…_verified_key` (migración 2 a mano), `upload()` reemplaza el `Pending` anterior, `verify()` rechaza vencido o `Replaced` y reemplaza el `Verified` anterior, los repositorios escriben primero los `Replaced` y ordenan por `createdAt`/`id`, la licencia filtra `DriversLicense`, y `Vehicle.enable` exige un documento no vencido.
+   - [x] 4. D: el check-out consulta `isEligibleForConfirmation` y `Reservation.checkOut` recibe `isCustomerEligible`; ajustar las 7 llamadas a `checkOut` en specs y el mock del handler.
+   - [x] 5. Verificación en vivo (auditorías en PASS/FAIL) y e2e `customer-documents-and-rules` (individual, más `reports` y `customers-lifecycle`).
+   - [x] 6. `data-access-core/phone.ts` (`normalizePhoneNumber`, Argentina) reexportado en `@frontend/data-access`; mobile `login-phone.tsx` normaliza una vez.
+   - [x] 7. Tipos, hooks `data-access-web/src/customers/` y pantallas `(admin)/customers/`.
+   - [x] 8. Flota (badge `Replaced`, renovación) y Reservas (mensaje del check-out).
+   - [x] 9. Docs: #139, `07-ERROR-CATALOG`, `08-STATE_MACHINES` §6.7, `02-AGGREGATES`, `03-ENTITIES`, `05-INDICES-Y-CONSTRAINTS`, comentarios de `rental.prisma` y `CLAUDE.md`.
+5. Push, PR y vigilar el CI hasta 6/6. Nunca aprobar ni mergear. **PR #8** abierto (2026-10-15). La primera corrida falló en 2 e2e por la regla nueva del teléfono (`audit-log` repetía un número y `fleet-management` buscaba el OTP con un `+54` sin el 9); se corrigieron y se volvió a pushear. **CI 6/6 en verde** (run `38766748061`). Solo falta lo del usuario: validación visual de Clientes, aprobación y merge (nunca hacerlo Claude).
+6. Pendiente del usuario desde el Incremento 3: la validación visual de Flota (opcional; el PR #7 ya se mergeó).
 
 ## Última sesión (2026-10-14) — leer primero
 
@@ -61,8 +79,8 @@ Estado al 2026-10-14, Incremento 3 (Flota), rama `feat/web-admin-fleet`:
 
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
-- **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). Siguen Clientes (4) y Administración (5). Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas 3 decisiones: `#136` (reprogramar y extender chocaban con su propia ocupación), `#137` (Incremento 3: Flota y 4 bugs encontrados en vivo), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum).
+- **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, rama `feat/web-admin-customers`). Sigue Administración (5). Arquitectura y restricciones en #134 y `docs/06` §3.
+- Últimas 3 decisiones: `#137` (Incremento 3: Flota y 4 bugs encontrados en vivo), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 
@@ -78,14 +96,14 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 4. **Escalamiento humano** cuando una `Notification` `Confirmation` agota todos los canales (`#94`) — mecanismo sin diseñar todavía.
 5. **Push (Expo) solo conectado a `Reminder`** — no a `Confirmation`/`Receipt`, por decisión explícita de acotar alcance en `#122`.
 6. **Sin `extra.eas.projectId`** vinculado en `apps/mobile/app.json` — requiere una cuenta EAS real (acción externa). Sin esto, `getExpoPushTokenAsync()` no puede obtener un token real en ningún entorno de desarrollo.
-7. **Validación visual manual**: hecha para el operador en un celular con Expo Go (#133), incluidos check-out y check-in. Falta completar el flujo del cliente. **Gap nuevo**: el login de clientes no normaliza el teléfono a E.164 y hay que decidir el país por defecto.
+7. **Validación visual manual**: hecha para el operador en un celular con Expo Go (#133), incluidos check-out y check-in. Falta completar el flujo del cliente. El teléfono del login ya se normaliza a E.164 con Argentina por defecto (#139).
 8. **Gaps de la web de reservas (#135)**:
    - `inspectedBy` y `cancelledBy` todavía los manda el cliente; el API no los deriva del token;
    - la zona horaria de una sucursal todavía no se edita desde la UI (va en el Incremento 5);
    - la búsqueda de clientes usa `ILIKE` sin índice trigram.
 9. **Reserva y ocupación en transacciones separadas** (#136, preexistente): mover la ocupación y guardar la reserva no son atómicos entre sí. Es el mismo patrón que confirmar y cancelar. Lo mismo vale para el chequeo de reservas de Flota (#137).
 10. **MinIO archivado** (#138): el CI (`cgr.dev/chainguard/minio`) y `docker-compose.yml` dependen de un producto sin parches. La migración a RustFS va en un PR aparte (el integration spec del adaptador S3 ya pasa contra RustFS).
-11. **500 por ids que no son UUID v7 y por VO no migrados** (#137): un id v4 en un comando pasa `@IsUUID()` y `EntityId.from` responde 500; el resto de los VO de entrada (customers, settings, branches...) sigue lanzando `TypeError`. La web no los dispara.
+11. **500 por ids que no son UUID v7 y por VO no migrados** (#137): un id v4 en un comando pasa `@IsUUID()` y `EntityId.from` responde 500; los VO de entrada de settings, branches y otros siguen lanzando `TypeError` (los de customers se migraron en #139). La web no los dispara.
 12. **`@aws-sdk/client-s3` va a exigir Node 22 o superior desde enero de 2027** (#138); el proyecto usa Node 20.
 
 ## Entorno — cómo levantar todo

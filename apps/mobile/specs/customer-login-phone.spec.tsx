@@ -74,4 +74,46 @@ describe('CustomerLoginPhone', () => {
     await waitFor(() => expect(screen.getByText('Demasiados intentos')).toBeTruthy());
     expect(router.push).not.toHaveBeenCalled();
   });
+
+  // docs/persistence/10-DECISIONES.md #139: Argentina por defecto, se normaliza una sola vez.
+  it('normaliza un numero argentino local y usa el mismo valor en requestOtp() y en la navegacion', async () => {
+    requestOtp.mockResolvedValue(undefined);
+    render(<CustomerLoginPhone />);
+
+    fireEvent.changeText(
+      screen.getByTestId('customer-login-company-id'),
+      '11111111-1111-4111-8111-111111111111',
+    );
+    fireEvent.changeText(screen.getByTestId('customer-login-phone'), '11 5555-4444');
+    fireEvent.press(screen.getByTestId('customer-login-phone-submit'));
+
+    await waitFor(() =>
+      expect(requestOtp).toHaveBeenCalledWith({
+        companyId: '11111111-1111-4111-8111-111111111111',
+        phone: '+5491155554444',
+      }),
+    );
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/customer/login-otp',
+        params: { companyId: '11111111-1111-4111-8111-111111111111', phone: '+5491155554444' },
+      }),
+    );
+  });
+
+  it('con el 15, pide el numero sin el 15 y no llama a requestOtp()', async () => {
+    render(<CustomerLoginPhone />);
+
+    fireEvent.changeText(
+      screen.getByTestId('customer-login-company-id'),
+      '11111111-1111-4111-8111-111111111111',
+    );
+    fireEvent.changeText(screen.getByTestId('customer-login-phone'), '011 15 5555-4444');
+    fireEvent.press(screen.getByTestId('customer-login-phone-submit'));
+
+    await waitFor(() =>
+      expect(screen.getByText('Ingresa el numero sin el 15 (ej. 11 5555-4444).')).toBeTruthy(),
+    );
+    expect(requestOtp).not.toHaveBeenCalled();
+  });
 });

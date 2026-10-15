@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { Recipient } from './recipient';
 
 describe('Recipient', () => {
@@ -22,7 +24,7 @@ describe('Recipient', () => {
   });
 
   it('valida email/telefono con los VOs de shared-kernel', () => {
-    expect(() => Recipient.from({ email: 'no-es-un-email' })).toThrow(TypeError);
-    expect(() => Recipient.from({ phone: 'no-es-un-telefono' })).toThrow(TypeError);
+    expect(() => Recipient.from({ email: 'no-es-un-email' })).toThrow(InvalidValueError);
+    expect(() => Recipient.from({ phone: 'no-es-un-telefono' })).toThrow(InvalidValueError);
   });
 });

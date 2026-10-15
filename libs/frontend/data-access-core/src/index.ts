@@ -16,3 +16,4 @@ export {
   zonedLocalToUtcIso,
   type ZonedLocalDateTime,
 } from './time-zone';
+export { normalizePhoneNumber, type NormalizedPhone, type PhoneCountry } from './phone';

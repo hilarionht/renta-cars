@@ -1,5 +1,7 @@
 import { Email, PhoneNumber } from '@platform/shared-kernel';
 
+import { canonicalCustomerPhone } from './customer-phone';
+
 // docs/model/04-VALUE_OBJECTS.md SS5.1: "Email + telefono de un Customer... reutiliza
 // Email/PhoneNumber". A diferencia de BillingContact (Organization, telefono opcional -
 // "los docs no distinguen obligatoriedad"), aca ambos campos vienen listados sin
@@ -11,7 +13,11 @@ export class ContactInfo {
   ) {}
 
   static from(params: { email: string; phone: string }): ContactInfo {
-    return new ContactInfo(Email.from(params.email), PhoneNumber.from(params.phone));
+    // #139: telefono en forma canonica (celular argentino siempre con el 9).
+    return new ContactInfo(
+      Email.from(params.email),
+      PhoneNumber.from(canonicalCustomerPhone(params.phone)),
+    );
   }
 
   toEmail(): Email {

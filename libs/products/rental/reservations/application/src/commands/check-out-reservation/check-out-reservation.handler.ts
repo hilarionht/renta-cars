@@ -24,7 +24,9 @@ import {
 import type { CheckOutReservationCommand } from './check-out-reservation.command';
 
 // checkOut() (docs/model/08-STATE_MACHINES.md SS1.1) - INV-103 (Vehicle operational),
-// INV-112 (Branch activa), INV-105 (drivers Validated), RN-13 (Inspection completa).
+// INV-112 (Branch activa), INV-105 (drivers Validated), RN-13 (Inspection completa) y, desde
+// docs/persistence/10-DECISIONES.md #139, cliente elegible (activo, no bloqueado, documento
+// vigente: el mismo chequeo que confirm()).
 @Injectable()
 export class CheckOutReservationHandler {
   constructor(
@@ -48,11 +50,13 @@ export class CheckOutReservationHandler {
     if (!branchId) {
       throw new VehicleNotAvailableError(reservation.vehicleId);
     }
-    const [isVehicleOperational, branchStatus, areDriversValidated] = await Promise.all([
-      this.vehicleStatusPort.isOperational(reservation.vehicleId),
-      this.branchLookupPort.getStatus(branchId),
-      this.customerLookupPort.areAdditionalDriversValidated(reservation.authorizedDriverIds),
-    ]);
+    const [isVehicleOperational, branchStatus, areDriversValidated, isCustomerEligible] =
+      await Promise.all([
+        this.vehicleStatusPort.isOperational(reservation.vehicleId),
+        this.branchLookupPort.getStatus(branchId),
+        this.customerLookupPort.areAdditionalDriversValidated(reservation.authorizedDriverIds),
+        this.customerLookupPort.isEligibleForConfirmation(reservation.customerId),
+      ]);
 
     reservation.checkOut({
       odometer: Odometer.from(command.odometer),
@@ -63,6 +67,7 @@ export class CheckOutReservationHandler {
       isBranchActive: branchStatus === 'Active',
       branchId,
       areDriversValidated,
+      isCustomerEligible: isCustomerEligible ?? false,
     });
 
     await this.unitOfWork.run(async (tx) => {

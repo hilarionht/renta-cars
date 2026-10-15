@@ -18,6 +18,7 @@ import {
   VehicleCategoryNotFoundError,
   VehicleDocumentExpiredError,
   VehicleDocumentNotFoundError,
+  VehicleDocumentReplacedError,
   VehicleDocumentationIncompleteError,
   VehicleHasActiveBookingsError,
   VehicleInvalidStateTransitionError,
@@ -49,6 +50,15 @@ export const VEHICLES_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [
     VehicleDocumentExpiredError,
     { status: 409, code: 'VEHICLE_DOCUMENT_EXPIRED', title: 'El documento esta vencido' },
+  ],
+  // #139: un documento reemplazado por una renovacion ya no se puede verificar.
+  [
+    VehicleDocumentReplacedError,
+    {
+      status: 409,
+      code: 'VEHICLE_DOCUMENT_REPLACED',
+      title: 'El documento fue reemplazado por uno mas nuevo',
+    },
   ],
   [
     VehicleDocumentationIncompleteError,

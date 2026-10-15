@@ -183,7 +183,11 @@ export default function ReservationDetailPage() {
         <dl className={styles.facts}>
           <div>
             <dt>Cliente</dt>
-            <dd>{data.customer?.name ?? shortId(data.customerId)}</dd>
+            <dd>
+              <Link href={`/customers/${data.customerId}`}>
+                {data.customer?.name ?? shortId(data.customerId)}
+              </Link>
+            </dd>
           </div>
           <div>
             <dt>Vehículo</dt>

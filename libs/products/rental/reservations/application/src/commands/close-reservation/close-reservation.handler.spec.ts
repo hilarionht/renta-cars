@@ -31,6 +31,7 @@ function buildCheckedIn(): Reservation {
     isBranchActive: true,
     branchId: 'branch-1',
     areDriversValidated: true,
+    isCustomerEligible: true,
   });
   reservation.checkIn({
     odometer: Odometer.from(1200),

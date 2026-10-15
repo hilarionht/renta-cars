@@ -96,7 +96,7 @@ Este documento identifica todas las entidades del dominio: tanto las raíces de 
 
 - **Responsabilidad**: representar un documento legal vigente o vencido asociado al vehículo.
 - **Identidad**: `DocumentId`, distinta para cada documento cargado — renovar un seguro crea un `VehicleDocument` nuevo, no edita el vencido (preserva el histórico legal).
-- **Ciclo de vida**: `Pending` (cargado, no verificado) → `Valid` → `Expired` (transición automática por fecha, no por acción de un actor).
+- **Ciclo de vida**: `Pending` (cargado, no verificado) → `Verified` → `Expired` (por fecha, no por acción de un actor). Al verificarse una renovación, el anterior pasa a `Replaced` ([08-STATE_MACHINES.md §6.7](08-STATE_MACHINES.md), [persistence/10-DECISIONES.md #139](../persistence/10-DECISIONES.md)).
 - **Relaciones**: pertenece a un `Vehicle`; referencia un `FileId` (el archivo escaneado).
 - **Propiedades conceptuales**: tipo de documento, fecha de vigencia, referencia de archivo.
 
@@ -120,7 +120,7 @@ Este documento identifica todas las entidades del dominio: tanto las raíces de 
 
 - **Responsabilidad**: representar un documento de identidad o licencia de conducir.
 - **Identidad**: `DocumentId`, distinta por cada documento — la misma lógica que `VehicleDocument`: renovar no edita, crea uno nuevo.
-- **Ciclo de vida**: `Pending` (posiblemente recién extraído por OCR, sin confirmar) → `Verified` → `Expired`.
+- **Ciclo de vida**: `Pending` (posiblemente recién extraído por OCR, sin confirmar) → `Verified` → `Expired`; `Replaced` cuando lo reemplaza una renovación verificada (#139).
 - **Relaciones**: pertenece a un `Customer` o a un `AdditionalDriver`; referencia un `FileId`.
 - **Propiedades conceptuales**: tipo, fecha de vigencia, origen del dato (`extractedByOcr` sí/no), estado de verificación.
 

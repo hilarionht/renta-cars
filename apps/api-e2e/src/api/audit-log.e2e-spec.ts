@@ -207,7 +207,8 @@ describe('GET /audit-log', () => {
         name: `Cliente Audit Rejected E2E ${suffix}`,
         taxIdOrDocumentId: `doc-${taxId}-${suffix}`,
         contactEmail: `cliente-rejected-${suffix}-${Date.now()}@example.com`,
-        contactPhone: '+525500000003',
+        // #139: el telefono es unico por company.
+        contactPhone: suffix === 'A' ? '+525500000003' : '+525500000004',
         customerType: 'Individual',
       });
       const customerId: string = customerResponse.body.data.id;

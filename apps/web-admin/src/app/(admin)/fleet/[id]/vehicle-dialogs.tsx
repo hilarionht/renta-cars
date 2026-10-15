@@ -27,6 +27,7 @@ import {
   blockingReservations,
   type VehicleUiAction,
 } from '../../../../lib/vehicle-status';
+import { RENEWAL_HINT } from '../../../../lib/document-status';
 import styles from '../../admin-page.module.css';
 import { FormDialog } from '../../form-dialog';
 
@@ -253,7 +254,7 @@ function EnableDialog({ vehicle, onClose }: DialogProps) {
       message={
         <>
           El vehículo pasa a estar disponible para reservas. Requiere al menos un documento
-          verificado.
+          verificado y vigente.
           {error ? <Alert tone="danger">{error}</Alert> : null}
         </>
       }
@@ -320,6 +321,7 @@ function UploadDocumentDialog({ vehicle, timeZone, onClose }: DialogProps) {
         hint="PDF o imagen, hasta 20 MB."
         onFileChange={setFile}
       />
+      <Alert tone="info">{RENEWAL_HINT}</Alert>
     </FormDialog>
   );
 }

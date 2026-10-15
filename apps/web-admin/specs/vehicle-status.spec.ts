@@ -2,8 +2,8 @@ import {
   availableVehicleActions,
   blockingReservations,
   displayVehicleStatus,
-  isDocumentExpired,
 } from '../src/lib/vehicle-status';
+import { isDocumentExpired } from '../src/lib/document-status';
 
 // docs/persistence/10-DECISIONES.md #137.
 describe('displayVehicleStatus', () => {

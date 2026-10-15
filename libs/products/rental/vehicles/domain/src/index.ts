@@ -36,6 +36,7 @@ export { MaintenanceRecordNotFoundError } from './errors/maintenance-record-not-
 export { RateNotFoundError } from './errors/rate-not-found.error';
 export { VehicleBranchNotFoundError } from './errors/vehicle-branch-not-found.error';
 export { VehicleDocumentExpiredError } from './errors/vehicle-document-expired.error';
+export { VehicleDocumentReplacedError } from './errors/vehicle-document-replaced.error';
 export { VehicleDocumentationIncompleteError } from './errors/vehicle-documentation-incomplete.error';
 export { VehicleHasActiveBookingsError } from './errors/vehicle-has-active-bookings.error';
 export { VehicleInvalidStateTransitionError } from './errors/vehicle-invalid-state-transition.error';

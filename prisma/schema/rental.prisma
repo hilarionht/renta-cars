@@ -36,6 +36,9 @@ model Customer {
 
   // Clave natural (docs/persistence/04-COLUMNAS-CONCEPTUALES.md §6).
   @@unique([companyId, taxIdOrDocumentId])
+  // docs/persistence/10-DECISIONES.md #139: el telefono identifica al customer en el login por
+  // WhatsApp; se guarda en forma canonica (canonicalCustomerPhone).
+  @@unique([companyId, contactPhone])
   // GET /customers paginado por cursor (orden id desc, docs/persistence/10-DECISIONES.md #135).
   @@index([companyId, id], map: "customers_company_id_id_idx")
   @@map("customers")
@@ -74,6 +77,8 @@ enum IdentityDocumentStatus {
   Pending
   Verified
   Expired
+  // docs/persistence/10-DECISIONES.md #139: reemplazado por una renovacion (historial).
+  Replaced
 
   @@schema("rental")
 }
@@ -110,6 +115,9 @@ model IdentityDocument {
   customer         Customer?         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   additionalDriver AdditionalDriver? @relation(fields: [additionalDriverId], references: [id], onDelete: Cascade)
 
+  // Renovacion (docs/persistence/10-DECISIONES.md #139): a lo sumo un Pending y un Verified
+  // por propietario y tipo - 2 indices unicos parciales a mano en
+  // 20261015130100_rental_document_renewal_indexes (Prisma no los modela).
   @@map("identity_documents")
   @@schema("rental")
 }
@@ -312,6 +320,8 @@ enum VehicleDocumentStatus {
   Pending
   Verified
   Expired
+  // docs/persistence/10-DECISIONES.md #139: reemplazado por una renovacion (historial).
+  Replaced
 
   @@schema("rental")
 }
@@ -333,6 +343,8 @@ model VehicleDocument {
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
+  // Renovacion (#139): a lo sumo un Pending y un Verified por vehiculo y tipo - indices
+  // parciales a mano, misma migracion que identity_documents.
   @@map("vehicle_documents")
   @@schema("rental")
 }

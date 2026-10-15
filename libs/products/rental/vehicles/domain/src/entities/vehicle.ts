@@ -162,6 +162,14 @@ export class Vehicle {
     fileId: string;
     expiryDate: Date;
   }): VehicleDocument['id'] {
+    // #139: renovacion. Un Pending anterior del mismo tipo nunca fue valido: lo reemplaza el
+    // nuevo. El Verified anterior sigue valiendo hasta que se verifique el nuevo.
+    for (const previous of this.vehicleDocuments) {
+      if (previous.status === 'Pending' && previous.documentType === params.documentType) {
+        previous.replace();
+        this.dirtyDocumentIds.add(previous.id.toString());
+      }
+    }
     const document = VehicleDocument.upload(params);
     this.vehicleDocuments.push(document);
     this.dirtyDocumentIds.add(document.id.toString());
@@ -184,6 +192,17 @@ export class Vehicle {
     if (wasAlreadyVerified) {
       return;
     }
+    // #139: el nuevo reemplaza al Verified anterior del mismo tipo al verificarse.
+    for (const previous of this.vehicleDocuments) {
+      if (
+        previous !== document &&
+        previous.status === 'Verified' &&
+        previous.documentType === document.documentType
+      ) {
+        previous.replace();
+        this.dirtyDocumentIds.add(previous.id.toString());
+      }
+    }
     this.dirtyDocumentIds.add(documentId);
     this.props.updatedAt = new Date();
     this.props.version += 1;
@@ -201,8 +220,10 @@ export class Vehicle {
         'enable',
       );
     }
-    const hasVerifiedDocument = this.vehicleDocuments.some(
-      (document) => document.status === 'Verified',
+    // #139: verificado Y vigente (antes alcanzaba con Verified: se habilitaba con un seguro
+    // vencido).
+    const hasVerifiedDocument = this.vehicleDocuments.some((document) =>
+      document.isCurrentlyValid(),
     );
     if (!hasVerifiedDocument) {
       throw new VehicleDocumentationIncompleteError(this.props.id.toString());

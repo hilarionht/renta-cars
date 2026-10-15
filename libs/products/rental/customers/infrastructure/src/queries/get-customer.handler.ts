@@ -18,8 +18,13 @@ export class GetCustomerHandler {
         tx.customer.findFirst({
           where: { id: query.customerId },
           include: {
-            identityDocuments: true,
-            additionalDrivers: { include: { identityDocuments: true } },
+            // #139: historial de renovaciones en orden de carga.
+            identityDocuments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+            additionalDrivers: {
+              include: {
+                identityDocuments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+              },
+            },
           },
         }),
       query.companyId,
