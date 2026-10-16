@@ -199,6 +199,13 @@ stateDiagram-v2
 
 Inválida: ninguna transición borra el `User` mientras existan `AuditLogEntry`/`Reservation.Inspection.inspectedBy` que lo referencien.
 
+Desde [persistence/10-DECISIONES.md #140](../persistence/10-DECISIONES.md):
+
+- `disable()` sobre uno deshabilitado y `reactivate()` sobre uno activo son no-op (sin versión ni evento); antes respondían un `CONCURRENT_MODIFICATION` espurio. Lo mismo `assignRole`/`revokeRole` sin cambio.
+- `disable()` y `revokeRole()` se rechazan (409 `LAST_ADMINISTRATOR`) si dejan a la company sin administrador: usuario `Active` cuyos roles `Active` suman `users:assign-role` y `roles:create`.
+- Un `User` deshabilitado no renueva su sesión (refresh 403 `USER_DISABLED`).
+- `reactivate()`, `assignRole()`, `revokeRole()` y `updateDetails()` (nombre y sucursal) emiten evento y quedan auditados.
+
 ### 6.2 `Session` (Identity & Access)
 
 ```mermaid
@@ -232,7 +239,9 @@ stateDiagram-v2
     Closed --> Active: reopen()
 ```
 
-Inválida: `Closed` no admite nuevas asignaciones de `Vehicle` ni `CheckOut` (INV-112).
+Inválida: `Closed` no admite nuevas asignaciones de `Vehicle` ni `CheckOut` (INV-112), ni usuarios nuevos o reasignados a ella (#140, 422 `INVALID_BRANCH_ASSIGNMENT`).
+
+Precondición de `close()` desde [persistence/10-DECISIONES.md #140](../persistence/10-DECISIONES.md): sin reservas `Confirmed` o `CheckedOut` cuyo vehículo sea de la sucursal (409 `BRANCH_HAS_ACTIVE_RESERVATIONS`). `close()` sobre una cerrada y `reopen()` sobre una abierta son no-op.
 
 ### 6.5 `Customer` (Rental Operations)
 
@@ -328,5 +337,7 @@ stateDiagram-v2
 ```
 
 Inválida: `deactivate()` sobre un `Role` `System` (INV-026, ya cubierto por la inmutabilidad de ese scope); `Inactive` → `Active` (terminal en esta fase, sin reactivación modelada).
+
+Desde [persistence/10-DECISIONES.md #140](../persistence/10-DECISIONES.md): `deactivate()` se rechaza si el rol tiene usuarios asignados (409 `ROLE_HAS_USERS`) y es no-op sobre uno ya inactivo (antes re-emitía `RoleDeactivated.v1`). `editPermissions()` se rechaza si deja a la company sin administrador (409 `LAST_ADMINISTRATOR`).
 
 Inválida: `Failed` no es alcanzable sin haber agotado el reintento por canal alternativo (RN-34) — la transición directa `Sent → Failed` sin ese intento previo es una violación de la política de reintento, no una transición del diagrama.

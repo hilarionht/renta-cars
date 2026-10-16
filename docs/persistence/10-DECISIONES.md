@@ -1743,6 +1743,77 @@ Nunca saltó porque no había e2e de reprogramar ni de extender, y los unit test
 - Un dato corrupto al reconstituir un VO migrado daría 400 en vez de 500 (mismo gap que #137).
 - No hay forma de sacar a un conductor revocado de una reserva confirmada: el retiro falla y la única salida es cancelarla (reprogramar no cambia los conductores).
 
+## #140 — Web de administración, Incremento 5: Administración, último administrador y sesiones de usuarios deshabilitados
+
+**Contexto**: quinto y último incremento de la hoja de ruta de #134 (usuarios, roles, sucursales, empresa y auditoría). Mismo proceso que Flota y Clientes (#137, #139): **antes de planear** se auditó en vivo toda la superficie de Administración contra el API real (`admin-audit.cjs`). El plan se validó con un agente Plan contra el código, que encontró seis problemas de diseño y un hallazgo de seguridad nuevo (I).
+
+**Hallazgos**:
+
+| #   | Hallazgo                                                                                                                                                                                                                                                                                                                                                                                              | Tipo      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| A   | 500 con: sucursal con cierre antes de apertura o día repetido; rol con un permiso fuera del catálogo; editar o desactivar un rol System; política de cancelación sin tramos; mantenimiento `applies` sin umbrales. Los VO de branches, roles y settings seguían con `TypeError` (gap 11 de CLAUDE.md). El rol System daba 500 por otra causa: los seeds lo crean con id v4 y `EntityId.from` exige v7 | bug       |
+| B   | Una operación que no cambia nada (asignar un rol que ya tiene, revocar uno que no tiene, deshabilitar dos veces, cerrar una sucursal cerrada) respondía `CONCURRENT_MODIFICATION`: el dominio no sube la versión pero el repositorio guarda igual con `version - 1`                                                                                                                                   | bug       |
+| C   | **El único admin podía quitarse el rol o deshabilitarse**: la company quedaba sin nadie que la administre y no hay camino por API para recuperarla                                                                                                                                                                                                                                                    | crítico   |
+| D   | Asignar y revocar roles y reactivar un usuario no emitían evento: no quedaban en la auditoría                                                                                                                                                                                                                                                                                                         | seguridad |
+| E   | Se aceptaba un usuario con una sucursal inexistente o cerrada, sin roles o con un rol desactivado; módulos de producto repetidos o con nombres basura; un teléfono de facturación `abc`; un rol que solo difiere en mayúsculas o copia el nombre de uno System. Además faltaba `PATCH /users/:id` (el permiso `users:edit` existía)                                                                   | datos     |
+| F   | Cerrar una sucursal con reservas activas no avisaba (después su check-out falla con `BRANCH_CLOSED`); desactivar un rol asignado dejaba a sus usuarios sin permisos                                                                                                                                                                                                                                   | reglas    |
+| G   | Se aceptaban tramos de cancelación repetidos o incoherentes (más anticipación con más multa)                                                                                                                                                                                                                                                                                                          | reglas    |
+| H   | `GET /audit-log` sin paginación (`take: 100` fijo) ni filtro de fecha                                                                                                                                                                                                                                                                                                                                 | gap       |
+| I   | **Un usuario deshabilitado podía seguir renovando su sesión indefinidamente**: el refresh no miraba el estado del usuario (contradice INV-114). Lo encontró el agente Plan                                                                                                                                                                                                                            | seguridad |
+
+**Decisiones del usuario**:
+
+1. **C**: la company siempre conserva al menos un usuario activo que puede administrar; el API responde 409 si una operación lo rompe, aunque la haga otro admin.
+2. **F**: cerrar una sucursal con reservas `Confirmed` o `CheckedOut` responde 409 con la lista; desactivar un rol con usuarios responde 409.
+3. **G**: política de cancelación coherente. Los topes de recargo tardío y de depósito **no se tocan** (calibración de negocio).
+4. Se suma `PATCH /users/:id` (nombre y sucursal). Los módulos de producto, de solo lectura en la web.
+
+**Regla transversal**: las validaciones nuevas o más estrictas aplican **solo a lo que entra**. Al cargar desde la base se reconstituye sin validar (`CancellationPolicy.reconstitute`, teléfono de facturación validado en el handler y no en `BillingContact`): si no, un dato ya guardado (la auditoría dejó tramos repetidos y un teléfono `abc`) trabaría el registro para siempre.
+
+**Backend**:
+
+- **A**: los VO de entrada de branches, roles, settings, users (`PersonName`) y companies (`LegalName`, `TaxId`) lanzan `InvalidValueError` (400 `INVALID_VALUE`). Editar o desactivar un rol consulta primero una lectura liviana por el id crudo (`findSummaryById`): System → 403, ajeno → 404, y recién después `EntityId.from`. El alta de rol usa `existsWithName` (sin mayúsculas y contra los System). Los seeds pasan a `uuidv7` (rol System y `companyId` de `seedCompanyWithAdmin`).
+- **B**: patrón de #56. El handler compara la versión antes y después y no guarda si no cambió (disable-user, assign-role, revoke-role, reactivate-user, close-branch, reopen-branch, deactivate-role). `User.reactivate` y `Role.deactivate` pasan a no-op.
+- **C**: `ROLE_ASSIGNMENTS_PORT` en roles-permissions (no en users: users ya depende de roles-permissions, al revés sería un ciclo) y `LastAdministratorGuard`. Administrador = usuario `Active` cuyos roles `Active`, sumados, tienen `users:assign-role` y `roles:create` (con eso puede crear un rol con todo y asignárselo). El chequeo corre dentro de la transacción, después de `pg_advisory_xact_lock(hashtext(companyId:administrators))`: dos admins revocándose entre sí no pueden saltearlo. Aplica a revoke-role, disable-user y edit-role-permissions; si la company ya no tenía administradores, no bloquea.
+- **D**: eventos `UserReactivated.v1`, `UserRoleAssigned.v1`, `UserRoleRevoked.v1` y `UserDetailsUpdated.v1` (el listener de audit transcribe cualquier evento).
+- **E**:
+  - Alta de usuario con `@ArrayMinSize(1)`, sucursal existente y abierta (422 `INVALID_BRANCH_ASSIGNMENT`, `UsersModule` importa `BranchesModule`) y solo roles activos.
+  - `PATCH /users/:id` (`users:edit`): nombre y sucursal; `branchId: null` la quita. El repositorio pasa a guardar `null` explícito: con `undefined` Prisma no tocaba la columna (lo encontró el smoke en vivo).
+  - Módulos de producto: el conjunto sigue abierto (`08-VERSIONING.md`), pero sin repetidos y con forma de nombre (`^[A-Z][A-Za-z0-9]{1,39}$`).
+  - Teléfono de facturación en E.164 al entrar.
+  - Nombre de rol: migración `20261015140000_identity_role_name_case_insensitive` con índice único sobre `(company_id, lower(role_name))`; el P2002 de la carrera se mapea por nombre de índice. En local, antes de migrar, se renombró el único par repetido (dato de la auditoría).
+- **F**: `BRANCH_ACTIVE_RESERVATIONS_PORT` lo define branches y lo implementa rental (reservas cuyo vehículo es de la sucursal). Es el **primer puerto definido en platform e implementado por un producto**: INV-P03 prohíbe que platform importe rental, así que el enlace está en la raíz de composición (`apps/api/src/app/composition/product-ports.module.ts`, `@Global`). `CloseBranchHandler` lo inyecta con `@Optional()`: sin implementación (otro producto, tests de branches) se asume que no hay reservas. Rol con usuarios: 409 `ROLE_HAS_USERS`. Ambos llevan los ids en `detail`.
+- **G**: `CancellationPolicy.from` exige al menos un tramo, horas sin repetir y multa no creciente con la anticipación, y guarda los tramos ordenados.
+- **H**: `GET /audit-log` con `cursor` y `limit` (50 por defecto, máximo 100), en orden de registro (id v7), y filtros `from`/`to` sobre `occurredAt`. Índice `(company_id, id DESC)` (migración `20261016120000_support_audit_log_company_id_index`). Respuesta `{data, meta}`.
+- **I**: el refresh busca al usuario antes de rotar la sesión y responde 403 `USER_DISABLED` si no está `Active`.
+
+**Frontend**:
+
+- **ui-kit-web**: `Checkbox`.
+- **domain-types** y **data-access-web/admin/**: tipos y hooks de cada sección. El nombre del actor de la auditoría tolera `system` y 404.
+- **web-admin `/admin`** con pestañas según permiso (Auditoría solo con `audit:read`):
+  - **Usuarios**: listado paginado, alta con roles y sucursal, detalle con edición, roles, deshabilitar/reactivar y cambio de contraseña.
+  - **Roles**: los System de solo lectura; permisos agrupados por módulo; desactivar avisa que es definitivo.
+  - **Sucursales**: alta y edición con dirección, **zona horaria** (cierra el pendiente de #135) y horario por día; cerrar muestra antes las reservas que lo impiden.
+  - **Empresa**: datos de facturación y cada política en su formulario; módulos de solo lectura.
+  - **Auditoría**: filtros por tipo, id y fechas, actor por nombre y detalle del evento.
+- Las zonas horarias suman los alias del proyecto: los navegadores listan los nombres canónicos (`America/Buenos_Aires`) y no `America/Argentina/Buenos_Aires`, el default de las sucursales.
+
+**Verificación**:
+
+- **Tests unitarios**: lint, typecheck y tests de cada proyecto tocado (Node 20.19.4).
+- **Migraciones** aplicadas en local con drift vacío.
+- **Smokes en vivo contra el API real, por capa**: último administrador, eventos y refresh 14/14; datos 18/18; sucursal y rol en uso 9/9; cancelación y auditoría 14/14.
+- **e2e `administration-rules`** (nuevo) y los 11 que tocan usuarios, roles, sucursales, configuración y auditoría, corridos individualmente contra el API local.
+- **`next build`** con las 10 rutas nuevas.
+
+**Gaps aceptados**:
+
+- Asignar o revocar un rol, o cambiar la sucursal de un usuario, tarda hasta 15 minutos en aplicar: el JWT lleva una foto de los roles y la sucursal hasta el próximo refresh. Un cambio de permisos de un rol aplica enseguida (se invalida el caché).
+- Cerrar una sucursal no es atómico con el chequeo de reservas (mismo tipo que #137).
+- Los roles System son globales y salen del seed; los de los seeds viejos siguen con id v4 (el lookup liviano los cubre).
+- Fuera de alcance: alta del primer admin por API, MFA obligatorio, topes de recargo y depósito, normalizar teléfonos de otros países.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
