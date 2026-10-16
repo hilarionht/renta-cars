@@ -39,7 +39,7 @@ Estado al 2026-10-15. El Incremento 4 (Clientes) está mergeado (PR #8, CI 6/6, 
    - [x] 7. `Checkbox` en ui-kit-web, tipos y hooks `data-access-web/src/admin/`.
    - [x] 8. Pantallas `(admin)/admin/`: Usuarios, Roles, Sucursales, Empresa, Auditoría.
    - [x] 9. Docs: #140, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, `06-DOMAIN_EVENTS`, `04-EVENT-CONTRACTS`, `09-SEGURIDAD`, `05-INDICES-Y-CONSTRAINTS`, CLAUDE.md.
-5. [ ] Push, PR y CI 6/6. Nunca aprobar ni mergear. **PR #9** abierto (2026-10-16). La primera corrida dio 5/6: fallo `audit` por dos avisos altos nuevos (`deepmerge-ts`, `mysql2`), dependencias exactas del CLI de `prisma@7.10.0`, ajenas a este PR. Se resolvio con `prisma`, `@prisma/client` y `@prisma/adapter-pg` 7.10.1 (parche, solo cambia el lockfile); smokes de nuevo en PASS. Vigilando el CI.
+5. [x] Push, PR y CI 6/6. Nunca aprobar ni mergear. **PR #9** abierto (2026-10-16). La primera corrida dio 5/6: fallo `audit` por dos avisos altos nuevos (`deepmerge-ts`, `mysql2`), dependencias exactas del CLI de `prisma@7.10.0`, ajenas a este PR. Se resolvio con `prisma`, `@prisma/client` y `@prisma/adapter-pg` 7.10.1 (parche, solo cambia el lockfile); smokes de nuevo en PASS. **CI 6/6 en verde.** Solo falta lo del usuario: validacion visual de Administracion (y de Clientes y Flota), aprobacion y merge (nunca hacerlo Claude).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
