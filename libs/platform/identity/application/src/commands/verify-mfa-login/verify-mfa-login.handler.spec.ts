@@ -58,6 +58,7 @@ function buildHandler(overrides?: {
   const userLookup: UserLookupPort = {
     findByCompanyAndEmail: jest.fn(),
     findById: jest.fn().mockResolvedValue(foundUser),
+    getStatus: jest.fn(),
   };
   const secretCipher: MfaSecretCipher = {
     encrypt: jest.fn(),

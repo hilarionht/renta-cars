@@ -1,5 +1,7 @@
 import type { DomainEventPublisher, UnitOfWork } from '@platform/shared-kernel';
+import type { UserLookupPort } from '@platform/users/application';
 import {
+  InvalidResponsibleUserError,
   LicensePlate,
   Vehicle,
   VehicleHasActiveBookingsError,
@@ -33,7 +35,10 @@ function createAvailableVehicle(): Vehicle {
   return vehicle;
 }
 
-function buildHandler(existingVehicle: Vehicle | null) {
+function buildHandler(
+  existingVehicle: Vehicle | null,
+  responsibleStatus: string | null = 'Active',
+) {
   const vehicleRepository: VehicleRepository = {
     findById: jest.fn().mockResolvedValue(existingVehicle),
     save: jest.fn().mockResolvedValue(undefined),
@@ -46,6 +51,11 @@ function buildHandler(existingVehicle: Vehicle | null) {
   const activeBookingsGuard = {
     assertNoneBlocked: jest.fn().mockResolvedValue(undefined),
   } as unknown as ActiveBookingsGuard;
+  const userLookup = {
+    findByCompanyAndEmail: jest.fn(),
+    findById: jest.fn(),
+    getStatus: jest.fn().mockResolvedValue(responsibleStatus),
+  } as unknown as UserLookupPort;
 
   const handler = new ScheduleMaintenanceHandler(
     vehicleRepository,
@@ -53,12 +63,64 @@ function buildHandler(existingVehicle: Vehicle | null) {
     eventPublisher,
     activeBookingsGuard,
     transactionLock,
+    userLookup,
   );
 
-  return { handler, vehicleRepository, eventPublisher, activeBookingsGuard, transactionLock, tx };
+  return {
+    handler,
+    vehicleRepository,
+    eventPublisher,
+    activeBookingsGuard,
+    transactionLock,
+    userLookup,
+    tx,
+  };
 }
 
 describe('ScheduleMaintenanceHandler', () => {
+  // docs/persistence/10-DECISIONES.md #142.
+  describe('responsable', () => {
+    const command = (vehicle: Vehicle) => ({
+      vehicleId: vehicle.id.toString(),
+      companyId: 'company-1',
+      type: 'Preventive',
+      scheduledStart: new Date('2026-02-01T09:00:00.000Z'),
+      scheduledEnd: new Date('2026-02-01T17:00:00.000Z'),
+      responsibleUserId: 'user-2',
+    });
+
+    it('con un usuario activo de la company, programa', async () => {
+      const vehicle = createAvailableVehicle();
+      const { handler, userLookup, vehicleRepository } = buildHandler(vehicle, 'Active');
+
+      await handler.execute(command(vehicle));
+
+      expect(userLookup.getStatus).toHaveBeenCalledWith('user-2', 'company-1');
+      expect(vehicleRepository.save).toHaveBeenCalled();
+    });
+
+    it.each([
+      ['inexistente o de otra company', null],
+      ['deshabilitado', 'Disabled'],
+    ])('rechaza un responsable %s y no guarda', async (_label, status) => {
+      const vehicle = createAvailableVehicle();
+      const { handler, vehicleRepository, transactionLock } = buildHandler(vehicle, status);
+
+      await expect(handler.execute(command(vehicle))).rejects.toThrow(InvalidResponsibleUserError);
+      expect(transactionLock.acquire).not.toHaveBeenCalled();
+      expect(vehicleRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('sin responsable no consulta usuarios', async () => {
+      const vehicle = createAvailableVehicle();
+      const { handler, userLookup } = buildHandler(vehicle);
+
+      await handler.execute({ ...command(vehicle), responsibleUserId: undefined });
+
+      expect(userLookup.getStatus).not.toHaveBeenCalled();
+    });
+  });
+
   it('lanza VehicleNotFoundError si el vehicle no existe o es de otra company', async () => {
     const { handler } = buildHandler(null);
 

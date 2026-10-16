@@ -57,6 +57,7 @@ function buildHandler(overrides?: {
   const userLookup: UserLookupPort = {
     findByCompanyAndEmail: jest.fn(),
     findById: jest.fn().mockResolvedValue(matchingUser),
+    getStatus: jest.fn(),
   };
   const unitOfWork: UnitOfWork = {
     run: jest.fn((work) => work({})),

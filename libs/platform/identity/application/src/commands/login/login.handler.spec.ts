@@ -30,6 +30,7 @@ function buildHandler(overrides?: {
   const userLookup: UserLookupPort = {
     findByCompanyAndEmail: jest.fn().mockResolvedValue(foundUser),
     findById: jest.fn(),
+    getStatus: jest.fn(),
   };
   const passwordHasher: PasswordHasher = {
     hash: jest.fn(),

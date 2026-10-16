@@ -26,6 +26,14 @@ export class PrismaUserLookupAdapter implements UserLookupPort {
     return record ? this.toResult(record) : null;
   }
 
+  async getStatus(userId: string, companyId: string): Promise<string | null> {
+    const record = await this.readTransaction.run(
+      (tx) => tx.user.findFirst({ where: { id: userId, companyId }, select: { status: true } }),
+      companyId,
+    );
+    return record?.status ?? null;
+  }
+
   private toResult(record: {
     id: string;
     companyId: string;

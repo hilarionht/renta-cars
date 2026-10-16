@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { BranchesModule } from '@platform/branches/infrastructure';
 import { CalendarModule } from '@platform/calendar/infrastructure';
+import { UsersModule } from '@platform/users/infrastructure';
 import {
   ActiveBookingsGuard,
   AddRateHandler,
@@ -41,7 +42,7 @@ import { ListVehiclesHandler } from './queries/list-vehicles.handler';
 // consulta CALENDAR_PORT.findOccupiedResourceIds() para la busqueda por disponibilidad. Sin
 // ciclo: CalendarModule es scope:platform, no importa nada de negocio.
 @Module({
-  imports: [BranchesModule, CalendarModule],
+  imports: [BranchesModule, CalendarModule, UsersModule],
   controllers: [VehiclesController, VehicleCategoriesController],
   providers: [
     { provide: VEHICLE_REPOSITORY, useClass: PrismaVehicleRepository },
