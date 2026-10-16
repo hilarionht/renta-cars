@@ -41,6 +41,16 @@ Estado al 2026-10-15. El Incremento 4 (Clientes) está mergeado (PR #8, CI 6/6, 
    - [x] 9. Docs: #140, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, `06-DOMAIN_EVENTS`, `04-EVENT-CONTRACTS`, `09-SEGURIDAD`, `05-INDICES-Y-CONSTRAINTS`, CLAUDE.md.
 5. [x] Push, PR y CI 6/6. Nunca aprobar ni mergear. **PR #9** abierto (2026-10-16). La primera corrida dio 5/6: fallo `audit` por dos avisos altos nuevos (`deepmerge-ts`, `mysql2`), dependencias exactas del CLI de `prisma@7.10.0`, ajenas a este PR. Se resolvio con `prisma`, `@prisma/client` y `@prisma/adapter-pg` 7.10.1 (parche, solo cambia el lockfile); smokes de nuevo en PASS. **CI 6/6 en verde.** Solo falta lo del usuario: validacion visual de Administracion (y de Clientes y Flota), aprobacion y merge (nunca hacerlo Claude).
 
+**Siguiente, elegido por el usuario (2026-10-16): pendiente 9, reserva y ocupación atómicas**, rama `feat/reservation-slot-atomicity` (basada en la del PR #9, porque incluye el cierre de sucursal de #140). Alcance decidido: (a) las 7 operaciones de reserva que tocan el calendario (confirmar, cancelar, check-in, no-show, cambio de vehículo, reprogramar, aprobar extensión) en **una sola transacción** con el calendario (hoy son dos: si falla entre medio, slot y reserva quedan desfasados); (b) cerrar la carrera chequeo/acción de mantenimiento, daño, fuera de servicio (#137) y cierre de sucursal (#140) con un lock por vehículo compartido con confirmar. Plan aprobado (2026-10-16), validado con un agente Plan. Decisiones extra del usuario: **confirmar (y cambiar de vehículo) en una sucursal cerrada responde 409 `BRANCH_CLOSED`**; **los eventos se emiten después del commit** (hoy la auditoría transcribe eventos de transacciones que después se revierten). Regla técnica: después de tomar un lock, toda lectura usa el `tx` exterior (si no, el pool de conexiones se traba). Capas:
+
+- [x] 1. Puerto `TRANSACTION_LOCK` (shared-kernel) + `PrismaTransactionLock` (persistence-kernel, `pg_advisory_xact_lock[_shared]`, `lock_timeout` 2 s, 55P03/40P01 → 409), enlazado en `apps/api` `prisma.module.ts`; `OutboxWriter` deja el emit en un buffer y `PrismaUnitOfWork` lo emite solo si la transacción confirma.
+- [ ] 2. Calendario con `tx?` (port, adapter, repositorio, handlers occupy/release/move, `findActiveSlotId`/`findActiveBookings`).
+- [ ] 3. Reservas: los 7 handlers con calendario adentro de su transacción; confirm con locks compartidos (sucursal, vehículo), relectura con `tx`, `Reservation.confirm` con `isBranchActive`, rechazo publicado después del rollback, sin compensación; swap valida la sucursal del vehículo nuevo.
+- [ ] 4. Guards con lock exclusivo: mantenimiento/daño/fuera de servicio (vehículo) y cierre de sucursal (sucursal), con lecturas en `tx`.
+- [ ] 5. Verificación: unitarios, integration spec, smoke en vivo de las carreras y 13 e2e individuales.
+- [ ] 6. Docs: #141, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, technical/05-EVENTING, CLAUDE.md (cerrar el pendiente 9).
+- [ ] 7. PR y CI 6/6.
+
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
 ## Incremento 4 (2026-10-15) — Clientes

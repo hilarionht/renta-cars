@@ -11,6 +11,7 @@ import type {
   UnitOfWorkTransaction,
 } from '@platform/shared-kernel';
 
+import { deferUntilCommit } from './after-commit';
 import { asPrismaTransaction } from './prisma-unit-of-work';
 
 // Implementacion del puerto DomainEventPublisher (docs/technical/04-PERSISTENCE.md SS4) -
@@ -91,7 +92,13 @@ export class OutboxWriter implements DomainEventPublisher {
     // Fire-and-forget: un fallo en un listener (p. ej. Audit) nunca debe hacer fallar la
     // operacion de negocio que origino el evento. `emit()` no devuelve una promesa que
     // esperar (a diferencia de `emitAsync()`, deliberadamente no usado aca).
+    // #141: se emite despues del commit si el tx viene del UnitOfWork (si no, enseguida).
     const emitted: DomainEventEmitted = { ...event, occurredAt };
-    this.eventEmitter.emit(event.eventType, emitted);
+    const emit = () => {
+      this.eventEmitter.emit(event.eventType, emitted);
+    };
+    if (!deferUntilCommit(tx, emit)) {
+      emit();
+    }
   }
 }

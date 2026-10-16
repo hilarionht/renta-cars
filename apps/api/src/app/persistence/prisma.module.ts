@@ -1,8 +1,9 @@
 import { Global, Module } from '@nestjs/common';
 
-import { DOMAIN_EVENT_PUBLISHER, UNIT_OF_WORK } from '@platform/shared-kernel';
+import { DOMAIN_EVENT_PUBLISHER, TRANSACTION_LOCK, UNIT_OF_WORK } from '@platform/shared-kernel';
 import {
   OutboxWriter,
+  PrismaTransactionLock,
   PrismaService,
   PrismaUnitOfWork,
   ReadTransaction,
@@ -36,6 +37,8 @@ import {
     },
     { provide: UNIT_OF_WORK, useClass: PrismaUnitOfWork },
     { provide: DOMAIN_EVENT_PUBLISHER, useClass: OutboxWriter },
+    // #141: lock transaccional para las carreras chequeo/accion entre modulos.
+    { provide: TRANSACTION_LOCK, useClass: PrismaTransactionLock },
   ],
   exports: [
     PrismaService,
@@ -44,6 +47,7 @@ import {
     TENANT_SCOPED_PRISMA,
     UNIT_OF_WORK,
     DOMAIN_EVENT_PUBLISHER,
+    TRANSACTION_LOCK,
   ],
 })
 export class PrismaModule {}
