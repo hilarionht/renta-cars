@@ -6,13 +6,13 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#140` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#141` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
 ## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-15. El Incremento 4 (Clientes) está mergeado (PR #8, CI 6/6, #139). **En curso: Incremento 5 (Administración)**, rama `feat/web-admin-administration`, pedido por el usuario. Alcance según #134: usuarios, roles, sucursales (incluida la zona horaria, pendiente 8 de abajo), configuración de la empresa, datos de la empresa y auditoría. Mismo proceso que Flota y Clientes (#137, #139):
+Estado al 2026-10-16. Los Incrementos 4 (Clientes, PR #8, #139) y 5 (Administración, PR #9, #140) están **mergeados**. Historial del Incremento 5, rama `feat/web-admin-administration`: Alcance según #134: usuarios, roles, sucursales (incluida la zona horaria, pendiente 8 de abajo), configuración de la empresa, datos de la empresa y auditoría. Mismo proceso que Flota y Clientes (#137, #139):
 
 1. [x] Auditoría en vivo (2026-10-15, `admin-audit.cjs` del scratchpad). Hallazgos:
    - **A (500)**: sucursal con cierre antes de apertura o día repetido; rol con permiso inexistente; editar o desactivar un rol System; política de cancelación sin tramos; mantenimiento `applies` sin umbrales.
@@ -39,7 +39,17 @@ Estado al 2026-10-15. El Incremento 4 (Clientes) está mergeado (PR #8, CI 6/6, 
    - [x] 7. `Checkbox` en ui-kit-web, tipos y hooks `data-access-web/src/admin/`.
    - [x] 8. Pantallas `(admin)/admin/`: Usuarios, Roles, Sucursales, Empresa, Auditoría.
    - [x] 9. Docs: #140, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, `06-DOMAIN_EVENTS`, `04-EVENT-CONTRACTS`, `09-SEGURIDAD`, `05-INDICES-Y-CONSTRAINTS`, CLAUDE.md.
-5. [x] Push, PR y CI 6/6. Nunca aprobar ni mergear. **PR #9** abierto (2026-10-16). La primera corrida dio 5/6: fallo `audit` por dos avisos altos nuevos (`deepmerge-ts`, `mysql2`), dependencias exactas del CLI de `prisma@7.10.0`, ajenas a este PR. Se resolvio con `prisma`, `@prisma/client` y `@prisma/adapter-pg` 7.10.1 (parche, solo cambia el lockfile); smokes de nuevo en PASS. **CI 6/6 en verde.** Solo falta lo del usuario: validacion visual de Administracion (y de Clientes y Flota), aprobacion y merge (nunca hacerlo Claude).
+5. [x] Push, PR y CI 6/6. Nunca aprobar ni mergear. **PR #9** abierto (2026-10-16). La primera corrida dio 5/6: fallo `audit` por dos avisos altos nuevos (`deepmerge-ts`, `mysql2`), dependencias exactas del CLI de `prisma@7.10.0`, ajenas a este PR. Se resolvio con `prisma`, `@prisma/client` y `@prisma/adapter-pg` 7.10.1 (parche, solo cambia el lockfile); smokes de nuevo en PASS. **CI 6/6 en verde.** Aprobado y mergeado por el colaborador (2026-10-16).
+
+**Siguiente, elegido por el usuario (2026-10-16): pendiente 9, reserva y ocupación atómicas**, rama `feat/reservation-slot-atomicity` (basada en la del PR #9, porque incluye el cierre de sucursal de #140). Alcance decidido: (a) las 7 operaciones de reserva que tocan el calendario (confirmar, cancelar, check-in, no-show, cambio de vehículo, reprogramar, aprobar extensión) en **una sola transacción** con el calendario (hoy son dos: si falla entre medio, slot y reserva quedan desfasados); (b) cerrar la carrera chequeo/acción de mantenimiento, daño, fuera de servicio (#137) y cierre de sucursal (#140) con un lock por vehículo compartido con confirmar. Plan aprobado (2026-10-16), validado con un agente Plan. Decisiones extra del usuario: **confirmar (y cambiar de vehículo) en una sucursal cerrada responde 409 `BRANCH_CLOSED`**; **los eventos se emiten después del commit** (hoy la auditoría transcribe eventos de transacciones que después se revierten). Regla técnica: después de tomar un lock, toda lectura usa el `tx` exterior (si no, el pool de conexiones se traba). Capas:
+
+- [x] 1. Puerto `TRANSACTION_LOCK` (shared-kernel) + `PrismaTransactionLock` (persistence-kernel, `pg_advisory_xact_lock[_shared]`, `lock_timeout` 2 s, 55P03/40P01 → 409), enlazado en `apps/api` `prisma.module.ts`; `OutboxWriter` deja el emit en un buffer y `PrismaUnitOfWork` lo emite solo si la transacción confirma.
+- [x] 2. Calendario con `tx?` (port, adapter, repositorio, handlers occupy/release/move, `findActiveSlotId`/`findActiveBookings`).
+- [x] 3. Reservas: los 7 handlers con calendario adentro de su transacción; confirm con locks compartidos (sucursal, vehículo), relectura con `tx`, `Reservation.confirm` con `isBranchActive`, rechazo publicado después del rollback, sin compensación; swap valida la sucursal del vehículo nuevo.
+- [x] 4. Guards con lock exclusivo: mantenimiento/daño/fuera de servicio (vehículo) y cierre de sucursal (sucursal), con lecturas en `tx`.
+- [x] 5. Verificación: unitarios, integration spec, smoke en vivo de las carreras y 13 e2e individuales.
+- [x] 6. Docs: #141, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, technical/05-EVENTING, CLAUDE.md (cerrar el pendiente 9).
+- [ ] 7. PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
@@ -92,7 +102,7 @@ Pendiente del usuario: validación visual de Clientes y de Flota (la web queda e
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
 - **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, PR #8). **Incremento 5 (Administración)** hecho (#140, rama `feat/web-admin-administration`): con eso la hoja de ruta de #134 queda completa. Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas 3 decisiones: `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
+- Últimas decisiones: `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 
@@ -113,7 +123,7 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
    - `inspectedBy` y `cancelledBy` todavía los manda el cliente; el API no los deriva del token;
    - ~~la zona horaria de una sucursal no se edita desde la UI~~: resuelto en #140 (Administración → Sucursales);
    - la búsqueda de clientes usa `ILIKE` sin índice trigram.
-9. **Reserva y ocupación en transacciones separadas** (#136, preexistente): mover la ocupación y guardar la reserva no son atómicos entre sí. Es el mismo patrón que confirmar y cancelar. Lo mismo vale para el chequeo de reservas de Flota (#137).
+9. **Reserva y ocupación atómicas: RESUELTO** (#141). Las 7 operaciones que tocan el calendario van en una sola transacción; mantenimiento, daño, fuera de servicio y cierre de sucursal toman un lock exclusivo frente a confirmar; confirmar o cambiar de vehículo en una sucursal cerrada da 409 `BRANCH_CLOSED`; los eventos in-process se emiten después del commit.
 10. **MinIO archivado** (#138): el CI (`cgr.dev/chainguard/minio`) y `docker-compose.yml` dependen de un producto sin parches. La migración a RustFS va en un PR aparte (el integration spec del adaptador S3 ya pasa contra RustFS).
 11. **500 por ids que no son UUID v7 y por VO no migrados** (#137): un id v4 en un comando pasa `@IsUUID()` y `EntityId.from` responde 500; los VO de entrada de customers (#139) y de branches, roles, settings, users y companies (#140) ya lanzan `InvalidValueError`; los roles System v4 de seeds viejos se resuelven con un lookup por id crudo (#140). La web no los dispara.
 12. **`@aws-sdk/client-s3` va a exigir Node 22 o superior desde enero de 2027** (#138); el proyecto usa Node 20.

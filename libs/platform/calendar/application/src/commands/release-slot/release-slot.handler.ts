@@ -6,6 +6,7 @@ import {
   EntityId,
   UNIT_OF_WORK,
   type UnitOfWork,
+  type UnitOfWorkTransaction,
 } from '@platform/shared-kernel';
 import { type AvailabilitySlotId, AvailabilitySlotNotFoundError } from '@platform/calendar/domain';
 
@@ -24,9 +25,10 @@ export class ReleaseSlotHandler {
     @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
   ) {}
 
-  async execute(command: ReleaseSlotCommand): Promise<void> {
+  // tx (#141): si viene, se usa la transaccion del que llama; si no, una propia.
+  async execute(command: ReleaseSlotCommand, tx?: UnitOfWorkTransaction): Promise<void> {
     const slotId: AvailabilitySlotId = EntityId.from(command.slotId);
-    const slot = await this.availabilitySlotRepository.findById(slotId);
+    const slot = await this.availabilitySlotRepository.findById(slotId, tx);
     if (!slot) {
       throw new AvailabilitySlotNotFoundError(command.slotId);
     }
@@ -42,10 +44,10 @@ export class ReleaseSlotHandler {
       return;
     }
 
-    await this.unitOfWork.run(async (tx) => {
-      await this.availabilitySlotRepository.save(slot, tx);
+    const write = async (writeTx: UnitOfWorkTransaction) => {
+      await this.availabilitySlotRepository.save(slot, writeTx);
       for (const event of slot.pullDomainEvents()) {
-        await this.eventPublisher.publish(tx, {
+        await this.eventPublisher.publish(writeTx, {
           eventType: event.eventType,
           aggregateType: 'AvailabilitySlot',
           aggregateId: slot.id.toString(),
@@ -53,6 +55,7 @@ export class ReleaseSlotHandler {
           payload: { ...event },
         });
       }
-    });
+    };
+    await (tx ? write(tx) : this.unitOfWork.run(write));
   }
 }

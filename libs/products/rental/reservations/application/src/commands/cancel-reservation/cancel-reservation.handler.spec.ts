@@ -24,6 +24,8 @@ function buildConfirmed(): Reservation {
     baseAmount: Money.from(10000, 'USD'),
     isCustomerEligible: true,
     areDriversValidated: true,
+    isBranchActive: true,
+    branchId: 'branch-1',
   });
   reservation.pullDomainEvents();
   return reservation;
@@ -101,6 +103,7 @@ describe('CancelReservationHandler', () => {
     expect(availabilityService.release).toHaveBeenCalledWith(
       'vehicle-1',
       reservation.id.toString(),
+      expect.anything(),
     );
     expect(reservation.allPriceAdjustments[0].amount.minorUnits).toBe(5000);
   });

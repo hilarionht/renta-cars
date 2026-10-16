@@ -196,8 +196,15 @@ export class Reservation {
     baseAmount: Money;
     isCustomerEligible: boolean;
     areDriversValidated: boolean;
+    // docs/persistence/10-DECISIONES.md #141 (decision del usuario): la sucursal del vehiculo
+    // tiene que estar abierta (antes se confirmaba igual y el retiro fallaba con BRANCH_CLOSED).
+    isBranchActive: boolean;
+    branchId: string;
   }): void {
     this.assertStatus('Draft', 'confirm');
+    if (!params.isBranchActive) {
+      throw new BranchClosedError(params.branchId);
+    }
     if (!params.isCustomerEligible) {
       throw new CustomerNotEligibleError(this.props.customerId);
     }
@@ -438,8 +445,14 @@ export class Reservation {
     newVehicleId: string;
     reason?: string;
     isNewVehicleAvailable: boolean;
+    // #141: el vehiculo nuevo tiene que ser de una sucursal abierta (devolucion ahi).
+    isNewVehicleBranchActive: boolean;
+    newVehicleBranchId: string;
   }): void {
     this.assertStatus('CheckedOut', 'swapVehicle');
+    if (!params.isNewVehicleBranchActive) {
+      throw new BranchClosedError(params.newVehicleBranchId);
+    }
     if (!params.isNewVehicleAvailable) {
       throw new VehicleNotAvailableError(params.newVehicleId);
     }

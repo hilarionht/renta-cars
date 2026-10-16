@@ -117,9 +117,9 @@ export class CheckInReservationHandler {
       adjustments,
     });
 
-    await this.availabilityService.release(reservation.vehicleId, reservation.id.toString());
-
     await this.unitOfWork.run(async (tx) => {
+      // #141: liberar y guardar en la misma transaccion.
+      await this.availabilityService.release(reservation.vehicleId, reservation.id.toString(), tx);
       await this.reservationRepository.save(reservation, tx);
       for (const event of reservation.pullDomainEvents()) {
         await this.eventPublisher.publish(tx, {

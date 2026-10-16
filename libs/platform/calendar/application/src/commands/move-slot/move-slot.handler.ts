@@ -7,6 +7,7 @@ import {
   EntityId,
   UNIT_OF_WORK,
   type UnitOfWork,
+  type UnitOfWorkTransaction,
 } from '@platform/shared-kernel';
 import {
   AvailabilitySlot,
@@ -37,9 +38,10 @@ export class MoveSlotHandler {
     @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
   ) {}
 
-  async execute(command: MoveSlotCommand): Promise<AvailabilitySlotId> {
+  // tx (#141): si viene, se usa la transaccion del que llama; si no, una propia.
+  async execute(command: MoveSlotCommand, tx?: UnitOfWorkTransaction): Promise<AvailabilitySlotId> {
     const slotId: AvailabilitySlotId = EntityId.from(command.slotId);
-    const current = await this.availabilitySlotRepository.findById(slotId);
+    const current = await this.availabilitySlotRepository.findById(slotId, tx);
     if (!current || current.status !== 'Active') {
       throw new AvailabilitySlotNotFoundError(command.slotId);
     }
@@ -52,12 +54,12 @@ export class MoveSlotHandler {
     });
     current.release();
 
-    await this.unitOfWork.run(async (tx) => {
-      await this.availabilitySlotRepository.save(current, tx);
-      await this.availabilitySlotRepository.save(replacement, tx);
+    const write = async (writeTx: UnitOfWorkTransaction) => {
+      await this.availabilitySlotRepository.save(current, writeTx);
+      await this.availabilitySlotRepository.save(replacement, writeTx);
       for (const slot of [current, replacement]) {
         for (const event of slot.pullDomainEvents()) {
-          await this.eventPublisher.publish(tx, {
+          await this.eventPublisher.publish(writeTx, {
             eventType: event.eventType,
             aggregateType: 'AvailabilitySlot',
             aggregateId: slot.id.toString(),
@@ -66,7 +68,8 @@ export class MoveSlotHandler {
           });
         }
       }
-    });
+    };
+    await (tx ? write(tx) : this.unitOfWork.run(write));
 
     return replacement.id;
   }

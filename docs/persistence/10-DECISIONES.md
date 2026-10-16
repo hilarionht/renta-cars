@@ -1814,6 +1814,59 @@ Nunca saltó porque no había e2e de reprogramar ni de extender, y los unit test
 - Los roles System son globales y salen del seed; los de los seeds viejos siguen con id v4 (el lookup liviano los cubre).
 - Fuera de alcance: alta del primer admin por API, MFA obligatorio, topes de recargo y depósito, normalizar teléfonos de otros países.
 
+## #141 — Reserva y ocupación atómicas, carreras de Flota y Sucursales, y eventos después del commit
+
+**Contexto**: pendiente 9 de CLAUDE.md, elegido por el usuario con alcance completo. El plan se validó con un agente Plan contra el código. Había dos problemas preexistentes:
+
+1. **Reserva y ocupación en transacciones separadas** (#136). Siete operaciones tocaban el calendario, que abría su propia transacción, y después guardaban la reserva en otra:
+
+   | Operación                      | Si fallaba entre las dos transacciones                                                                                                                              |
+   | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | confirmar                      | ocupaba y después guardaba, con una compensación "best-effort": si la compensación también fallaba, quedaba un slot huérfano que bloqueaba el vehículo para siempre |
+   | cancelar, check-in, no-show    | la reserva seguía `Confirmed` o `CheckedOut` sin slot, y otro podía reservar el vehículo                                                                            |
+   | cambio de vehículo             | tres transacciones (ocupar el nuevo, liberar el viejo, guardar)                                                                                                     |
+   | reprogramar, aprobar extensión | el slot movido y la reserva con las fechas viejas                                                                                                                   |
+
+2. **Carreras chequeo/acción** (gaps aceptados en #137 y #140). Mantenimiento, daño, fuera de servicio y el cierre de sucursal consultaban las reservas activas y después actuaban: una confirmación podía colarse entre las dos cosas.
+
+**Decisiones del usuario**:
+
+1. **Confirmar o cambiar de vehículo en una sucursal cerrada responde 409 `BRANCH_CLOSED`**, como ya hacía el retiro. Antes se confirmaba igual y fallaba recién el check-out. Sin esta regla, el lock de la sucursal no protegía nada.
+2. **Los eventos in-process se emiten después del commit.** Antes el listener de auditoría transcribía el evento al escribirlo, antes del commit: una transacción revertida dejaba entradas de algo que no pasó.
+
+**Diseño**:
+
+- **Calendario en la transacción del que llama**: `CalendarPort.occupy/release/move/findActiveSlotId/findActiveBookings` y los handlers de calendario reciben `tx?`. Con `tx` leen y escriben adentro; sin `tx` abren la suya como antes. `isAvailable` sigue siendo un pre-chequeo optimista afuera.
+- **Las 7 operaciones** llaman al calendario dentro de su `unitOfWork.run`, antes del `save`: una falla revierte las dos cosas. **Se elimina la compensación** de confirmar.
+- **Lock transaccional**: puerto `TRANSACTION_LOCK` en shared-kernel e implementación `PrismaTransactionLock` en persistence-kernel (`pg_advisory_xact_lock[_shared](hashtextextended(key, 0))`, enlazada en `apps/api` `prisma.module.ts`). Antes del lock fija `lock_timeout = 2s` (parametrizado con `set_config`, sin raw unsafe) para que quien espera no agote el timeout de 5 s de `$transaction`. Un timeout de lock (55P03) o un deadlock (40P01) salen como `ConcurrentModificationError` (409). El lock se libera con la transacción.
+  - **Claves**: `branchLockKey` (`@platform/branches/application`) y `vehicleLockKey` (`@rental/vehicles/application`).
+  - **Compartido**: lo toman los que agregan o mueven reservas (confirmar, cambiar de vehículo, reprogramar, extender). No se frenan entre sí; los solapamientos los sigue resolviendo la exclusión GiST.
+  - **Exclusivo**: lo toman los guards. Mantenimiento, daño y fuera de servicio lo toman sobre el vehículo, con `ActiveBookingsGuard` dentro de la transacción; cerrar una sucursal, sobre la sucursal, con `findActiveReservationIds(companyId, branchId, tx)` adentro.
+  - **Orden fijo**: primero la sucursal, después el vehículo. No toman lock: crear un borrador y su vencimiento (un borrador no ocupa), y habilitar, completar mantenimiento y reabrir (solo liberan). Si algún día se puede mover un vehículo de sucursal, esa operación tiene que tomar las dos sucursales y el vehículo.
+- **Regla técnica**: después de tomar un lock, **toda lectura usa el `tx` exterior**. Si no, la transacción que tiene el lock pide una segunda conexión al pool mientras el resto del pool espera ese lock. Por eso suman `tx?` `VehicleStatusPort.isOperational/getBranchId`, `BranchLookupPort.getStatus` y `AvailabilitySlotRepository.findById`. El unit of work fija el mismo contexto RLS que `ReadTransaction`.
+- **Confirmar**:
+  - Afuera, sin cambios: los pre-chequeos (estado, cliente, conductores, `isAvailable`, precio) y `getBranchId`.
+  - Adentro, en orden: lock compartido de la sucursal, lock compartido del vehículo, relectura de `isOperational` y `getStatus` con el `tx`, `Reservation.confirm({ isBranchActive, branchId })`, `reserve(tx)`, `save` y los eventos.
+  - Si se perdió la disponibilidad (solapamiento o un mantenimiento que ganó el lock), `ReservationRejectedByAvailability.v1` se publica en una transacción nueva, **después del rollback**. Ante `BranchClosedError` no se publica el rechazo.
+- **Cambiar de vehículo**: locks compartidos de la sucursal del vehículo nuevo y del vehículo nuevo; `swapVehicle` también exige que esa sucursal esté abierta. Ocupar el nuevo, liberar el viejo y guardar van en una transacción.
+- **Eventos después del commit**: `OutboxWriter.publish` sigue insertando en `outbox_event` dentro del `tx`, pero deja el `emit` in-process en un buffer asociado a esa transacción (`after-commit.ts`). `PrismaUnitOfWork.run` lo emite solo si `$transaction` confirma y lo descarta en el rollback. Es global: ningún listener (auditoría, notificaciones) ve eventos de transacciones revertidas, ni toma una segunda conexión mientras la transacción tiene locks.
+
+**Verificación**:
+
+- **Unitarios** (Node 20.19.4): calendario, `availability.service`, los 7 handlers, `Reservation.confirm` y `swapVehicle` con sucursal cerrada, el guard, los 3 handlers de Flota y `close-branch` (orden lock → chequeo, mismo `tx`).
+- **Integration spec nuevo** (`transaction-lock-and-unit-of-work.integration.spec.ts`, calendar-infrastructure), con el `PrismaService` real: un exclusivo frena a un compartido y el 55P03 sale como `ConcurrentModificationError`; dos compartidos no se frenan; el que espera entra apenas el otro confirma; un slot escrito en la transacción se revierte si algo falla antes del commit.
+- **Smoke en vivo**:
+  - flujo completo de reservas (confirmar, check-out, check-in con daño, reprogramar, cancelar, cambio de vehículo, extensión): 30/30;
+  - sucursal cerrada: confirmar da 409 `BRANCH_CLOSED` sin slot ni eventos; al reabrir confirma; cancelar libera el slot: 16/16;
+  - **carreras** con requests simultáneos y un atraso escalonado para cubrir los dos órdenes: confirmar contra mantenimiento (10 rondas: 3 gana el mantenimiento, 7 confirmar) y confirmar contra cierre de sucursal (10 rondas: 2 gana el cierre, 8 confirmar). En las 20 hay exactamente un ganador y el perdedor recibe el 409 que corresponde (`VEHICLE_NOT_AVAILABLE` / `VEHICLE_HAS_ACTIVE_BOOKINGS`, `BRANCH_CLOSED` / `BRANCH_HAS_ACTIVE_RESERVATIONS`), sin slots huérfanos.
+- **e2e**: los 13 que tocan reservas, Flota, sucursales y auditoría, corridos individualmente contra el API local, todos en verde.
+
+**Gaps aceptados**:
+
+- Dos confirmaciones simultáneas de la misma reserva: la segunda recibe `RESERVATION_OVERLAP` y publica un rechazo por disponibilidad engañoso (ya pasaba antes).
+- `isAvailable` sigue siendo un pre-chequeo optimista; la garantía final es la exclusión GiST.
+- Bajo mucha contención, quien espera más de 2 s un lock recibe 409 y tiene que reintentar.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

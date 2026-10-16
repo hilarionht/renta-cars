@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { CALENDAR_PORT, type CalendarPort } from '@platform/calendar/application';
+import type { UnitOfWorkTransaction } from '@platform/shared-kernel';
 import { VehicleHasActiveBookingsError } from '@rental/vehicles/domain';
 
 // docs/persistence/10-DECISIONES.md #137: un vehiculo en Maintenance/OutOfService no puede
@@ -10,8 +11,9 @@ import { VehicleHasActiveBookingsError } from '@rental/vehicles/domain';
 // cuenta. Los Blackout no (CalendarPort.findActiveBookings ya los excluye).
 //
 // Se consulta el calendario (la ACL que vehicles ya usa) y no las reservas: el lado de
-// comandos no lee otro modulo. Gap aceptado: chequeo y guardado no son atomicos, una
-// confirmacion puede colarse entre ambos (mismo tipo de gap que #136).
+// comandos no lee otro modulo. Desde #141, el que llama toma antes el lock exclusivo del
+// vehiculo (vehicleLockKey) y pasa su tx: chequeo y guardado son atomicos frente a confirmar,
+// cambiar de vehiculo, reprogramar y extender, que toman el mismo lock compartido.
 @Injectable()
 export class ActiveBookingsGuard {
   constructor(@Inject(CALENDAR_PORT) private readonly calendarPort: CalendarPort) {}
@@ -21,11 +23,13 @@ export class ActiveBookingsGuard {
     companyId: string;
     vehicleId: string;
     blockedUntil: Date | null;
+    tx: UnitOfWorkTransaction;
   }): Promise<void> {
     const bookings = await this.calendarPort.findActiveBookings(
       params.companyId,
       'vehicle',
       params.vehicleId,
+      params.tx,
     );
     const blocked = bookings.filter(
       (booking) =>

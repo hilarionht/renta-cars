@@ -20,6 +20,8 @@ function buildCheckedOut(): Reservation {
     baseAmount: Money.from(10000, 'USD'),
     isCustomerEligible: true,
     areDriversValidated: true,
+    isBranchActive: true,
+    branchId: 'branch-1',
   });
   reservation.checkOut({
     odometer: Odometer.from(1000),
@@ -100,6 +102,7 @@ describe('CheckInReservationHandler', () => {
     expect(availabilityService.release).toHaveBeenCalledWith(
       'vehicle-1',
       reservation.id.toString(),
+      expect.anything(),
     );
   });
 

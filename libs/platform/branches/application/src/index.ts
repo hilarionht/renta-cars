@@ -4,6 +4,7 @@
 // Ver docs/technical/09-CODING-STANDARDS.md SS2.
 export { BRANCH_REPOSITORY, type BranchRepository } from './ports/branch.repository';
 export { BRANCH_LOOKUP_PORT, type BranchLookupPort } from './ports/branch-lookup.port';
+export { branchLockKey } from './locks/branch-lock-key';
 export {
   BRANCH_ACTIVE_RESERVATIONS_PORT,
   type BranchActiveReservationsPort,

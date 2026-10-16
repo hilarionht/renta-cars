@@ -38,7 +38,9 @@ function buildHandler(existingVehicle: Vehicle | null) {
     findById: jest.fn().mockResolvedValue(existingVehicle),
     save: jest.fn().mockResolvedValue(undefined),
   };
-  const unitOfWork: UnitOfWork = { run: jest.fn((work) => work({})) };
+  const tx = {};
+  const unitOfWork: UnitOfWork = { run: jest.fn((work) => work(tx)) };
+  const transactionLock = { acquire: jest.fn().mockResolvedValue(undefined) };
   const eventPublisher: DomainEventPublisher = { publish: jest.fn().mockResolvedValue(undefined) };
 
   const activeBookingsGuard = {
@@ -50,9 +52,10 @@ function buildHandler(existingVehicle: Vehicle | null) {
     unitOfWork,
     eventPublisher,
     activeBookingsGuard,
+    transactionLock,
   );
 
-  return { handler, vehicleRepository, eventPublisher, activeBookingsGuard };
+  return { handler, vehicleRepository, eventPublisher, activeBookingsGuard, transactionLock, tx };
 }
 
 describe('ScheduleMaintenanceHandler', () => {
@@ -91,6 +94,39 @@ describe('ScheduleMaintenanceHandler', () => {
     );
   });
 
+  // docs/persistence/10-DECISIONES.md #141.
+  it('toma el lock exclusivo del vehiculo y verifica las reservas dentro de la misma transaccion', async () => {
+    const vehicle = createAvailableVehicle();
+    const { handler, activeBookingsGuard, transactionLock, tx } = buildHandler(vehicle);
+    const order: string[] = [];
+    transactionLock.acquire.mockImplementation(() => {
+      order.push('lock');
+      return Promise.resolve();
+    });
+    (activeBookingsGuard.assertNoneBlocked as jest.Mock).mockImplementation(() => {
+      order.push('guard');
+      return Promise.resolve();
+    });
+
+    await handler.execute({
+      vehicleId: vehicle.id.toString(),
+      companyId: 'company-1',
+      type: 'Preventive',
+      scheduledStart: new Date('2026-02-01T09:00:00.000Z'),
+      scheduledEnd: new Date('2026-02-01T17:00:00.000Z'),
+    });
+
+    expect(order).toEqual(['lock', 'guard']);
+    expect(transactionLock.acquire).toHaveBeenCalledWith(
+      tx,
+      `vehicle:${vehicle.id.toString()}`,
+      'exclusive',
+    );
+    expect(activeBookingsGuard.assertNoneBlocked).toHaveBeenCalledWith(
+      expect.objectContaining({ tx }),
+    );
+  });
+
   // docs/persistence/10-DECISIONES.md #137.
   it('verifica reservas hasta el fin de la ventana y, si alguna choca, no guarda nada', async () => {
     const vehicle = createAvailableVehicle();
@@ -114,6 +150,7 @@ describe('ScheduleMaintenanceHandler', () => {
       companyId: 'company-1',
       vehicleId: vehicle.id.toString(),
       blockedUntil: scheduledEnd,
+      tx: expect.anything(),
     });
     expect(vehicleRepository.save).not.toHaveBeenCalled();
   });

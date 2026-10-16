@@ -38,6 +38,8 @@ function createConfirmed(): Reservation {
     baseAmount: amount(),
     isCustomerEligible: true,
     areDriversValidated: true,
+    isBranchActive: true,
+    branchId: 'branch-1',
   });
   reservation.pullDomainEvents();
   return reservation;
@@ -89,6 +91,8 @@ describe('Reservation', () => {
         baseAmount: amount(20000),
         isCustomerEligible: true,
         areDriversValidated: true,
+        isBranchActive: true,
+        branchId: 'branch-1',
       });
 
       expect(reservation.status).toBe('Confirmed');
@@ -99,6 +103,20 @@ describe('Reservation', () => {
       expect(events[0]).toMatchObject({ eventType: 'ReservationConfirmed.v1' });
     });
 
+    it('lanza BranchClosedError si la sucursal del vehicle esta cerrada (#141)', () => {
+      const reservation = createDraft();
+      expect(() =>
+        reservation.confirm({
+          baseAmount: amount(),
+          isCustomerEligible: true,
+          areDriversValidated: true,
+          isBranchActive: false,
+          branchId: 'branch-1',
+        }),
+      ).toThrow(BranchClosedError);
+      expect(reservation.status).toBe('Draft');
+    });
+
     it('lanza CustomerNotEligibleError si isCustomerEligible=false', () => {
       const reservation = createDraft();
       expect(() =>
@@ -106,6 +124,8 @@ describe('Reservation', () => {
           baseAmount: amount(),
           isCustomerEligible: false,
           areDriversValidated: true,
+          isBranchActive: true,
+          branchId: 'branch-1',
         }),
       ).toThrow(CustomerNotEligibleError);
     });
@@ -117,6 +137,8 @@ describe('Reservation', () => {
           baseAmount: amount(),
           isCustomerEligible: true,
           areDriversValidated: false,
+          isBranchActive: true,
+          branchId: 'branch-1',
         }),
       ).toThrow(DriverNotValidatedError);
     });
@@ -128,6 +150,8 @@ describe('Reservation', () => {
           baseAmount: amount(),
           isCustomerEligible: true,
           areDriversValidated: true,
+          isBranchActive: true,
+          branchId: 'branch-1',
         }),
       ).toThrow(ReservationInvalidStateTransitionError);
     });
@@ -417,6 +441,8 @@ describe('Reservation', () => {
         newVehicleId: 'vehicle-2',
         reason: 'averia',
         isNewVehicleAvailable: true,
+        isNewVehicleBranchActive: true,
+        newVehicleBranchId: 'branch-1',
       });
 
       expect(reservation.vehicleId).toBe('vehicle-2');
@@ -430,8 +456,26 @@ describe('Reservation', () => {
     it('lanza VehicleNotAvailableError si isNewVehicleAvailable=false', () => {
       const reservation = createCheckedOut();
       expect(() =>
-        reservation.swapVehicle({ newVehicleId: 'vehicle-2', isNewVehicleAvailable: false }),
+        reservation.swapVehicle({
+          newVehicleId: 'vehicle-2',
+          isNewVehicleAvailable: false,
+          isNewVehicleBranchActive: true,
+          newVehicleBranchId: 'branch-1',
+        }),
       ).toThrow(VehicleNotAvailableError);
+    });
+
+    it('lanza BranchClosedError si la sucursal del vehicle nuevo esta cerrada (#141)', () => {
+      const reservation = createCheckedOut();
+      expect(() =>
+        reservation.swapVehicle({
+          newVehicleId: 'vehicle-2',
+          isNewVehicleAvailable: true,
+          isNewVehicleBranchActive: false,
+          newVehicleBranchId: 'branch-2',
+        }),
+      ).toThrow(BranchClosedError);
+      expect(reservation.vehicleId).toBe('vehicle-1');
     });
   });
 

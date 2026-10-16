@@ -28,10 +28,15 @@ const OVERLAP_CONSTRAINT = 'availability_slots_no_overlapping_active';
 export class PrismaAvailabilitySlotRepository implements AvailabilitySlotRepository {
   constructor(private readonly readTransaction: ReadTransaction) {}
 
-  async findById(id: AvailabilitySlotId): Promise<AvailabilitySlot | null> {
-    const record = await this.readTransaction.run((tx) =>
-      tx.availabilitySlot.findFirst({ where: { id: id.toString() } }),
-    );
+  async findById(
+    id: AvailabilitySlotId,
+    tx?: UnitOfWorkTransaction,
+  ): Promise<AvailabilitySlot | null> {
+    const where = { where: { id: id.toString() } };
+    // #141: dentro de la transaccion del que llama si la hay.
+    const record = tx
+      ? await asPrismaTransaction(tx).availabilitySlot.findFirst(where)
+      : await this.readTransaction.run((readTx) => readTx.availabilitySlot.findFirst(where));
     return record ? this.toDomain(record) : null;
   }
 

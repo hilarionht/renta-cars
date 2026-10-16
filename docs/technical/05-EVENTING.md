@@ -31,6 +31,7 @@ sequenceDiagram
 
 - `OutboxRelayWorker` es un `Processor` de BullMQ con un job repetible (`support.outbox-relay`, intervalo corto — el valor exacto se calibra en Fase 6 según volumen real, mismo criterio que el resto de calibraciones de esta fase).
 - La emisión inmediata post-commit cubre el caso feliz con latencia mínima; el relay cubre el caso en que el proceso cayó entre el commit y la emisión, o un listener no estaba disponible — es la garantía _at-least-once_ que ADR-0005 ya reconoce como la garantía del bus, ahora extendida para sobrevivir a un reinicio de proceso (mejora explícita sobre el riesgo que ese ADR aceptó, sin introducir un broker externo, ver [10-DECISIONES.md](10-DECISIONES.md) #2).
+- **Post-commit de verdad desde [10-DECISIONES.md](../persistence/10-DECISIONES.md) #141**: hasta entonces `OutboxWriter` emitía en el momento de insertar en `outbox_event`, dentro de la transacción, y un listener (la auditoría) veía eventos de transacciones que después se revertían. Ahora el `emit` queda en un buffer asociado a la transacción (`persistence-kernel/after-commit.ts`): `PrismaUnitOfWork.run` lo emite solo si `$transaction` confirma y lo descarta en el rollback. Los listeners tampoco toman una segunda conexión mientras la transacción tiene locks.
 
 ## 3. Listeners
 

@@ -16,6 +16,11 @@ export { Money } from './value-objects/money';
 export { DateRange } from './value-objects/date-range';
 export { UNIT_OF_WORK } from './ports/unit-of-work';
 export type { UnitOfWork, UnitOfWorkTransaction } from './ports/unit-of-work';
+export {
+  TRANSACTION_LOCK,
+  type TransactionLock,
+  type TransactionLockMode,
+} from './ports/transaction-lock';
 export { DOMAIN_EVENT_PUBLISHER } from './ports/domain-event-publisher';
 export type {
   DomainEventPublisher,

@@ -31,14 +31,25 @@ function build(branch: Branch, reservationIds?: string[]) {
     findAllForCompany: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
   };
-  const unitOfWork: UnitOfWork = { run: jest.fn((work) => work({})) };
+  const tx = {};
+  const unitOfWork: UnitOfWork = { run: jest.fn((work) => work(tx)) };
+  const transactionLock = { acquire: jest.fn().mockResolvedValue(undefined) };
   const eventPublisher: DomainEventPublisher = { publish: jest.fn().mockResolvedValue(undefined) };
   const port: BranchActiveReservationsPort | undefined = reservationIds
     ? { findActiveReservationIds: jest.fn().mockResolvedValue(reservationIds) }
     : undefined;
   return {
     branchRepository,
-    handler: new CloseBranchHandler(branchRepository, unitOfWork, eventPublisher, port),
+    port,
+    transactionLock,
+    tx,
+    handler: new CloseBranchHandler(
+      branchRepository,
+      unitOfWork,
+      eventPublisher,
+      transactionLock,
+      port,
+    ),
   };
 }
 
@@ -51,6 +62,25 @@ describe('CloseBranchHandler (#140)', () => {
       handler.execute({ companyId: 'company-1', branchId: branch.id.toString() }),
     ).rejects.toThrow(BranchHasActiveReservationsError);
     expect(branchRepository.save).not.toHaveBeenCalled();
+  });
+
+  // #141: el chequeo corre con el lock exclusivo de la sucursal y dentro de la transaccion.
+  it('toma el lock exclusivo de la sucursal y busca las reservas con el mismo tx', async () => {
+    const branch = createBranch();
+    const { handler, port, transactionLock, tx } = build(branch, []);
+
+    await handler.execute({ companyId: 'company-1', branchId: branch.id.toString() });
+
+    expect(transactionLock.acquire).toHaveBeenCalledWith(
+      tx,
+      `branch:${branch.id.toString()}`,
+      'exclusive',
+    );
+    expect(port?.findActiveReservationIds).toHaveBeenCalledWith(
+      'company-1',
+      branch.id.toString(),
+      tx,
+    );
   });
 
   it('sin reservas activas cierra', async () => {

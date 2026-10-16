@@ -3,7 +3,12 @@ import {
   AvailabilitySlotNotFoundError,
   ResourceRef,
 } from '@platform/calendar/domain';
-import { DateRange, type DomainEventPublisher, type UnitOfWork } from '@platform/shared-kernel';
+import {
+  DateRange,
+  type DomainEventPublisher,
+  type UnitOfWork,
+  type UnitOfWorkTransaction,
+} from '@platform/shared-kernel';
 
 import { ReleaseSlotHandler } from './release-slot.handler';
 import type { AvailabilitySlotRepository } from '../../ports/availability-slot.repository';
@@ -29,7 +34,7 @@ function buildHandler(existingSlot: AvailabilitySlot | null) {
 
   const handler = new ReleaseSlotHandler(availabilitySlotRepository, unitOfWork, eventPublisher);
 
-  return { handler, availabilitySlotRepository, eventPublisher };
+  return { handler, availabilitySlotRepository, eventPublisher, unitOfWork };
 }
 
 describe('ReleaseSlotHandler', () => {
@@ -66,5 +71,19 @@ describe('ReleaseSlotHandler', () => {
 
     expect(availabilitySlotRepository.save).not.toHaveBeenCalled();
     expect(eventPublisher.publish).not.toHaveBeenCalled();
+  });
+
+  // #141: con la transaccion del que llama (reserva + ocupacion atomicas) no abre una propia.
+  it('con tx lee y escribe en esa transaccion, sin abrir otra', async () => {
+    const slot = createSlot();
+    const { handler, availabilitySlotRepository, eventPublisher, unitOfWork } = buildHandler(slot);
+    const tx = { outer: true } as unknown as UnitOfWorkTransaction;
+
+    await handler.execute({ slotId: slot.id.toString() }, tx);
+
+    expect(unitOfWork.run).not.toHaveBeenCalled();
+    expect(availabilitySlotRepository.findById).toHaveBeenCalledWith(expect.anything(), tx);
+    expect(availabilitySlotRepository.save).toHaveBeenCalledWith(slot, tx);
+    expect(eventPublisher.publish).toHaveBeenCalledWith(tx, expect.anything());
   });
 });

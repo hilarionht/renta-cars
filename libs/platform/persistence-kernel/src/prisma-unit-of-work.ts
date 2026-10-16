@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 
 import type { UnitOfWork, UnitOfWorkTransaction } from '@platform/shared-kernel';
 
+import { discardAfterCommit, flushAfterCommit, openAfterCommitBuffer } from './after-commit';
 import { PrismaService } from './prisma.service';
 import { RequestContext } from './request-context';
 
@@ -21,10 +22,25 @@ export class PrismaUnitOfWork implements UnitOfWork {
   async run<T>(work: (tx: UnitOfWorkTransaction) => Promise<T>, companyId?: string): Promise<T> {
     const scopedCompanyId = companyId ?? this.requestContext.get().companyId;
 
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.current_company_id', ${scopedCompanyId}, true)`;
-      return work(tx as unknown as UnitOfWorkTransaction);
-    });
+    // #141: los eventos se emiten in-process solo si la transaccion confirma (after-commit.ts).
+    let transaction: object | undefined;
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        transaction = tx;
+        openAfterCommitBuffer(tx);
+        await tx.$executeRaw`SELECT set_config('app.current_company_id', ${scopedCompanyId}, true)`;
+        return work(tx as unknown as UnitOfWorkTransaction);
+      });
+      if (transaction) {
+        flushAfterCommit(transaction);
+      }
+      return result;
+    } catch (error) {
+      if (transaction) {
+        discardAfterCommit(transaction);
+      }
+      throw error;
+    }
   }
 }
 

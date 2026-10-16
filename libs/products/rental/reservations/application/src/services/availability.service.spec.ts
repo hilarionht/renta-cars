@@ -171,8 +171,9 @@ describe('AvailabilityService', () => {
         'vehicle',
         'vehicle-1',
         'reservation-1',
+        undefined,
       );
-      expect(calendarPort.release).toHaveBeenCalledWith('slot-1');
+      expect(calendarPort.release).toHaveBeenCalledWith('slot-1', undefined);
     });
 
     // Regresion de docs/persistence/10-DECISIONES.md #132: con dos reservas futuras del mismo
@@ -203,7 +204,7 @@ describe('AvailabilityService', () => {
       await service.release('vehicle-1', 'reservation-a');
 
       expect(calendarPort.release).toHaveBeenCalledTimes(1);
-      expect(calendarPort.release).toHaveBeenCalledWith('slot-reserva-a');
+      expect(calendarPort.release).toHaveBeenCalledWith('slot-reserva-a', undefined);
     });
   });
 
@@ -234,8 +235,14 @@ describe('AvailabilityService', () => {
         'vehicle',
         'vehicle-1',
         'reservation-1',
+        undefined,
       );
-      expect(calendarPort.move).toHaveBeenCalledWith('old-slot-id', range().start, range().end);
+      expect(calendarPort.move).toHaveBeenCalledWith(
+        'old-slot-id',
+        range().start,
+        range().end,
+        undefined,
+      );
       expect(calendarPort.occupy).not.toHaveBeenCalled();
       expect(calendarPort.release).not.toHaveBeenCalled();
     });
