@@ -49,7 +49,7 @@ Estado al 2026-10-16. Los Incrementos 4 (Clientes, PR #8, #139) y 5 (Administrac
 - [x] 4. Guards con lock exclusivo: mantenimiento/daño/fuera de servicio (vehículo) y cierre de sucursal (sucursal), con lecturas en `tx`.
 - [x] 5. Verificación: unitarios, integration spec, smoke en vivo de las carreras y 13 e2e individuales.
 - [x] 6. Docs: #141, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, technical/05-EVENTING, CLAUDE.md (cerrar el pendiente 9).
-- [ ] 7. PR y CI 6/6. **PR #10** abierto (2026-10-16). Falta que el CI quede en 6/6. Nunca aprobar ni mergear.
+- [x] 7. PR y CI 6/6. **PR #10** abierto (2026-10-16), **CI 6/6 en verde**. Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
