@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // Gap-fill (Reservations, docs/persistence/10-DECISIONES.md #30/#59) - RN-05 ("expira tras
 // un tiempo configurable si no se confirma"). Solo fija el valor de la politica esta tanda -
 // el job periodico que efectivamente expira Reservation Draft queda fuera de alcance de
@@ -8,7 +10,7 @@ export class DraftExpirationPolicy {
 
   static from(expirationMinutes: number): DraftExpirationPolicy {
     if (!Number.isFinite(expirationMinutes) || expirationMinutes <= 0) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `DraftExpirationPolicy.expirationMinutes debe ser > 0: ${expirationMinutes}`,
       );
     }

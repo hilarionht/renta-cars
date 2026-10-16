@@ -45,6 +45,14 @@ const MESSAGES: Record<string, string> = {
   ADDITIONAL_DRIVER_MISSING_VALID_LICENSE:
     'El conductor no tiene una licencia de conducir verificada y vigente.',
   ADDITIONAL_DRIVER_REVOKED: 'El conductor está revocado.',
+  // Administracion (#140)
+  LAST_ADMINISTRATOR:
+    'La empresa se quedaría sin nadie que pueda administrar usuarios y roles. Asigná ese permiso a otra persona antes.',
+  ROLE_HAS_USERS: 'El rol tiene usuarios asignados: reasignalos antes de desactivarlo.',
+  BRANCH_HAS_ACTIVE_RESERVATIONS:
+    'La sucursal tiene reservas confirmadas o en curso: resolvelas antes de cerrarla.',
+  INVALID_BRANCH_ASSIGNMENT: 'La sucursal no existe o está cerrada.',
+  USER_DISABLED: 'El usuario está deshabilitado.',
 };
 
 // Codigos que implican que los datos en pantalla quedaron viejos.

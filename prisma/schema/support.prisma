@@ -49,6 +49,8 @@ model AuditLogEntry {
   // Sin createdAt/updatedAt - occurredAt es el unico instante que le importa a esta tabla.
   @@index([companyId, occurredAt(sort: Desc)], map: "audit_log_company_occurred_idx")
   @@index([subjectType, subjectId, occurredAt(sort: Desc)], map: "audit_log_subject_occurred_idx")
+  // docs/persistence/10-DECISIONES.md #140: paginado por cursor en orden de registro (id v7).
+  @@index([companyId, id(sort: Desc)], map: "audit_log_company_id_idx")
   @@map("audit_log")
   @@schema("support")
 }

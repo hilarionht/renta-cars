@@ -4,6 +4,10 @@
 // Ver docs/technical/09-CODING-STANDARDS.md SS2.
 export { BRANCH_REPOSITORY, type BranchRepository } from './ports/branch.repository';
 export { BRANCH_LOOKUP_PORT, type BranchLookupPort } from './ports/branch-lookup.port';
+export {
+  BRANCH_ACTIVE_RESERVATIONS_PORT,
+  type BranchActiveReservationsPort,
+} from './ports/branch-active-reservations.port';
 export { CreateBranchHandler } from './commands/create-branch/create-branch.handler';
 export type { CreateBranchCommand } from './commands/create-branch/create-branch.command';
 export { UpdateBranchHandler } from './commands/update-branch/update-branch.handler';

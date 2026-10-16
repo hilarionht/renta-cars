@@ -6,6 +6,7 @@ import {
 import {
   CompanyNotFoundError,
   DuplicateEmailError,
+  InvalidBranchAssignmentError,
   InvalidMfaCodeError,
   InvalidRoleAssignmentError,
   PasswordResetTokenInvalidError,
@@ -24,6 +25,11 @@ export const USERS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [DuplicateEmailError, { status: 409, code: 'RESOURCE_CONFLICT', title: 'Email duplicado' }],
   [CompanyNotFoundError, { status: 422, code: 'VALIDATION_FAILED', title: 'Company inexistente' }],
   [InvalidRoleAssignmentError, { status: 422, code: 'VALIDATION_FAILED', title: 'Role invalido' }],
+  // #140: sucursal inexistente o cerrada al crear o editar un usuario.
+  [
+    InvalidBranchAssignmentError,
+    { status: 422, code: 'INVALID_BRANCH_ASSIGNMENT', title: 'Sucursal invalida para el usuario' },
+  ],
   [InvalidMfaCodeError, { status: 401, code: 'MFA_CODE_INVALID', title: 'Codigo MFA invalido' }],
   [
     PasswordResetTokenInvalidError,

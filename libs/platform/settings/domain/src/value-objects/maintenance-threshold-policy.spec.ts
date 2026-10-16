@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { MaintenanceThresholdPolicy } from './maintenance-threshold-policy';
 
 describe('MaintenanceThresholdPolicy', () => {
@@ -25,15 +27,15 @@ describe('MaintenanceThresholdPolicy', () => {
   });
 
   it('from() rechaza applies=true sin ningun umbral', () => {
-    expect(() => MaintenanceThresholdPolicy.from({ applies: true })).toThrow(TypeError);
+    expect(() => MaintenanceThresholdPolicy.from({ applies: true })).toThrow(InvalidValueError);
   });
 
   it('from() rechaza umbrales <= 0', () => {
     expect(() =>
       MaintenanceThresholdPolicy.from({ applies: true, odometerThresholdKm: 0 }),
-    ).toThrow(TypeError);
+    ).toThrow(InvalidValueError);
     expect(() => MaintenanceThresholdPolicy.from({ applies: true, daysThreshold: -1 })).toThrow(
-      TypeError,
+      InvalidValueError,
     );
   });
 

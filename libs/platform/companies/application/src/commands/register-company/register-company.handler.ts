@@ -16,6 +16,7 @@ import {
 import { CreateDefaultSettingsHandler } from '@platform/settings/application';
 
 import { COMPANY_REPOSITORY, type CompanyRepository } from '../../ports/company.repository';
+import { billingPhoneFromInput } from '../../services/billing-phone';
 import type { RegisterCompanyCommand } from './register-company.command';
 
 // @Public() en el controller (docs/08-API-CONTRACTS.md, ver plan) - autorregistro tipo SaaS,
@@ -40,7 +41,7 @@ export class RegisterCompanyHandler {
       taxId: TaxId.from(command.taxId),
       billingContact: BillingContact.from({
         email: command.billingContactEmail,
-        phone: command.billingContactPhone,
+        phone: billingPhoneFromInput(command.billingContactPhone),
       }),
     });
 

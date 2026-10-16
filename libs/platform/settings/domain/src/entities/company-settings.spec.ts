@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { EnabledProductModulesEmptyError } from '../errors/enabled-product-modules-empty.error';
 import { PaymentMethodsEmptyError } from '../errors/payment-methods-empty.error';
 import { CancellationPolicy } from '../value-objects/cancellation-policy';
@@ -84,6 +86,18 @@ describe('CompanySettings', () => {
         policyName: 'enabled-product-modules',
         newValueSummary: JSON.stringify(['Rental', 'Workshop']),
       });
+    });
+
+    // #140: conjunto abierto, pero sin repetidos y con forma de nombre de modulo.
+    it('elimina repetidos', () => {
+      const settings = createSettings();
+      settings.updateEnabledProductModules(['Rental', 'Rental', ' Rental ']);
+      expect(settings.enabledProductModules).toEqual(['Rental']);
+    });
+
+    it.each(['foo', 'Rent al', 'R', 'Rental!'])('rechaza el nombre de modulo "%s"', (module) => {
+      const settings = createSettings();
+      expect(() => settings.updateEnabledProductModules([module])).toThrow(InvalidValueError);
     });
 
     it('acepta un modulo no conocido (conjunto abierto por diseño, sin catalogo cerrado)', () => {

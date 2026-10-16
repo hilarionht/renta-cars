@@ -9,6 +9,8 @@ export type { RoleStatus } from './value-objects/role-status';
 export { Permission } from './value-objects/permission';
 export { PERMISSION_CATALOG, type PermissionKey } from './value-objects/permission-catalog';
 export { SystemRoleImmutableError } from './errors/system-role-immutable.error';
+export { LastAdministratorError } from './errors/last-administrator.error';
+export { RoleHasUsersError } from './errors/role-has-users.error';
 export { EmptyPermissionSetError } from './errors/empty-permission-set.error';
 export { DuplicateRoleNameError } from './errors/duplicate-role-name.error';
 export { RoleNotFoundError } from './errors/role-not-found.error';

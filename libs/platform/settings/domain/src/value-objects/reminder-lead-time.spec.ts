@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { ReminderLeadTime } from './reminder-lead-time';
 
 describe('ReminderLeadTime', () => {
@@ -6,11 +8,11 @@ describe('ReminderLeadTime', () => {
   });
 
   it('from() rechaza 0', () => {
-    expect(() => ReminderLeadTime.from(0)).toThrow(TypeError);
+    expect(() => ReminderLeadTime.from(0)).toThrow(InvalidValueError);
   });
 
   it('from() rechaza negativo', () => {
-    expect(() => ReminderLeadTime.from(-1)).toThrow(TypeError);
+    expect(() => ReminderLeadTime.from(-1)).toThrow(InvalidValueError);
   });
 
   it('default() es 1440 minutos (24h, placeholder sin calibrar)', () => {

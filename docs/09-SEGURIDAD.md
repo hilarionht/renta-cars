@@ -6,6 +6,8 @@
 - El `access_token` contiene únicamente lo necesario para autorizar sin round-trip a base de datos en el camino caliente: `sub` (userId), `companyId`, `branchId` (si aplica), `roles`, `iat`/`exp`. **No** contiene permisos granulares completos (ver §2) para evitar tokens infladas y evitar que un cambio de permisos tarde hasta la expiración del token en aplicarse sin mecanismo adicional.
 - **Refresh Token rotativo**: cada uso de un refresh token lo invalida y emite uno nuevo; el refresh token es de un solo uso. Reutilización de un refresh token ya usado se trata como señal de robo de token → se invalidan todas las sesiones del usuario.
 - Refresh tokens almacenados server-side (hash, no texto plano) para poder revocarlos (logout, cambio de contraseña, deshabilitación de usuario).
+- El refresh rechaza a un usuario que no está `Active` (403 `USER_DISABLED`), igual que el login ([persistence/10-DECISIONES.md #140](persistence/10-DECISIONES.md)): antes un usuario deshabilitado seguía renovando su sesión. Los cambios de roles o de sucursal llegan al token en el próximo refresh (hasta 15 minutos); un cambio de permisos de un rol aplica enseguida (se invalida el caché).
+- **Último administrador**: la company siempre conserva al menos un usuario activo con `users:assign-role` y `roles:create` (#140). Revocar, deshabilitar o quitar permisos que lo rompan responde 409 `LAST_ADMINISTRATOR`, aunque lo haga otro admin; el chequeo corre con un lock transaccional por company.
 - **Web**: `access_token` en memoria, `refresh_token` en cookie `httpOnly`, `Secure`, `SameSite=Strict`. **Mobile**: ambos en almacenamiento seguro del dispositivo (SecureStore/Keychain). Nunca en `localStorage`.
 
 ## 2. Autorización: RBAC + scoping por tenant

@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // Gap-fill (Reservations, docs/persistence/10-DECISIONES.md #30/#59) - RN-21 ("si aplica,
 // monto/mecanismo"). Porcentual sobre el PriceBreakdown de la Reservation, no Money fijo -
 // consistente con CancellationPolicy/LateReturnPolicy. Consumidor real desde Fase 2:
@@ -17,7 +19,7 @@ export class DepositPolicy {
       props.percentageOfTotal < 0 ||
       props.percentageOfTotal > 100
     ) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `DepositPolicy.percentageOfTotal debe estar entre 0 y 100: ${props.percentageOfTotal}`,
       );
     }

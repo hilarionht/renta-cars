@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Role as PrismaRole } from '@prisma/client';
+import { Prisma, type Role as PrismaRole } from '@prisma/client';
 
 import {
   ConcurrentModificationError,
@@ -7,8 +7,14 @@ import {
   type UnitOfWorkTransaction,
 } from '@platform/shared-kernel';
 import { asPrismaTransaction, ReadTransaction } from '@platform/persistence-kernel';
-import { Permission, Role, type RoleId, RoleName } from '@platform/roles-permissions/domain';
-import type { RoleRepository } from '@platform/roles-permissions/application';
+import {
+  DuplicateRoleNameError,
+  Permission,
+  Role,
+  type RoleId,
+  RoleName,
+} from '@platform/roles-permissions/domain';
+import type { RoleRepository, RoleRecordSummary } from '@platform/roles-permissions/application';
 
 // El unico lugar que traduce entre el modelo de Prisma y el agregado de dominio - ningun
 // otro archivo de infrastructure/, y ningun archivo de application/, conoce la forma de la
@@ -16,6 +22,10 @@ import type { RoleRepository } from '@platform/roles-permissions/application';
 // siempre en rutas autenticadas (RequestContext ya poblado) - companyId=null en el `where` de
 // findByCompanyAndName (chequeo de duplicado de un role System) es independiente del SET
 // LOCAL, que sigue siendo el tenant real; RLS ya contempla ambos con su OR.
+const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
+// #140: migracion 20261015140000_identity_role_name_case_insensitive.
+const ROLE_NAME_UNIQUE = 'roles_company_id_lower_role_name_custom_key';
+
 @Injectable()
 export class PrismaRoleRepository implements RoleRepository {
   constructor(private readonly readTransaction: ReadTransaction) {}
@@ -27,11 +37,24 @@ export class PrismaRoleRepository implements RoleRepository {
     return record ? this.toDomain(record) : null;
   }
 
-  async findByCompanyAndName(companyId: string | null, roleName: string): Promise<Role | null> {
+  async findSummaryById(id: string): Promise<RoleRecordSummary | null> {
     const record = await this.readTransaction.run((tx) =>
-      tx.role.findFirst({ where: { companyId, roleName } }),
+      tx.role.findFirst({ where: { id }, select: { scope: true, companyId: true, status: true } }),
     );
-    return record ? this.toDomain(record) : null;
+    return record;
+  }
+
+  async existsWithName(companyId: string, roleName: string): Promise<boolean> {
+    const record = await this.readTransaction.run((tx) =>
+      tx.role.findFirst({
+        where: {
+          roleName: { equals: roleName, mode: 'insensitive' },
+          OR: [{ companyId, scope: 'Custom' }, { scope: 'System' }],
+        },
+        select: { id: true },
+      }),
+    );
+    return record !== null;
   }
 
   async findAllForCompany(companyId: string): Promise<Role[]> {
@@ -53,9 +76,17 @@ export class PrismaRoleRepository implements RoleRepository {
     };
 
     if (role.isNew) {
-      await prisma.role.create({
-        data: { id: role.id.toString(), ...data, version: role.version },
-      });
+      try {
+        await prisma.role.create({
+          data: { id: role.id.toString(), ...data, version: role.version },
+        });
+      } catch (error) {
+        // #140: el pre-check de create-role no cubre la carrera (dos altas simultaneas).
+        if (this.isRoleNameViolation(error)) {
+          throw new DuplicateRoleNameError(role.roleName.toString());
+        }
+        throw error;
+      }
       role.markPersisted();
       return;
     }
@@ -68,6 +99,25 @@ export class PrismaRoleRepository implements RoleRepository {
     if (result.count === 0) {
       throw new ConcurrentModificationError('Role', role.id.toString());
     }
+  }
+
+  // Mismo criterio que prisma-vehicle-category.repository.ts: Prisma 7 no puebla meta.target, el
+  // indice se reconoce por nombre en el mensaje del driver.
+  private isRoleNameViolation(error: unknown): boolean {
+    if (
+      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+      error.code !== UNIQUE_CONSTRAINT_VIOLATION
+    ) {
+      return false;
+    }
+    const driverAdapterError = error.meta?.['driverAdapterError'];
+    const cause =
+      driverAdapterError && typeof driverAdapterError === 'object'
+        ? (driverAdapterError as { cause?: { originalMessage?: unknown } }).cause
+        : undefined;
+    const message =
+      typeof cause?.originalMessage === 'string' ? cause.originalMessage : error.message;
+    return message.includes(ROLE_NAME_UNIQUE);
   }
 
   private toDomain(record: PrismaRole): Role {

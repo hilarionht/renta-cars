@@ -12,6 +12,7 @@ import {
   RefreshTokenHash,
   RefreshTokenReusedError,
   SessionSecurityService,
+  UserDisabledError,
 } from '@platform/identity/domain';
 import { USER_LOOKUP_PORT, type UserLookupPort } from '@platform/users/application';
 
@@ -42,6 +43,16 @@ export class RefreshSessionHandler {
 
     if (!matchedSession) {
       throw new InvalidRefreshTokenError();
+    }
+
+    // #140 (INV-114): un usuario deshabilitado no renueva su sesion. Antes solo lo frenaba el
+    // login: con un refresh token vigente seguia entrando hasta 30 dias (y rotando, para siempre).
+    const user = await this.userLookup.findById(matchedSession.userId, matchedSession.companyId);
+    if (!user) {
+      throw new InvalidRefreshTokenError();
+    }
+    if (user.status !== 'Active') {
+      throw new UserDisabledError(user.userId);
     }
 
     const activeSessionsForUser = await this.sessionRepository.findActiveForUser(
@@ -92,11 +103,6 @@ export class RefreshSessionHandler {
       // Nunca se filtra "robo detectado" en la respuesta al cliente - reutiliza el mismo
       // camino que un token invalido comun (decision de esta tanda, ver plan).
       throw new RefreshTokenReusedError(matchedSession.userId);
-    }
-
-    const user = await this.userLookup.findById(matchedSession.userId, matchedSession.companyId);
-    if (!user) {
-      throw new InvalidRefreshTokenError();
     }
 
     const accessToken = this.tokenSigner.signAccessToken({

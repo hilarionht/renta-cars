@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // Gap-fill (Reservations, docs/persistence/10-DECISIONES.md #30/#59) - RN-15/RN-16 piden
 // "tabla de tarifas por hora/dia de exceso" + "tolerancia de gracia", simplificado a una
 // tasa plana por hora de exceso (mismo pragmatismo ya usado para LicensePlate/RateUnit en
@@ -13,10 +15,12 @@ export class LateReturnPolicy {
 
   static from(props: LateReturnPolicyProps): LateReturnPolicy {
     if (!Number.isFinite(props.graceMinutes) || props.graceMinutes < 0) {
-      throw new TypeError(`LateReturnPolicy.graceMinutes debe ser >= 0: ${props.graceMinutes}`);
+      throw new InvalidValueError(
+        `LateReturnPolicy.graceMinutes debe ser >= 0: ${props.graceMinutes}`,
+      );
     }
     if (!Number.isFinite(props.penaltyPercentagePerHour) || props.penaltyPercentagePerHour < 0) {
-      throw new TypeError(
+      throw new InvalidValueError(
         `LateReturnPolicy.penaltyPercentagePerHour debe ser >= 0: ${props.penaltyPercentagePerHour}`,
       );
     }

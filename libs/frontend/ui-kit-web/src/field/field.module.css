@@ -58,3 +58,29 @@
   outline: 2px solid var(--rk-color-primary);
   outline-offset: 2px;
 }
+
+/* Checkbox (docs/persistence/10-DECISIONES.md #140). */
+.checkboxField {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rk-space-sm);
+}
+
+.checkboxControl {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--rk-color-primary);
+}
+
+.checkboxControl:focus-visible {
+  outline: 2px solid var(--rk-color-primary);
+  outline-offset: 2px;
+}
+
+.checkboxLabel {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--rk-font-size-body);
+  color: var(--rk-color-text);
+}

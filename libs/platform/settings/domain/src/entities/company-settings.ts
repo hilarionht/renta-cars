@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { EnabledProductModulesEmptyError } from '../errors/enabled-product-modules-empty.error';
 import { PaymentMethodsEmptyError } from '../errors/payment-methods-empty.error';
 import type { CompanySettingsUpdatedEvent } from '../events/company-settings-updated.event';
@@ -10,6 +12,8 @@ import { MinimumBookingLeadTime } from '../value-objects/minimum-booking-lead-ti
 import { NotificationChannelPreference } from '../value-objects/notification-channel-preference';
 import { PAYMENT_METHODS, PaymentMethod } from '../value-objects/payment-method';
 import { ReminderLeadTime } from '../value-objects/reminder-lead-time';
+
+const PRODUCT_MODULE_NAME = /^[A-Z][A-Za-z0-9]{1,39}$/;
 
 type CompanySettingsDomainEvent = CompanySettingsUpdatedEvent;
 
@@ -139,10 +143,18 @@ export class CompanySettings {
   // EnabledProductModules es un conjunto ABIERTO por diseño (docs/contracts/
   // 08-VERSIONING.md SS5: "nunca una lista cerrada exhaustiva") - solo se valida no-vacio y
   // strings no-blancas, nunca contra un catalogo cerrado (a diferencia de PaymentMethod).
+  // #140: el conjunto sigue abierto (docs/contracts/08-VERSIONING.md: un producto nuevo no toca
+  // el core), pero sin repetidos y con forma de nombre de modulo (antes aceptaba cualquier texto).
   updateEnabledProductModules(modules: string[]): void {
-    const trimmed = modules.map((module) => module.trim()).filter((module) => module.length > 0);
+    const trimmed = [
+      ...new Set(modules.map((module) => module.trim()).filter((module) => module.length > 0)),
+    ];
     if (trimmed.length === 0) {
       throw new EnabledProductModulesEmptyError();
+    }
+    const invalid = trimmed.find((module) => !PRODUCT_MODULE_NAME.test(module));
+    if (invalid) {
+      throw new InvalidValueError(`Nombre de modulo de producto invalido: "${invalid}".`);
     }
     this.props.enabledProductModules = trimmed;
     this.props.updatedAt = new Date();

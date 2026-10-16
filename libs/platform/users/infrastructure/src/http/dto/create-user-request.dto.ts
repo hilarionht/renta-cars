@@ -1,4 +1,5 @@
 import {
+  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsEmail,
@@ -25,6 +26,8 @@ export class CreateUserRequestDto {
   branchId?: string;
 
   @IsArray()
+  // #140: un usuario sin roles no puede hacer nada; antes se aceptaba.
+  @ArrayMinSize(1)
   @ArrayUnique()
   @IsUUID('all', { each: true })
   roles!: string[];

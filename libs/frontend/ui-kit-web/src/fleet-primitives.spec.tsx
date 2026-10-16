@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { TabLinkProps } from './tabs/tabs';
+import { Checkbox } from './checkbox/checkbox';
 import { FileInput } from './file-input/file-input';
 import { Tabs } from './tabs/tabs';
 
@@ -68,5 +69,18 @@ describe('FileInput', () => {
     fireEvent.change(screen.getByLabelText('Documento'), { target: { files: [] } });
 
     expect(onFileChange).toHaveBeenCalledWith(null);
+  });
+});
+
+// docs/persistence/10-DECISIONES.md #140.
+describe('Checkbox', () => {
+  it('asocia la etiqueta, el hint y el cambio', () => {
+    const onChange = jest.fn();
+    render(<Checkbox label="Crear reservas" hint="reservations:create" onChange={onChange} />);
+
+    const box = screen.getByRole('checkbox', { name: /Crear reservas/ });
+    expect(box.getAttribute('aria-describedby')).toBe(screen.getByText('reservations:create').id);
+    fireEvent.click(box);
+    expect(onChange).toHaveBeenCalled();
   });
 });

@@ -16,10 +16,12 @@ import {
   RequestPasswordResetHandler,
   ResetPasswordHandler,
   RevokeRoleHandler,
+  UpdateUserDetailsHandler,
   USER_LOOKUP_PORT,
   USER_REPOSITORY,
 } from '@platform/users/application';
 import { RolesPermissionsModule } from '@platform/roles-permissions/infrastructure';
+import { BranchesModule } from '@platform/branches/infrastructure';
 import { CompaniesModule } from '@platform/companies/infrastructure';
 import { NotificationsModule } from '@platform/notifications/infrastructure';
 
@@ -48,7 +50,8 @@ import { ListUsersHandler } from './queries/list-users.handler';
 // docs/persistence/10-DECISIONES.md #113) - mismo patron que customers.module.ts para
 // RequestCustomerOtpHandler.
 @Module({
-  imports: [RolesPermissionsModule, CompaniesModule, NotificationsModule],
+  // BranchesModule (#140): la sucursal de un usuario tiene que existir y estar abierta.
+  imports: [RolesPermissionsModule, CompaniesModule, NotificationsModule, BranchesModule],
   controllers: [UsersController, UserMfaController],
   providers: [
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
@@ -67,6 +70,7 @@ import { ListUsersHandler } from './queries/list-users.handler';
     ChangePasswordHandler,
     AssignRoleHandler,
     RevokeRoleHandler,
+    UpdateUserDetailsHandler,
     GetUserHandler,
     GetCurrentUserHandler,
     ListUsersHandler,

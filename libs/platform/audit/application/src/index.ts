@@ -8,4 +8,5 @@ export type { RecordAuditLogEntryCommand } from './commands/record-audit-log-ent
 export type {
   ListAuditLogQuery,
   AuditLogSummary,
+  ListAuditLogResult,
 } from './queries/list-audit-log/list-audit-log.query';

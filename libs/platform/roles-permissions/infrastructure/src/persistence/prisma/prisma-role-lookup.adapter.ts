@@ -15,7 +15,10 @@ export class PrismaRoleLookupAdapter implements RoleLookupPort {
   async existsAndBelongsToCompanyOrSystem(roleId: string, companyId: string): Promise<boolean> {
     const role = await this.readTransaction.run(
       (tx) =>
-        tx.role.findFirst({ where: { id: roleId, OR: [{ companyId }, { companyId: null }] } }),
+        // #140: status Active - antes se podia asignar un role desactivado (no otorga nada).
+        tx.role.findFirst({
+          where: { id: roleId, status: 'Active', OR: [{ companyId }, { companyId: null }] },
+        }),
       companyId,
     );
     return role !== null;

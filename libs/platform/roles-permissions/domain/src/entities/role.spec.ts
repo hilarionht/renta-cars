@@ -109,5 +109,18 @@ describe('Role', () => {
         roleId: role.id.toString(),
       });
     });
+
+    // #140: antes subia la version y re-emitia el evento (auditoria duplicada).
+    it('desactivar uno ya inactivo es un no-op: sin version ni evento', () => {
+      const role = createCustomRole();
+      role.deactivate();
+      role.pullDomainEvents();
+      const versionBefore = role.version;
+
+      role.deactivate();
+
+      expect(role.version).toBe(versionBefore);
+      expect(role.pullDomainEvents()).toHaveLength(0);
+    });
   });
 });

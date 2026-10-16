@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 // docs/persistence/10-DECISIONES.md #121 (Reminder de reservas) - cuanto tiempo antes del
 // check-out programado se envia el recordatorio proactivo al Customer. Mismo patron exacto
 // que MinimumBookingLeadTime (este mismo directorio), pero el default NO puede ser 0 (a
@@ -11,7 +13,9 @@ export class ReminderLeadTime {
 
   static from(leadTimeMinutes: number): ReminderLeadTime {
     if (!Number.isFinite(leadTimeMinutes) || leadTimeMinutes <= 0) {
-      throw new TypeError(`ReminderLeadTime.leadTimeMinutes debe ser > 0: ${leadTimeMinutes}`);
+      throw new InvalidValueError(
+        `ReminderLeadTime.leadTimeMinutes debe ser > 0: ${leadTimeMinutes}`,
+      );
     }
     return new ReminderLeadTime(leadTimeMinutes);
   }

@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@platform/shared-kernel';
+
 import { DraftExpirationPolicy } from './draft-expiration-policy';
 
 describe('DraftExpirationPolicy', () => {
@@ -6,8 +8,8 @@ describe('DraftExpirationPolicy', () => {
   });
 
   it('from() rechaza cero o negativo', () => {
-    expect(() => DraftExpirationPolicy.from(0)).toThrow(TypeError);
-    expect(() => DraftExpirationPolicy.from(-1)).toThrow(TypeError);
+    expect(() => DraftExpirationPolicy.from(0)).toThrow(InvalidValueError);
+    expect(() => DraftExpirationPolicy.from(-1)).toThrow(InvalidValueError);
   });
 
   it('default() usa 24 horas', () => {

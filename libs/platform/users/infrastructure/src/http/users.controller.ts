@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 
 import { RequestContext, RequirePermission, RequireStaffActor } from '@platform/persistence-kernel';
 import {
@@ -8,6 +8,7 @@ import {
   DisableUserHandler,
   ReactivateUserHandler,
   RevokeRoleHandler,
+  UpdateUserDetailsHandler,
 } from '@platform/users/application';
 
 import { GetCurrentUserHandler } from '../queries/get-current-user.handler';
@@ -19,6 +20,7 @@ import { CreateUserRequestDto } from './dto/create-user-request.dto';
 import type { CurrentUserResponseDto } from './dto/current-user-response.dto';
 import { DisableUserRequestDto } from './dto/disable-user-request.dto';
 import { ListUsersRequestDto } from './dto/list-users-request.dto';
+import { UpdateUserRequestDto } from './dto/update-user-request.dto';
 import type { UserResponseDto } from './dto/user-response.dto';
 
 // docs/contracts/02-RESOURCE-CATALOG.md SS1 "Identity & Access": users (create, disable/
@@ -33,6 +35,7 @@ export class UsersController {
     private readonly changePassword: ChangePasswordHandler,
     private readonly assignRole: AssignRoleHandler,
     private readonly revokeRole: RevokeRoleHandler,
+    private readonly updateUserDetails: UpdateUserDetailsHandler,
     private readonly getUser: GetUserHandler,
     private readonly getCurrentUser: GetCurrentUserHandler,
     private readonly listUsers: ListUsersHandler,
@@ -83,6 +86,22 @@ export class UsersController {
   async get(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponseDto> {
     const { companyId } = this.requestContext.get();
     return this.getUser.execute({ userId: id, companyId });
+  }
+
+  // #140: nombre y sucursal. El permiso users:edit existia pero no habia endpoint.
+  @Patch(':id')
+  @RequirePermission('users:edit')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUserRequestDto,
+  ): Promise<void> {
+    const { companyId } = this.requestContext.get();
+    await this.updateUserDetails.execute({
+      userId: id,
+      companyId,
+      name: dto.name,
+      branchId: dto.branchId,
+    });
   }
 
   @Post(':id/disable')
