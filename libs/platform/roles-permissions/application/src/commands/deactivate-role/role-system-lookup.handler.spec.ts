@@ -2,11 +2,13 @@ import type { DomainEventPublisher, UnitOfWork } from '@platform/shared-kernel';
 import {
   Permission,
   Role,
+  RoleHasUsersError,
   RoleName,
   RoleNotFoundError,
   SystemRoleImmutableError,
 } from '@platform/roles-permissions/domain';
 
+import type { RoleAssignmentsPort } from '../../ports/role-assignments.port';
 import type { RoleRecordSummary, RoleRepository } from '../../ports/role.repository';
 import type { LastAdministratorGuard } from '../../services/last-administrator.guard';
 import { EditRolePermissionsHandler } from '../edit-role-permissions/edit-role-permissions.handler';
@@ -24,7 +26,11 @@ function customRole(): Role {
   });
 }
 
-function build(summary: RoleRecordSummary | null, role: Role | null = null) {
+function build(
+  summary: RoleRecordSummary | null,
+  role: Role | null = null,
+  userIds: string[] = [],
+) {
   const roleRepository: RoleRepository = {
     findById: jest.fn().mockResolvedValue(role),
     findSummaryById: jest.fn().mockResolvedValue(summary),
@@ -34,9 +40,19 @@ function build(summary: RoleRecordSummary | null, role: Role | null = null) {
   };
   const unitOfWork: UnitOfWork = { run: jest.fn((work) => work({})) };
   const eventPublisher: DomainEventPublisher = { publish: jest.fn().mockResolvedValue(undefined) };
+  const roleAssignments: RoleAssignmentsPort = {
+    lockAndListActiveAssignments: jest.fn(),
+    findUserIdsWithRole: jest.fn().mockResolvedValue(userIds),
+  };
   return {
     roleRepository,
-    deactivate: new DeactivateRoleHandler(roleRepository, unitOfWork, eventPublisher),
+    roleAssignments,
+    deactivate: new DeactivateRoleHandler(
+      roleRepository,
+      unitOfWork,
+      eventPublisher,
+      roleAssignments,
+    ),
     edit: new EditRolePermissionsHandler(roleRepository, unitOfWork, eventPublisher, {
       assertAdministratorRemains: jest.fn(),
     } as unknown as LastAdministratorGuard),
@@ -81,6 +97,21 @@ describe('roles: lookup liviano antes de cargar el agregado', () => {
 
     await deactivate.execute({ companyId: 'company-1', roleId: role.id.toString() });
 
+    expect(roleRepository.save).not.toHaveBeenCalled();
+  });
+
+  // #140: decision del usuario.
+  it('desactivar un role con usuarios responde 409 (RoleHasUsersError) y no guarda', async () => {
+    const role = customRole();
+    const { deactivate, roleRepository } = build(
+      { scope: 'Custom', companyId: 'company-1', status: 'Active' },
+      role,
+      ['user-1'],
+    );
+
+    await expect(
+      deactivate.execute({ companyId: 'company-1', roleId: role.id.toString() }),
+    ).rejects.toThrow(RoleHasUsersError);
     expect(roleRepository.save).not.toHaveBeenCalled();
   });
 });

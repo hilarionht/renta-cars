@@ -9,10 +9,12 @@ import {
 } from '@platform/shared-kernel';
 import {
   type RoleId,
+  RoleHasUsersError,
   RoleNotFoundError,
   SystemRoleImmutableError,
 } from '@platform/roles-permissions/domain';
 
+import { ROLE_ASSIGNMENTS_PORT, type RoleAssignmentsPort } from '../../ports/role-assignments.port';
 import { ROLE_REPOSITORY, type RoleRepository } from '../../ports/role.repository';
 import type { DeactivateRoleCommand } from './deactivate-role.command';
 
@@ -22,6 +24,7 @@ export class DeactivateRoleHandler {
     @Inject(ROLE_REPOSITORY) private readonly roleRepository: RoleRepository,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
+    @Inject(ROLE_ASSIGNMENTS_PORT) private readonly roleAssignments: RoleAssignmentsPort,
   ) {}
 
   async execute(command: DeactivateRoleCommand): Promise<void> {
@@ -47,6 +50,16 @@ export class DeactivateRoleHandler {
     // #140 (patron de #56): si no cambio nada (ya estaba asi) es un no-op idempotente; guardar
     // sin subir la version daria un CONCURRENT_MODIFICATION espurio.
     const versionBefore = role.version;
+    if (role.status === 'Active') {
+      // #140: con usuarios asignados se rechaza (cubre tambien al ultimo administrador).
+      const userIds = await this.roleAssignments.findUserIdsWithRole(
+        command.roleId,
+        command.companyId,
+      );
+      if (userIds.length > 0) {
+        throw new RoleHasUsersError(command.roleId, userIds);
+      }
+    }
     role.deactivate();
     if (role.version === versionBefore) {
       return;

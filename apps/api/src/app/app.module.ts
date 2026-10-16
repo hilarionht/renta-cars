@@ -66,6 +66,7 @@ import { CorrelationIdInterceptor } from './interceptors/correlation-id.intercep
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { ResponseEnvelopeInterceptor } from './interceptors/response-envelope.interceptor';
 import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
+import { ProductPortsModule } from './composition/product-ports.module';
 import { PrismaModule } from './persistence/prisma.module';
 import { BullmqRedisModule } from './redis/bullmq-redis.module';
 import { BULLMQ_REDIS_CLIENT } from './redis/bullmq-redis.provider';
@@ -141,6 +142,8 @@ import { FailOpenThrottlerGuard } from './throttler/fail-open-throttler.guard';
     // EventEmitter2 sin que este modulo lo exporte a mano.
     EventEmitterModule.forRoot({ wildcard: true }),
     PrismaModule,
+    // #140: puertos de platform implementados por productos (INV-P03).
+    ProductPortsModule,
     // docs/technical/03-BACKEND-ARCHITECTURE.md SS7 (ThrottlerGuard, ultimo guard de la
     // cadena) - throttler 'default' con el perfil GENERAL (security.config.ts). Perfiles
     // auth/write-heavy, mas estrictos, se aplican por ruta via @Throttle({default: {...}})

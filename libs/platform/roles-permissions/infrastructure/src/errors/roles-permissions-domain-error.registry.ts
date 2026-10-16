@@ -7,6 +7,7 @@ import {
   DuplicateRoleNameError,
   EmptyPermissionSetError,
   LastAdministratorError,
+  RoleHasUsersError,
   RoleNotFoundError,
   SystemRoleImmutableError,
 } from '@platform/roles-permissions/domain';
@@ -27,6 +28,11 @@ export const ROLES_PERMISSIONS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
       code: 'LAST_ADMINISTRATOR',
       title: 'La empresa se quedaria sin administrador',
     },
+  ],
+  // #140 (decision del usuario): no se desactiva un role con usuarios.
+  [
+    RoleHasUsersError,
+    { status: 409, code: 'ROLE_HAS_USERS', title: 'El role tiene usuarios asignados' },
   ],
   [
     SystemRoleImmutableError,

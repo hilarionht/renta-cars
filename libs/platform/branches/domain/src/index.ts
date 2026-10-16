@@ -14,5 +14,6 @@ export {
 } from './value-objects/operating-hours';
 export type { BranchStatus } from './value-objects/branch-status';
 export { BranchNotFoundError } from './errors/branch-not-found.error';
+export { BranchHasActiveReservationsError } from './errors/branch-has-active-reservations.error';
 export type { BranchOpenedEvent } from './events/branch-opened.event';
 export type { BranchClosedEvent } from './events/branch-closed.event';
