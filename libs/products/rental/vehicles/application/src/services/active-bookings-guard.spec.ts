@@ -18,12 +18,15 @@ describe('ActiveBookingsGuard', () => {
     endDate: new Date(new Date(start).getTime() + 2 * 86_400_000),
   });
 
-  it('pide las ocupaciones del vehiculo con el companyId explicito', async () => {
+  // #141: lee dentro de la transaccion del que llama (con el lock del vehiculo tomado).
+  const tx = {};
+
+  it('pide las ocupaciones del vehiculo con el companyId explicito y el tx del que llama', async () => {
     const { guard, calendarPort } = build([]);
 
-    await guard.assertNoneBlocked({ companyId: 'c1', vehicleId: 'v1', blockedUntil: null });
+    await guard.assertNoneBlocked({ companyId: 'c1', vehicleId: 'v1', blockedUntil: null, tx });
 
-    expect(calendarPort.findActiveBookings).toHaveBeenCalledWith('c1', 'vehicle', 'v1');
+    expect(calendarPort.findActiveBookings).toHaveBeenCalledWith('c1', 'vehicle', 'v1', tx);
   });
 
   it('con bloqueo hasta una fecha, solo choca la reserva que empieza antes', async () => {
@@ -34,6 +37,7 @@ describe('ActiveBookingsGuard', () => {
         companyId: 'c1',
         vehicleId: 'v1',
         blockedUntil: new Date('2026-11-10'),
+        tx,
       }),
     ).rejects.toThrow(/r-antes/);
     await expect(
@@ -41,6 +45,7 @@ describe('ActiveBookingsGuard', () => {
         companyId: 'c1',
         vehicleId: 'v1',
         blockedUntil: new Date('2026-11-10'),
+        tx,
       }),
     ).rejects.not.toThrow(/r-despues/);
   });
@@ -49,7 +54,7 @@ describe('ActiveBookingsGuard', () => {
     const { guard } = build([booking('r-lejana', '2027-06-01')]);
 
     await expect(
-      guard.assertNoneBlocked({ companyId: 'c1', vehicleId: 'v1', blockedUntil: null }),
+      guard.assertNoneBlocked({ companyId: 'c1', vehicleId: 'v1', blockedUntil: null, tx }),
     ).rejects.toThrow(VehicleHasActiveBookingsError);
   });
 
@@ -61,6 +66,7 @@ describe('ActiveBookingsGuard', () => {
         companyId: 'c1',
         vehicleId: 'v1',
         blockedUntil: new Date('2026-11-10'),
+        tx,
       }),
     ).resolves.toBeUndefined();
   });

@@ -38,7 +38,9 @@ function buildHandler(existingVehicle: Vehicle | null) {
     findById: jest.fn().mockResolvedValue(existingVehicle),
     save: jest.fn().mockResolvedValue(undefined),
   };
-  const unitOfWork: UnitOfWork = { run: jest.fn((work) => work({})) };
+  const tx = {};
+  const unitOfWork: UnitOfWork = { run: jest.fn((work) => work(tx)) };
+  const transactionLock = { acquire: jest.fn().mockResolvedValue(undefined) };
   const eventPublisher: DomainEventPublisher = { publish: jest.fn().mockResolvedValue(undefined) };
 
   const activeBookingsGuard = {
@@ -50,9 +52,10 @@ function buildHandler(existingVehicle: Vehicle | null) {
     unitOfWork,
     eventPublisher,
     activeBookingsGuard,
+    transactionLock,
   );
 
-  return { handler, vehicleRepository, eventPublisher, activeBookingsGuard };
+  return { handler, vehicleRepository, eventPublisher, activeBookingsGuard, transactionLock, tx };
 }
 
 describe('ReportDamageHandler', () => {
@@ -103,6 +106,7 @@ describe('ReportDamageHandler', () => {
       companyId: 'company-1',
       vehicleId: vehicle.id.toString(),
       blockedUntil: corrective.scheduledEnd,
+      tx: expect.anything(),
     });
     expect(vehicleRepository.save).toHaveBeenCalledTimes(1);
     expect(eventPublisher.publish).toHaveBeenCalledWith(

@@ -46,7 +46,7 @@ Estado al 2026-10-16. Los Incrementos 4 (Clientes, PR #8, #139) y 5 (Administrac
 - [x] 1. Puerto `TRANSACTION_LOCK` (shared-kernel) + `PrismaTransactionLock` (persistence-kernel, `pg_advisory_xact_lock[_shared]`, `lock_timeout` 2 s, 55P03/40P01 → 409), enlazado en `apps/api` `prisma.module.ts`; `OutboxWriter` deja el emit en un buffer y `PrismaUnitOfWork` lo emite solo si la transacción confirma.
 - [x] 2. Calendario con `tx?` (port, adapter, repositorio, handlers occupy/release/move, `findActiveSlotId`/`findActiveBookings`).
 - [x] 3. Reservas: los 7 handlers con calendario adentro de su transacción; confirm con locks compartidos (sucursal, vehículo), relectura con `tx`, `Reservation.confirm` con `isBranchActive`, rechazo publicado después del rollback, sin compensación; swap valida la sucursal del vehículo nuevo.
-- [ ] 4. Guards con lock exclusivo: mantenimiento/daño/fuera de servicio (vehículo) y cierre de sucursal (sucursal), con lecturas en `tx`.
+- [x] 4. Guards con lock exclusivo: mantenimiento/daño/fuera de servicio (vehículo) y cierre de sucursal (sucursal), con lecturas en `tx`.
 - [ ] 5. Verificación: unitarios, integration spec, smoke en vivo de las carreras y 13 e2e individuales.
 - [ ] 6. Docs: #141, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, technical/05-EVENTING, CLAUDE.md (cerrar el pendiente 9).
 - [ ] 7. PR y CI 6/6.

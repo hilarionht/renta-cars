@@ -2,9 +2,16 @@
 // producto (rental: reservas cuyo vehiculo es de la sucursal). INV-P03: platform nunca importa
 // un producto - el enlace se hace en la raiz de composicion (apps/api). Es opcional: sin
 // implementacion (otro producto, o tests de branches solo) se asume que no hay reservas.
+import type { UnitOfWorkTransaction } from '@platform/shared-kernel';
+
 export const BRANCH_ACTIVE_RESERVATIONS_PORT = Symbol('BranchActiveReservationsPort');
 
 export interface BranchActiveReservationsPort {
-  // Reservas Confirmed o CheckedOut que dependen de la sucursal.
-  findActiveReservationIds(companyId: string, branchId: string): Promise<string[]>;
+  // Reservas Confirmed o CheckedOut que dependen de la sucursal. tx (#141): se lee dentro de la
+  // transaccion del cierre, con el lock exclusivo de la sucursal tomado.
+  findActiveReservationIds(
+    companyId: string,
+    branchId: string,
+    tx: UnitOfWorkTransaction,
+  ): Promise<string[]>;
 }
