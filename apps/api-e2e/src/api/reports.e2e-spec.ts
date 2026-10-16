@@ -142,7 +142,6 @@ describe('Reports (Fase 4 item 1)', () => {
         odometer: 1000,
         fuelLevelPercentage: 100,
         photoFileIds: [`file-e2e-checkout-reports-${suffix}`],
-        inspectedBy: admin.adminUserId,
       });
       const checkInResponse = await auth(
         request(baseUrl).post(`/api/v1/reservations/${reservationId}/check-in`),
@@ -150,7 +149,6 @@ describe('Reports (Fase 4 item 1)', () => {
         odometer: 1300,
         fuelLevelPercentage: 100,
         photoFileIds: [`file-e2e-checkin-reports-${suffix}`],
-        inspectedBy: admin.adminUserId,
         damages: [],
       });
       expect(checkInResponse.status).toBe(201);

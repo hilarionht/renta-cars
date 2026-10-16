@@ -4,7 +4,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type {
   ApproveExtensionRequest,
-  CancelReservationRequest,
   CheckInReservationRequest,
   CheckOutReservationRequest,
   CreateReservationRequest,
@@ -21,7 +20,7 @@ import { RESERVATIONS_QUERY_KEY } from './queries';
 // se recarga con el estado real y el usuario decide de nuevo.
 export type ReservationActionInput =
   | { action: 'confirm' }
-  | { action: 'cancel'; body: CancelReservationRequest }
+  | { action: 'cancel' }
   | { action: 'mark-no-show' }
   | { action: 'check-out'; body: CheckOutReservationRequest }
   | { action: 'check-in'; body: CheckInReservationRequest }

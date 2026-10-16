@@ -250,12 +250,11 @@ export default function ReservationDetailPage() {
         </section>
       ) : null}
 
-      {action && user && timeZone ? (
+      {action && timeZone ? (
         <ReservationActionDialog
           action={action}
           reservation={data}
           timeZone={timeZone}
-          currentUserId={user.id}
           onClose={() => setAction(null)}
         />
       ) : null}

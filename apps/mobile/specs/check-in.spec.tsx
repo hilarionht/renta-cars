@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { router, useLocalSearchParams } from 'expo-router';
 
 import type * as DataAccess from '@frontend/data-access';
-import { ApiError, useAuth, useCheckInReservation, useUploadPhoto } from '@frontend/data-access';
+import { ApiError, useCheckInReservation, useUploadPhoto } from '@frontend/data-access';
 
 import CheckIn from '../app/reservations/[id]/check-in';
 
@@ -20,7 +20,6 @@ jest.mock('@frontend/data-access', () => {
   const actual = jest.requireActual<typeof DataAccess>('@frontend/data-access');
   return {
     ...actual,
-    useAuth: jest.fn(),
     useCheckInReservation: jest.fn(),
     useUploadPhoto: jest.fn(),
   };
@@ -41,7 +40,6 @@ describe('CheckIn', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'reservation-2' });
-    (useAuth as jest.Mock).mockReturnValue({ user: { sub: 'user-1' } });
     (useCheckInReservation as jest.Mock).mockReturnValue({ mutateAsync, isPending: false });
     (useUploadPhoto as jest.Mock).mockReturnValue({ mutateAsync: jest.fn() });
   });
@@ -61,7 +59,6 @@ describe('CheckIn', () => {
           odometer: 15500,
           fuelLevelPercentage: 60,
           photoFileIds: [],
-          inspectedBy: 'user-1',
           damages: undefined,
         },
       }),

@@ -18,12 +18,12 @@ export interface ReservationSummary {
 }
 
 // libs/products/rental/reservations/infrastructure/src/http/dto/
-// check-out-reservation-request.dto.ts, verificado directo.
+// check-out-reservation-request.dto.ts, verificado directo. Sin inspectedBy: el API lo toma del
+// token (docs/persistence/10-DECISIONES.md #142).
 export interface CheckOutReservationRequest {
   odometer: number;
   fuelLevelPercentage: number;
   photoFileIds: string[];
-  inspectedBy: string;
 }
 
 // libs/products/rental/reservations/infrastructure/src/http/dto/
@@ -42,7 +42,6 @@ export interface CheckInReservationRequest {
   odometer: number;
   fuelLevelPercentage: number;
   photoFileIds: string[];
-  inspectedBy: string;
   damages?: CheckInDamage[];
 }
 

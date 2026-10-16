@@ -76,10 +76,6 @@ export interface CreateReservationRequest {
   authorizedDriverIds?: string[];
 }
 
-export interface CancelReservationRequest {
-  cancelledBy: string;
-}
-
 export interface RescheduleReservationRequest {
   newStartDate: string;
   newEndDate: string;

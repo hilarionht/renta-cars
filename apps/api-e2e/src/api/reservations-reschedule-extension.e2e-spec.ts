@@ -179,7 +179,6 @@ describe('Reservations: reprogramar y extender sobre una ocupacion existente', (
       odometer: 1000,
       fuelLevelPercentage: 100,
       photoFileIds: [],
-      inspectedBy: admin.adminUserId,
     });
     expect(checkOutResponse.status).toBe(201);
 

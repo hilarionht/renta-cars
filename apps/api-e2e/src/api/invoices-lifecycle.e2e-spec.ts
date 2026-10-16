@@ -179,7 +179,6 @@ describe('Invoices: emision event-driven + cierre automatico de Reservation', ()
       odometer: 1000,
       fuelLevelPercentage: 100,
       photoFileIds: ['file-e2e-checkout'],
-      inspectedBy: admin.adminUserId,
     });
 
     // CheckedIn con dano y combustible incompleto -> InvoiceIssuedFromCheckInListener emite
@@ -192,7 +191,6 @@ describe('Invoices: emision event-driven + cierre automatico de Reservation', ()
       odometer: 1300,
       fuelLevelPercentage: 80,
       photoFileIds: ['file-e2e-checkin'],
-      inspectedBy: admin.adminUserId,
       damages: [
         {
           description: 'rayón puerta trasera',

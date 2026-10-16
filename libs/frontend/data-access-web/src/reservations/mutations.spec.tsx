@@ -31,11 +31,15 @@ describe('useReservationAction', () => {
     request.mockResolvedValue(undefined);
     const { result } = renderHook(() => useReservationAction('r1'), { wrapper });
 
-    await act(() => result.current.mutateAsync({ action: 'cancel', body: { cancelledBy: 'u1' } }));
+    const body = {
+      newStartDate: '2026-11-01T13:00:00.000Z',
+      newEndDate: '2026-11-03T13:00:00.000Z',
+    };
+    await act(() => result.current.mutateAsync({ action: 'reschedule', body }));
 
-    expect(request).toHaveBeenCalledWith('/api/v1/reservations/r1/cancel', {
+    expect(request).toHaveBeenCalledWith('/api/v1/reservations/r1/reschedule', {
       method: 'POST',
-      body: { cancelledBy: 'u1' },
+      body,
     });
   });
 

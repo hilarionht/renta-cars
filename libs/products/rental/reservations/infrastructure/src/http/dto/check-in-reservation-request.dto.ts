@@ -6,7 +6,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   Max,
   Min,
   ValidateNested,
@@ -47,9 +46,6 @@ export class CheckInReservationRequestDto {
   @IsArray()
   @IsString({ each: true })
   photoFileIds!: string[];
-
-  @IsUUID()
-  inspectedBy!: string;
 
   @IsOptional()
   @IsArray()

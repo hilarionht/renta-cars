@@ -271,7 +271,6 @@ describe('Customers: documentos, unicidades y reglas del check-out', () => {
         odometer: 1000,
         fuelLevelPercentage: 100,
         photoFileIds: [],
-        inspectedBy: admin.adminUserId,
       });
 
     const blockResponse = await auth(

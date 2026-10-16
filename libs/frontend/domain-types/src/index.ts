@@ -33,7 +33,6 @@ export type {
 export type {
   ApproveExtensionRequest,
   BranchSummary,
-  CancelReservationRequest,
   CreateReservationRequest,
   CustomerListItem,
   InvoiceCharge,

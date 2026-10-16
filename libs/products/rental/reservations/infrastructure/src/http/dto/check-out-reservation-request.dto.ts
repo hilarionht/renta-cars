@@ -1,4 +1,4 @@
-import { IsArray, IsNumber, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsArray, IsNumber, IsString, Max, Min } from 'class-validator';
 
 export class CheckOutReservationRequestDto {
   @IsNumber()
@@ -13,7 +13,4 @@ export class CheckOutReservationRequestDto {
   @IsArray()
   @IsString({ each: true })
   photoFileIds!: string[];
-
-  @IsUUID()
-  inspectedBy!: string;
 }

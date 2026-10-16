@@ -20,13 +20,11 @@ import { FormDialog } from '../../form-dialog';
 
 // Dialogos de las acciones de una reserva (docs/persistence/10-DECISIONES.md #135). Fechas en
 // la zona de la sucursal del vehiculo; check-out/check-in sin fotos (photoFileIds: []).
-// Gap aceptado: inspectedBy/cancelledBy los manda el cliente (el id del usuario actual); el
-// API no los deriva del token todavia.
+// Quien inspecciona o cancela lo toma el API del token (#142): no se manda.
 interface ActionDialogProps {
   action: ReservationUiAction;
   reservation: ReservationDetail;
   timeZone: string;
-  currentUserId: string;
   onClose: () => void;
 }
 
@@ -77,7 +75,7 @@ function InspectionFields({
   );
 }
 
-function CheckOutDialog({ reservation, currentUserId, onClose }: ActionDialogProps) {
+function CheckOutDialog({ reservation, onClose }: ActionDialogProps) {
   const { run, error, pending } = useRunAction(reservation.id, onClose);
   const [odometer, setOdometer] = useState('');
   const [fuel, setFuel] = useState('100');
@@ -101,7 +99,6 @@ function CheckOutDialog({ reservation, currentUserId, onClose }: ActionDialogPro
             odometer: odometerValue,
             fuelLevelPercentage: fuelValue,
             photoFileIds: [],
-            inspectedBy: currentUserId,
           },
         })
       }
@@ -124,7 +121,7 @@ interface DamageDraft {
   penalty: string;
 }
 
-function CheckInDialog({ reservation, currentUserId, onClose }: ActionDialogProps) {
+function CheckInDialog({ reservation, onClose }: ActionDialogProps) {
   const { run, error, pending } = useRunAction(reservation.id, onClose);
   const [odometer, setOdometer] = useState('');
   const [fuel, setFuel] = useState('');
@@ -172,7 +169,6 @@ function CheckInDialog({ reservation, currentUserId, onClose }: ActionDialogProp
         odometer: odometerValue,
         fuelLevelPercentage: fuelValue,
         photoFileIds: [],
-        inspectedBy: currentUserId,
         damages: body.length > 0 ? body : undefined,
       },
     });
@@ -449,7 +445,7 @@ function SwapVehicleDialog({ reservation, onClose }: ActionDialogProps) {
   );
 }
 
-function SimpleConfirmDialog({ reservation, currentUserId, action, onClose }: ActionDialogProps) {
+function SimpleConfirmDialog({ reservation, action, onClose }: ActionDialogProps) {
   const { run, error, pending } = useRunAction(reservation.id, onClose);
   const copy = {
     confirm: {
@@ -464,7 +460,7 @@ function SimpleConfirmDialog({ reservation, currentUserId, action, onClose }: Ac
       message: 'Se libera el vehículo. Puede aplicar la penalidad de la política de cancelación.',
       label: 'Cancelar reserva',
       tone: 'danger' as const,
-      input: { action: 'cancel', body: { cancelledBy: currentUserId } } as ReservationActionInput,
+      input: { action: 'cancel' } as ReservationActionInput,
     },
     'mark-no-show': {
       title: 'Marcar como no presentado',

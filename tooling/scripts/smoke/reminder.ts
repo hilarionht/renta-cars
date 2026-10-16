@@ -203,13 +203,9 @@ async function main(): Promise<void> {
     await scanQueue.close();
     await sendQueue.close();
     // Libera el vehiculo para la proxima corrida (Confirmed -> Cancelled libera el slot).
-    await api(
-      seed,
-      'POST',
-      `/reservations/${reservation.id}/cancel`,
-      { cancelledBy: seed.admin.userId },
-      accessToken,
-    ).catch((error: unknown) => console.error('No se pudo cancelar la reserva de smoke:', error));
+    await api(seed, 'POST', `/reservations/${reservation.id}/cancel`, undefined, accessToken).catch(
+      (error: unknown) => console.error('No se pudo cancelar la reserva de smoke:', error),
+    );
   }
 
   const failed = results.filter((result) => !result.ok).length;
