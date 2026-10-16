@@ -8,6 +8,7 @@ import {
 } from '@platform/roles-permissions/domain';
 
 import type { RoleRecordSummary, RoleRepository } from '../../ports/role.repository';
+import type { LastAdministratorGuard } from '../../services/last-administrator.guard';
 import { EditRolePermissionsHandler } from '../edit-role-permissions/edit-role-permissions.handler';
 import { DeactivateRoleHandler } from './deactivate-role.handler';
 
@@ -36,7 +37,9 @@ function build(summary: RoleRecordSummary | null, role: Role | null = null) {
   return {
     roleRepository,
     deactivate: new DeactivateRoleHandler(roleRepository, unitOfWork, eventPublisher),
-    edit: new EditRolePermissionsHandler(roleRepository, unitOfWork, eventPublisher),
+    edit: new EditRolePermissionsHandler(roleRepository, unitOfWork, eventPublisher, {
+      assertAdministratorRemains: jest.fn(),
+    } as unknown as LastAdministratorGuard),
   };
 }
 

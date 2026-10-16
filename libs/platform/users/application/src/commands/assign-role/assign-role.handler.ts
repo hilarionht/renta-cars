@@ -1,6 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { EntityId, UNIT_OF_WORK, type UnitOfWork } from '@platform/shared-kernel';
+import {
+  DOMAIN_EVENT_PUBLISHER,
+  type DomainEventPublisher,
+  EntityId,
+  UNIT_OF_WORK,
+  type UnitOfWork,
+} from '@platform/shared-kernel';
 import { InvalidRoleAssignmentError, type UserId, UserNotFoundError } from '@platform/users/domain';
 import { ROLE_LOOKUP_PORT, type RoleLookupPort } from '@platform/roles-permissions/application';
 
@@ -13,6 +19,7 @@ export class AssignRoleHandler {
     @Inject(USER_REPOSITORY) private readonly userRepository: UserRepository,
     @Inject(ROLE_LOOKUP_PORT) private readonly roleLookup: RoleLookupPort,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
+    @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
   ) {}
 
   async execute(command: AssignRoleCommand): Promise<void> {
@@ -40,6 +47,15 @@ export class AssignRoleHandler {
 
     await this.unitOfWork.run(async (tx) => {
       await this.userRepository.save(user, tx);
+      for (const event of user.pullDomainEvents()) {
+        await this.eventPublisher.publish(tx, {
+          eventType: event.eventType,
+          aggregateType: 'User',
+          aggregateId: user.id.toString(),
+          companyId: user.companyId,
+          payload: { ...event },
+        });
+      }
     });
   }
 }

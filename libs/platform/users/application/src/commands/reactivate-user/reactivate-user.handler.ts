@@ -1,20 +1,24 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { EntityId, UNIT_OF_WORK, type UnitOfWork } from '@platform/shared-kernel';
+import {
+  DOMAIN_EVENT_PUBLISHER,
+  type DomainEventPublisher,
+  EntityId,
+  UNIT_OF_WORK,
+  type UnitOfWork,
+} from '@platform/shared-kernel';
 import { type UserId, UserNotFoundError } from '@platform/users/domain';
 
 import { USER_REPOSITORY, type UserRepository } from '../../ports/user.repository';
 import type { ReactivateUserCommand } from './reactivate-user.command';
 
-// Sin evento de dominio propio (no esta en docs/model/06-DOMAIN_EVENTS.md SS3, a diferencia
-// de UserDisabled.v1) - no se agrega uno nuevo aca para no repetir la extension puntual ya
-// hecha con RoleStatus/RoleDeactivated.v1 en cada caso de uso; el propio UPDATE queda en el
-// log de auditoria de base si hiciera falta reconstruirlo.
+// #140: emite UserReactivated.v1 (antes no habia evento y la reactivacion no quedaba auditada).
 @Injectable()
 export class ReactivateUserHandler {
   constructor(
     @Inject(USER_REPOSITORY) private readonly userRepository: UserRepository,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
+    @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
   ) {}
 
   async execute(command: ReactivateUserCommand): Promise<void> {
@@ -34,6 +38,15 @@ export class ReactivateUserHandler {
 
     await this.unitOfWork.run(async (tx) => {
       await this.userRepository.save(user, tx);
+      for (const event of user.pullDomainEvents()) {
+        await this.eventPublisher.publish(tx, {
+          eventType: event.eventType,
+          aggregateType: 'User',
+          aggregateId: user.id.toString(),
+          companyId: user.companyId,
+          payload: { ...event },
+        });
+      }
     });
   }
 }

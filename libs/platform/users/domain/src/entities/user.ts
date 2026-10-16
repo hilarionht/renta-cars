@@ -7,6 +7,9 @@ import type { UserDisabledEvent } from '../events/user-disabled.event';
 import type { UserMfaDisabledEvent } from '../events/user-mfa-disabled.event';
 import type { UserMfaEnabledEvent } from '../events/user-mfa-enabled.event';
 import type { UserPasswordChangedEvent } from '../events/user-password-changed.event';
+import type { UserReactivatedEvent } from '../events/user-reactivated.event';
+import type { UserRoleAssignedEvent } from '../events/user-role-assigned.event';
+import type { UserRoleRevokedEvent } from '../events/user-role-revoked.event';
 import type { EncryptedMfaSecret } from '../value-objects/encrypted-mfa-secret';
 import type { PasswordHash } from '../value-objects/password-hash';
 import type { PersonName } from '../value-objects/person-name';
@@ -18,7 +21,10 @@ type UserDomainEvent =
   | UserDisabledEvent
   | UserPasswordChangedEvent
   | UserMfaEnabledEvent
-  | UserMfaDisabledEvent;
+  | UserMfaDisabledEvent
+  | UserReactivatedEvent
+  | UserRoleAssignedEvent
+  | UserRoleRevokedEvent;
 
 export interface UserProps {
   id: UserId;
@@ -169,6 +175,7 @@ export class User {
     this.props.status = 'Active';
     this.props.updatedAt = new Date();
     this.props.version += 1;
+    this.domainEvents.push({ eventType: 'UserReactivated.v1', userId: this.props.id.toString() });
   }
 
   changePassword(newHash: PasswordHash, changedBy: string): void {
@@ -213,6 +220,11 @@ export class User {
     this.props.roles = [...this.props.roles, roleId];
     this.props.updatedAt = new Date();
     this.props.version += 1;
+    this.domainEvents.push({
+      eventType: 'UserRoleAssigned.v1',
+      userId: this.props.id.toString(),
+      roleId,
+    });
   }
 
   revokeRole(roleId: string): void {
@@ -222,6 +234,11 @@ export class User {
     this.props.roles = this.props.roles.filter((r) => r !== roleId);
     this.props.updatedAt = new Date();
     this.props.version += 1;
+    this.domainEvents.push({
+      eventType: 'UserRoleRevoked.v1',
+      userId: this.props.id.toString(),
+      roleId,
+    });
   }
 
   assertCanAuthenticate(): void {

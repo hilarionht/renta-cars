@@ -25,4 +25,7 @@ export type { UserDisabledEvent } from './events/user-disabled.event';
 export type { UserPasswordChangedEvent } from './events/user-password-changed.event';
 export type { UserMfaEnabledEvent } from './events/user-mfa-enabled.event';
 export type { UserMfaDisabledEvent } from './events/user-mfa-disabled.event';
+export type { UserReactivatedEvent } from './events/user-reactivated.event';
+export type { UserRoleAssignedEvent } from './events/user-role-assigned.event';
+export type { UserRoleRevokedEvent } from './events/user-role-revoked.event';
 export type { PasswordResetTokenReplayedEvent } from './events/password-reset-token-replayed.event';

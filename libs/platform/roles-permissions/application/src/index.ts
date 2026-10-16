@@ -3,6 +3,16 @@
 // `export *`, salvo el propio index.ts reexportando un unico submodulo interno de barrel.
 // Ver docs/technical/09-CODING-STANDARDS.md SS2.
 export {
+  ROLE_ASSIGNMENTS_PORT,
+  type ActiveRoleAssignment,
+  type RoleAssignmentsPort,
+} from './ports/role-assignments.port';
+export {
+  ADMINISTRATION_PERMISSIONS,
+  LastAdministratorGuard,
+  type AdministratorChange,
+} from './services/last-administrator.guard';
+export {
   ROLE_REPOSITORY,
   type RoleRepository,
   type RoleRecordSummary,

@@ -6,6 +6,7 @@ import {
 import {
   DuplicateRoleNameError,
   EmptyPermissionSetError,
+  LastAdministratorError,
   RoleNotFoundError,
   SystemRoleImmutableError,
 } from '@platform/roles-permissions/domain';
@@ -17,6 +18,15 @@ export const ROLES_PERMISSIONS_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [
     InvalidValueError,
     { status: 400, code: 'INVALID_VALUE', title: 'Un valor de la solicitud no es valido' },
+  ],
+  // #140 (decision del usuario): la company siempre conserva un administrador.
+  [
+    LastAdministratorError,
+    {
+      status: 409,
+      code: 'LAST_ADMINISTRATOR',
+      title: 'La empresa se quedaria sin administrador',
+    },
   ],
   [
     SystemRoleImmutableError,

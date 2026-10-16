@@ -58,7 +58,8 @@ describe('User', () => {
       expect(user.pullDomainEvents()).toHaveLength(0);
     });
 
-    it('reactivate() vuelve a Active sin emitir evento propio', () => {
+    // #140: antes no emitia evento y la reactivacion no quedaba en la auditoria.
+    it('reactivate() vuelve a Active y emite UserReactivated.v1', () => {
       const user = createUser();
       user.disable('admin-1');
       user.pullDomainEvents();
@@ -66,7 +67,9 @@ describe('User', () => {
       user.reactivate();
 
       expect(user.status).toBe('Active');
-      expect(user.pullDomainEvents()).toHaveLength(0);
+      expect(user.pullDomainEvents()).toEqual([
+        { eventType: 'UserReactivated.v1', userId: user.id.toString() },
+      ]);
     });
 
     // #140: igual que disable(); antes subia la version y el handler daba un 409 espurio.

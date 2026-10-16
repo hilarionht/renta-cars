@@ -5,6 +5,7 @@ import {
   RefreshTokenHash,
   RefreshTokenReusedError,
   Session,
+  UserDisabledError,
 } from '@platform/identity/domain';
 import type { UserLookupPort, UserLookupResult } from '@platform/users/application';
 
@@ -129,5 +130,14 @@ describe('RefreshSessionHandler', () => {
     (userLookup.findById as jest.Mock).mockResolvedValue(null);
 
     await expect(handler.execute(baseCommand)).rejects.toThrow(InvalidRefreshTokenError);
+  });
+
+  // #140 (INV-114): antes solo lo frenaba el login; el refresh seguia rotando la sesion.
+  it('lanza UserDisabledError si el usuario fue deshabilitado, sin rotar la sesion', async () => {
+    const { handler, userLookup, sessionRepository } = buildHandler();
+    (userLookup.findById as jest.Mock).mockResolvedValue({ ...matchingUser, status: 'Disabled' });
+
+    await expect(handler.execute(baseCommand)).rejects.toThrow(UserDisabledError);
+    expect(sessionRepository.save).not.toHaveBeenCalled();
   });
 });

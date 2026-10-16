@@ -5,11 +5,14 @@ import {
   CreateRoleHandler,
   DeactivateRoleHandler,
   EditRolePermissionsHandler,
+  LastAdministratorGuard,
+  ROLE_ASSIGNMENTS_PORT,
   ROLE_LOOKUP_PORT,
   ROLE_REPOSITORY,
 } from '@platform/roles-permissions/application';
 
 import { CachedRoleLookupAdapter } from './persistence/cached-role-lookup.adapter';
+import { PrismaRoleAssignmentsAdapter } from './persistence/prisma/prisma-role-assignments.adapter';
 import { PrismaRoleLookupAdapter } from './persistence/prisma/prisma-role-lookup.adapter';
 import { PrismaRoleRepository } from './persistence/prisma/prisma-role.repository';
 import { PermissionsController } from './http/permissions.controller';
@@ -33,12 +36,15 @@ import { ListRolesHandler } from './queries/list-roles.handler';
     { provide: ROLE_REPOSITORY, useClass: PrismaRoleRepository },
     PrismaRoleLookupAdapter,
     { provide: ROLE_LOOKUP_PORT, useClass: CachedRoleLookupAdapter },
+    // #140: ultimo administrador y roles con usuarios.
+    { provide: ROLE_ASSIGNMENTS_PORT, useClass: PrismaRoleAssignmentsAdapter },
+    LastAdministratorGuard,
     CreateRoleHandler,
     EditRolePermissionsHandler,
     DeactivateRoleHandler,
     ListRolesHandler,
     ListPermissionsHandler,
   ],
-  exports: [ROLE_LOOKUP_PORT],
+  exports: [ROLE_LOOKUP_PORT, ROLE_ASSIGNMENTS_PORT, LastAdministratorGuard],
 })
 export class RolesPermissionsModule {}
