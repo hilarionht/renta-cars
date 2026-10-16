@@ -33,6 +33,27 @@ export class CancellationPolicy {
         );
       }
     }
+    // #140 (decision del usuario): coherencia. Sin horas repetidas (el tramo aplicable seria
+    // ambiguo) y, a mas anticipacion, multa menor o igual (cancelar antes nunca cuesta mas).
+    const sorted = [...tiers].sort((a, b) => a.minHoursBeforeStart - b.minHoursBeforeStart);
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].minHoursBeforeStart === sorted[i - 1].minHoursBeforeStart) {
+        throw new InvalidValueError(
+          `CancellationPolicy tiene dos tramos con ${sorted[i].minHoursBeforeStart} horas.`,
+        );
+      }
+      if (sorted[i].penaltyPercentage > sorted[i - 1].penaltyPercentage) {
+        throw new InvalidValueError(
+          'CancellationPolicy: a mas anticipacion la multa tiene que ser menor o igual.',
+        );
+      }
+    }
+    return new CancellationPolicy(sorted);
+  }
+
+  // #140: carga desde la base sin validar. Las reglas nuevas aplican a lo que entra; una politica
+  // guardada antes (p. ej. con tramos repetidos) no puede trabar la configuracion de la company.
+  static reconstitute(tiers: CancellationPolicyTier[]): CancellationPolicy {
     return new CancellationPolicy([...tiers]);
   }
 

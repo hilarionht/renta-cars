@@ -18,12 +18,21 @@ export class AuditLogController {
 
   @Get()
   @RequirePermission('audit:read')
-  async list(@Query() dto: ListAuditLogRequestDto): Promise<AuditLogEntryResponseDto[]> {
+  async list(@Query() dto: ListAuditLogRequestDto): Promise<{
+    data: AuditLogEntryResponseDto[];
+    meta: { nextCursor: string | null; limit: number };
+  }> {
     const { companyId } = this.requestContext.get();
-    return this.listAuditLog.execute({
+    const result = await this.listAuditLog.execute({
       companyId,
       subjectType: dto.subjectType,
       subjectId: dto.subjectId,
+      from: dto.from ? new Date(dto.from) : undefined,
+      to: dto.to ? new Date(dto.to) : undefined,
+      cursor: dto.cursor,
+      limit: dto.limit,
     });
+    // #140: mismo envelope paginado que GET /users y /reservations.
+    return { data: result.items, meta: { nextCursor: result.nextCursor, limit: result.limit } };
   }
 }

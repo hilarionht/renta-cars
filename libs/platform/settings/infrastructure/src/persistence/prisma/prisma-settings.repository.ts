@@ -92,7 +92,8 @@ export class PrismaSettingsRepository implements SettingsRepository {
       paymentMethodsEnabled: record.paymentMethodsEnabled.map((method) =>
         PaymentMethod.from(method),
       ),
-      cancellationPolicy: CancellationPolicy.from(
+      // #140: tolerante al cargar (reglas nuevas solo para lo que entra).
+      cancellationPolicy: CancellationPolicy.reconstitute(
         record.cancellationPolicyTiers as unknown as CancellationPolicyTier[],
       ),
       lateReturnPolicy: LateReturnPolicy.from({

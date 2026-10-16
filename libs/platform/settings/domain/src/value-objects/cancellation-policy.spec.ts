@@ -42,4 +42,39 @@ describe('CancellationPolicy', () => {
     expect(policy.penaltyPercentageFor(30)).toBe(50);
     expect(policy.penaltyPercentageFor(1)).toBe(100);
   });
+
+  // #140 (decision del usuario): coherencia, solo para lo que entra.
+  it('from() rechaza dos tramos con las mismas horas', () => {
+    expect(() =>
+      CancellationPolicy.from([
+        { minHoursBeforeStart: 24, penaltyPercentage: 10 },
+        { minHoursBeforeStart: 24, penaltyPercentage: 50 },
+      ]),
+    ).toThrow(InvalidValueError);
+  });
+
+  it('from() rechaza mas multa con mas anticipacion', () => {
+    expect(() =>
+      CancellationPolicy.from([
+        { minHoursBeforeStart: 48, penaltyPercentage: 80 },
+        { minHoursBeforeStart: 0, penaltyPercentage: 10 },
+      ]),
+    ).toThrow(InvalidValueError);
+  });
+
+  it('from() ordena los tramos por anticipacion', () => {
+    const policy = CancellationPolicy.from([
+      { minHoursBeforeStart: 72, penaltyPercentage: 0 },
+      { minHoursBeforeStart: 0, penaltyPercentage: 100 },
+    ]);
+    expect(policy.tiers.map((tier) => tier.minHoursBeforeStart)).toEqual([0, 72]);
+  });
+
+  it('reconstitute() carga sin validar una politica guardada antes de las reglas', () => {
+    const policy = CancellationPolicy.reconstitute([
+      { minHoursBeforeStart: 24, penaltyPercentage: 10 },
+      { minHoursBeforeStart: 24, penaltyPercentage: 50 },
+    ]);
+    expect(policy.tiers).toHaveLength(2);
+  });
 });
