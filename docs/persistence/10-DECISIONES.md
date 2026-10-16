@@ -1549,8 +1549,8 @@ El plan se validó con un agente Plan contra el código, y sus correcciones est�
 
 **Gaps aceptados**:
 
-- `inspectedBy` y `cancelledBy` todavía los manda el cliente (el id del usuario actual); el API no los deriva del token.
-- `ILIKE` con comodín inicial sin índice trigram (`pg_trgm`); el volumen de clientes por empresa lo tolera.
+- ~~`inspectedBy` y `cancelledBy` todavía los manda el cliente (el id del usuario actual); el API no los deriva del token.~~ Resuelto en #142.
+- `ILIKE` con comodín inicial sin índice trigram (`pg_trgm`); el volumen de clientes por empresa lo tolera. #142 probó que bajo RLS un índice trigram no se usaría.
 - La zona horaria de una sucursal todavía no se edita desde la UI.
 
 ## #136 — Disponibilidad: reprogramar y extender chocaban con su propia ocupación
@@ -1866,6 +1866,52 @@ Nunca saltó porque no había e2e de reprogramar ni de extender, y los unit test
 - Dos confirmaciones simultáneas de la misma reserva: la segunda recibe `RESERVATION_OVERLAP` y publica un rechazo por disponibilidad engañoso (ya pasaba antes).
 - `isAvailable` sigue siendo un pre-chequeo optimista; la garantía final es la exclusión GiST.
 - Bajo mucha contención, quien espera más de 2 s un lock recibe 409 y tiene que reintentar.
+
+## #142 — Actor desde el token, responsable de mantenimiento validado y trigram descartado por RLS
+
+**Contexto**: pendiente 8 de CLAUDE.md (gaps de #135), elegido por el usuario. El plan se validó con un agente Plan contra el código.
+
+**Hallazgos**:
+
+- `inspectedBy` (check-out y check-in) y `cancelledBy` (cancelación del personal) los mandaba el cliente en el body: un usuario con permiso podía firmar una inspección o una cancelación a nombre de otro. La auditoría no tenía el problema (`domain-event-audit.listener.ts` ya usa `requestContext.userId`); lo falsificable era lo guardado en `Inspection.inspectedBy` y en el payload de `ReservationCancelled.v1`.
+- `responsibleUserId` del mantenimiento aceptaba cualquier UUID: de otra empresa, inexistente o deshabilitado.
+- La búsqueda de clientes usa `ILIKE '%q%'` sin índice.
+
+**Decisiones del usuario**:
+
+1. Quitar `inspectedBy` y `cancelledBy` del contrato: el API usa siempre el usuario del token. Web y mobile se actualizan en el mismo PR (no hay builds en producción).
+2. El responsable de un mantenimiento tiene que ser un usuario activo de la misma empresa (422 si no).
+3. Índice trigram para la búsqueda, **si RLS lo permite** (ver abajo: no lo permite).
+
+**Backend**:
+
+- `ReservationsController` toma `userId` del `RequestContext` (lo llena `TenantContextGuard` con el `sub` del token) para `inspectedBy` y `cancelledBy`. Los comandos y el dominio no cambian. Se suma `@RequireStaffActor()` a toda la clase: hoy un token de cliente (`roles: []`) ya recibe 403 de `PermissionGuard`, y el decorador lo cubre también si un rol mal configurado llegara a darle permisos.
+- Contrato: `inspectedBy` sale de los DTOs de check-out y check-in; mandarlo da 400 (`forbidNonWhitelisted`). Cancelar queda **sin body** (se borra el DTO). Un `cancelledBy` viejo se ignora en vez de rechazarse, igual que cualquier body en confirm o mark-no-show: un DTO vacío fallaría siempre por `forbidUnknownValues`.
+- `USER_LOOKUP_PORT` suma `getStatus(userId, companyId)`, un método angosto para otros módulos: rental no recibe `passwordHash` ni el secreto MFA. `ScheduleMaintenanceHandler` lo consulta después del 404 del vehículo; si el responsable no es `Active` (o es `null`: inexistente o de otra empresa por RLS), responde 422 `INVALID_RESPONSIBLE_USER`. `VehiclesModule` importa `UsersModule` (rental → platform, permitido por `boundaries.mjs`, sin ciclo).
+
+**Frontend**: `domain-types` sin `CancelReservationRequest` ni `inspectedBy` en los requests; web-admin sin el prop `currentUserId`; mobile sin el `useAuth()` que solo servía para mandar `user.sub`.
+
+**Trigram descartado**: `rental.customers` tiene `FORCE ROW LEVEL SECURITY`. Postgres no usa una condición no `LEAKPROOF` como condición de índice si antes tiene que aplicar la política, y `ILIKE`/`LIKE` no lo son. Se probó en una transacción revertida, con 20.000 clientes y los 4 índices GIN `gin_trgm_ops`, apagando seq scan e index scan para que solo quedaran bitmap scans:
+
+- como superusuario (salta RLS), el planner usa los 4 GIN (`BitmapOr`);
+- como `app_runtime` con `app.current_company_id`, solo puede usar `customers_company_id_id_idx` y filtra el `ILIKE` fila por fila.
+
+Un `EXPLAIN` como el usuario dueño habría dado un falso positivo. La búsqueda ya está acotada a los clientes de la empresa (no recorre toda la tabla); su costo crece con el tamaño de cada empresa. La alternativa, si algún día hace falta, es una función `SECURITY DEFINER` con filtro explícito por la empresa de la sesión: es una decisión de seguridad que queda para el usuario. No se marca `texticlike` como `LEAKPROOF`.
+
+**Verificación**:
+
+- Lint, typecheck y tests de cada proyecto tocado (Node 20.19.4), incluidos los 3 specs de identity-application que implementan `UserLookupPort`.
+- Smoke en vivo:
+  - actor: un segundo usuario hace check-out, check-in y cancela. Las inspecciones, el evento y la auditoría quedan a su nombre, y `inspectedBy` en el body da 400: 11/11.
+  - responsable: inexistente, de otra empresa y deshabilitado dan 422 sin tocar el vehículo; válido o sin responsable, 201: 10/10.
+- `next build` de web-admin.
+- e2e individuales, todos en verde: reservations-lifecycle (con el caso nuevo del 400 y la inspección con el id del token), reservations-reschedule-extension, invoices-lifecycle, payments-lifecycle, reports, reservation-invoice-notifications, customer-documents-and-rules, fleet-management, vehicles-lifecycle, customers-lifecycle y web-admin-reservations-reads.
+
+**Gaps aceptados**:
+
+- La cancelación de un cliente sigue registrando su `customerId` como `cancelledBy`, sin distinguir el tipo de actor (ya era así; ningún consumidor lo usa).
+- Un `cancelledBy` en el body de cancelar se ignora en vez de rechazarse.
+- Búsqueda de clientes sin índice trigram (RLS).
 
 ## Qué NO se registra en este documento
 

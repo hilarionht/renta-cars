@@ -6,7 +6,7 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#141` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#142` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
 ## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
 
@@ -33,7 +33,7 @@ Plan aprobado (2026-10-16), validado con un agente Plan (`~/.claude/plans/drifti
 - [x] 1. Actor desde el token: DTOs, controller, domain-types, data-access-web, data-access (spec), web-admin (`currentUserId` fuera), mobile (`useAuth` muerto fuera), e2e (+ caso 400) y `tooling/scripts/smoke/reminder.ts`.
 - [x] 2. Responsable de mantenimiento: `getStatus` en el puerto, adapter y 3 specs de identity; `InvalidResponsibleUserError` 422; `VehiclesModule` importa `UsersModule`.
 - [x] 3. Trigram: **descartado** (2026-10-16, `trgm-rls-probe.cjs` del scratchpad, en una transacción revertida). Con seq scan e index scan apagados, el superusuario usa los 4 GIN (BitmapOr), pero `app_runtime` bajo RLS no: solo usa `customers_company_id_id_idx` y filtra el `ILIKE` fila por fila (`ILIKE` no es `LEAKPROOF`). Queda como gap en #142; la alternativa futura (función `SECURITY DEFINER` con filtro explícito por empresa) es una decisión de seguridad del usuario.
-- [ ] 4. Verificación (unitarios, smoke, `next build`, 11 e2e individuales), docs (#142, `07-ERROR-CATALOG`, `05-INDICES-Y-CONSTRAINTS`, gap de `10-DECISIONES.md` #135, CLAUDE.md), PR y CI 6/6.
+- [ ] 4. Verificación y docs **hechos** (smokes 11/11 y 10/10, `next build`, 11 e2e individuales en verde, #142, `07-ERROR-CATALOG`, gaps de #135 y CLAUDE.md). Falta: PR y CI 6/6 (nunca aprobar ni mergear).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
@@ -86,7 +86,7 @@ Pendiente del usuario: validación visual de Clientes y de Flota (la web queda e
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
 - **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, PR #8). **Incremento 5 (Administración)** hecho (#140, rama `feat/web-admin-administration`): con eso la hoja de ruta de #134 queda completa. Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas decisiones: `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
+- Últimas decisiones: `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 
@@ -104,9 +104,9 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 6. **Sin `extra.eas.projectId`** vinculado en `apps/mobile/app.json` — requiere una cuenta EAS real (acción externa). Sin esto, `getExpoPushTokenAsync()` no puede obtener un token real en ningún entorno de desarrollo.
 7. **Validación visual manual**: hecha para el operador en un celular con Expo Go (#133), incluidos check-out y check-in. Falta completar el flujo del cliente. El teléfono del login ya se normaliza a E.164 con Argentina por defecto (#139).
 8. **Gaps de la web de reservas (#135)**:
-   - `inspectedBy` y `cancelledBy` todavía los manda el cliente; el API no los deriva del token;
+   - ~~`inspectedBy` y `cancelledBy` todavía los manda el cliente~~: resuelto en #142 (el API los toma del token; además el responsable de un mantenimiento se valida);
    - ~~la zona horaria de una sucursal no se edita desde la UI~~: resuelto en #140 (Administración → Sucursales);
-   - la búsqueda de clientes usa `ILIKE` sin índice trigram.
+   - la búsqueda de clientes usa `ILIKE` sin índice trigram: #142 probó que bajo RLS el índice no se usaría (`ILIKE` no es `LEAKPROOF`); la alternativa (función `SECURITY DEFINER`) es decisión del usuario.
 9. **Reserva y ocupación atómicas: RESUELTO** (#141). Las 7 operaciones que tocan el calendario van en una sola transacción; mantenimiento, daño, fuera de servicio y cierre de sucursal toman un lock exclusivo frente a confirmar; confirmar o cambiar de vehículo en una sucursal cerrada da 409 `BRANCH_CLOSED`; los eventos in-process se emiten después del commit.
 10. **MinIO archivado** (#138): el CI (`cgr.dev/chainguard/minio`) y `docker-compose.yml` dependen de un producto sin parches. La migración a RustFS va en un PR aparte (el integration spec del adaptador S3 ya pasa contra RustFS).
 11. **500 por ids que no son UUID v7 y por VO no migrados** (#137): un id v4 en un comando pasa `@IsUUID()` y `EntityId.from` responde 500; los VO de entrada de customers (#139) y de branches, roles, settings, users y companies (#140) ya lanzan `InvalidValueError`; los roles System v4 de seeds viejos se resuelven con un lookup por id crudo (#140). La web no los dispara.
