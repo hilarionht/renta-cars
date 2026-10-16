@@ -7,6 +7,7 @@
 export { Alert, type AlertTone } from './alert/alert';
 export { Badge, type BadgeTone } from './badge/badge';
 export { Button, type ButtonProps, type ButtonVariant } from './button/button';
+export { Checkbox, type CheckboxProps } from './checkbox/checkbox';
 export { ConfirmDialog, Dialog, type ConfirmDialogProps, type DialogProps } from './dialog/dialog';
 export { FileInput, type FileInputProps } from './file-input/file-input';
 export { PageHeader } from './page-header/page-header';

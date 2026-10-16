@@ -36,7 +36,7 @@ Estado al 2026-10-15. El Incremento 4 (Clientes) está mergeado (PR #8, CI 6/6, 
    - [x] 4. F: `BRANCH_ACTIVE_RESERVATIONS_PORT` (branches/application, `@Optional`), adapter en rental/reservations/infrastructure, enlazado en `apps/api/src/app/composition/product-ports.module.ts` (`@Global`); 409 `BRANCH_HAS_ACTIVE_RESERVATIONS` y `ROLE_HAS_USERS`.
    - [x] 5. G y H: cancelación coherente y mantenimiento sin umbrales (400, carga tolerante); `GET /audit-log` con cursor, limit (50, máx. 100), `from`/`to` e índice.
    - [x] 6. Verificación en vivo (`admin-audit.cjs` en PASS/FAIL) y e2e `administration-rules` + los 11 de la lista del plan, individuales.
-   - [ ] 7. `Checkbox` en ui-kit-web, tipos y hooks `data-access-web/src/admin/`.
+   - [x] 7. `Checkbox` en ui-kit-web, tipos y hooks `data-access-web/src/admin/`.
    - [ ] 8. Pantallas `(admin)/admin/`: Usuarios, Roles, Sucursales, Empresa, Auditoría.
    - [ ] 9. Docs: #140, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, `06-DOMAIN_EVENTS`, `04-EVENT-CONTRACTS`, `09-SEGURIDAD`, `05-INDICES-Y-CONSTRAINTS`, CLAUDE.md.
 5. [ ] Push, PR y CI 6/6. Nunca aprobar ni mergear.
