@@ -4,11 +4,22 @@ import {
   DOMAIN_EVENT_PUBLISHER,
   type DomainEventPublisher,
   EntityId,
+  TRANSACTION_LOCK,
+  type TransactionLock,
   UNIT_OF_WORK,
   type UnitOfWork,
 } from '@platform/shared-kernel';
+import {
+  BRANCH_LOOKUP_PORT,
+  type BranchLookupPort,
+  branchLockKey,
+} from '@platform/branches/application';
 import { CUSTOMER_LOOKUP_PORT, type CustomerLookupPort } from '@rental/customers/application';
-import { VEHICLE_STATUS_PORT, type VehicleStatusPort } from '@rental/vehicles/application';
+import {
+  VEHICLE_STATUS_PORT,
+  type VehicleStatusPort,
+  vehicleLockKey,
+} from '@rental/vehicles/application';
 import {
   CustomerNotEligibleError,
   DriverNotValidatedError,
@@ -27,13 +38,14 @@ import { AvailabilityService } from '../../services/availability.service';
 import { PricingService } from '../../services/pricing.service';
 import type { ConfirmReservationCommand } from './confirm-reservation.command';
 
-// Hallazgo #3 del plan de implementacion: confirm() ocupa el AvailabilitySlot ANTES de
-// persistir Reservation -> Confirmed. Si la disponibilidad se pierde entre el pre-check
-// (isAvailable) y el occupy() real (carrera con otra confirmacion concurrente), se publica
-// ReservationRejectedByAvailability.v1 SIN tocar el agregado (permanece Draft, no existe
-// estado "Rejected" en la maquina de estados) - el evento se publica en su propia
-// transaccion, independiente de la del agregado (OutboxWriter.publish() no exige que la
-// fila del agregado cambie en el mismo `tx`).
+// docs/persistence/10-DECISIONES.md #141: ocupar el AvailabilitySlot y guardar la Reservation
+// Confirmed van en UNA transaccion (antes eran dos y una compensacion "best-effort" podia dejar
+// un slot huerfano). Dentro, con los locks compartidos de la sucursal y del vehiculo tomados (en
+// ese orden), se relee si el vehiculo sigue operativo y si la sucursal esta abierta: un
+// mantenimiento o un cierre que llego primero se ve aca, y uno que llegue despues espera.
+// Si la disponibilidad se pierde (solapamiento en la exclusion GiST o vehiculo que dejo de
+// estar operativo), se publica ReservationRejectedByAvailability.v1 en una transaccion propia
+// DESPUES del rollback (la del intento quedo abortada); el agregado permanece Draft.
 @Injectable()
 export class ConfirmReservationHandler {
   constructor(
@@ -44,6 +56,8 @@ export class ConfirmReservationHandler {
     private readonly pricingService: PricingService,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
+    @Inject(BRANCH_LOOKUP_PORT) private readonly branchLookupPort: BranchLookupPort,
+    @Inject(TRANSACTION_LOCK) private readonly transactionLock: TransactionLock,
   ) {}
 
   async execute(command: ConfirmReservationCommand): Promise<void> {
@@ -94,24 +108,38 @@ export class ConfirmReservationHandler {
       reservation.dateRange,
     );
 
-    try {
-      await this.availabilityService.reserve(
-        reservation.companyId,
-        reservation.vehicleId,
-        reservation.dateRange,
-        reservation.id.toString(),
-      );
-    } catch (error) {
-      if (error instanceof ReservationOverlapError) {
-        await this.publishRejection(reservation);
-      }
-      throw error;
+    const branchId = await this.vehicleStatusPort.getBranchId(reservation.vehicleId);
+    if (!branchId) {
+      throw new VehicleNotAvailableError(reservation.vehicleId);
     }
 
-    reservation.confirm({ baseAmount, isCustomerEligible: true, areDriversValidated: true });
-
+    let lostAvailability = false;
     try {
       await this.unitOfWork.run(async (tx) => {
+        await this.transactionLock.acquire(tx, branchLockKey(branchId), 'shared');
+        await this.transactionLock.acquire(tx, vehicleLockKey(reservation.vehicleId), 'shared');
+
+        const isOperational = await this.vehicleStatusPort.isOperational(reservation.vehicleId, tx);
+        if (!isOperational) {
+          lostAvailability = true;
+          throw new VehicleNotAvailableError(reservation.vehicleId);
+        }
+        const branchStatus = await this.branchLookupPort.getStatus(branchId, tx);
+
+        reservation.confirm({
+          baseAmount,
+          isCustomerEligible: true,
+          areDriversValidated: true,
+          isBranchActive: branchStatus === 'Active',
+          branchId,
+        });
+        await this.availabilityService.reserve(
+          reservation.companyId,
+          reservation.vehicleId,
+          reservation.dateRange,
+          reservation.id.toString(),
+          tx,
+        );
         await this.reservationRepository.save(reservation, tx);
         for (const event of reservation.pullDomainEvents()) {
           await this.eventPublisher.publish(tx, {
@@ -124,13 +152,9 @@ export class ConfirmReservationHandler {
         }
       });
     } catch (error) {
-      // Compensacion best-effort (Hallazgo #2/#3): el slot ya quedo Active pero la
-      // persistencia de Reservation fallo (p. ej. ConcurrentModificationError) - liberar
-      // para no dejar una ocupacion huerfana. Un fallo de la compensacion misma es un gap
-      // conocido de reconciliacion, no bloqueante para Fase 1 (ver plan de implementacion).
-      await this.availabilityService
-        .release(reservation.vehicleId, reservation.id.toString())
-        .catch(() => undefined);
+      if (lostAvailability || error instanceof ReservationOverlapError) {
+        await this.publishRejection(reservation);
+      }
       throw error;
     }
   }

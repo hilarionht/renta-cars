@@ -55,3 +55,4 @@ export type {
   ListVehicleCategoriesQuery,
   VehicleCategorySummary,
 } from './queries/get-vehicle-category/get-vehicle-category.query';
+export { vehicleLockKey } from './locks/vehicle-lock-key';

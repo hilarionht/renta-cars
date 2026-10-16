@@ -24,6 +24,8 @@ function buildCheckedOut(): Reservation {
     baseAmount: Money.from(10000, 'USD'),
     isCustomerEligible: true,
     areDriversValidated: true,
+    isBranchActive: true,
+    branchId: 'branch-1',
   });
   reservation.checkOut({
     odometer: Odometer.from(1000),
@@ -60,6 +62,7 @@ function buildHandler(overrides?: { isAvailable?: boolean }) {
   } as unknown as PricingService;
   const unitOfWork = { run: jest.fn((work: (tx: object) => Promise<void>) => work({})) };
   const eventPublisher = { publish: jest.fn().mockResolvedValue(undefined) };
+  const transactionLock = { acquire: jest.fn().mockResolvedValue(undefined) };
 
   const handler = new ApproveExtensionHandler(
     reservationRepository,
@@ -68,6 +71,7 @@ function buildHandler(overrides?: { isAvailable?: boolean }) {
     pricingService,
     unitOfWork as never,
     eventPublisher,
+    transactionLock,
   );
 
   return { handler, reservation, availabilityService };

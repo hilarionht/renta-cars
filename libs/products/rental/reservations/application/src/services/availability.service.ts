@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { CALENDAR_PORT, type CalendarPort } from '@platform/calendar/application';
-import { DateRange } from '@platform/shared-kernel';
+import { DateRange, type UnitOfWorkTransaction } from '@platform/shared-kernel';
 import { VEHICLE_STATUS_PORT, type VehicleStatusPort } from '@rental/vehicles/application';
 import { ReservationOverlapError } from '@rental/reservations/domain';
 
@@ -56,16 +56,21 @@ export class AvailabilityService {
     vehicleId: string,
     range: DateRange,
     reservationId: string,
+    // #141: la transaccion de la reserva (ocupacion y reserva se confirman o revierten juntas).
+    tx?: UnitOfWorkTransaction,
   ): Promise<void> {
     try {
-      await this.calendarPort.occupy({
-        companyId,
-        resourceType: 'vehicle',
-        resourceId: vehicleId,
-        startDate: range.start,
-        endDate: range.end,
-        slotKind: { type: 'Booking', referenceId: reservationId },
-      });
+      await this.calendarPort.occupy(
+        {
+          companyId,
+          resourceType: 'vehicle',
+          resourceId: vehicleId,
+          startDate: range.start,
+          endDate: range.end,
+          slotKind: { type: 'Booking', referenceId: reservationId },
+        },
+        tx,
+      );
     } catch (error) {
       if (error instanceof Error && error.name === AVAILABILITY_SLOT_OVERLAP_ERROR_NAME) {
         throw new ReservationOverlapError(vehicleId);
@@ -78,12 +83,21 @@ export class AvailabilityService {
   // liberado, o nunca se ocupo - p. ej. cancelar un Draft, ver Hallazgo #4 del plan de
   // implementacion). Por reservationId, nunca solo por vehiculo: un vehiculo tiene un slot
   // Active por cada reserva futura (docs/persistence/10-DECISIONES.md #132).
-  async release(vehicleId: string, reservationId: string): Promise<void> {
-    const slotId = await this.calendarPort.findActiveSlotId('vehicle', vehicleId, reservationId);
+  async release(
+    vehicleId: string,
+    reservationId: string,
+    tx?: UnitOfWorkTransaction,
+  ): Promise<void> {
+    const slotId = await this.calendarPort.findActiveSlotId(
+      'vehicle',
+      vehicleId,
+      reservationId,
+      tx,
+    );
     if (!slotId) {
       return;
     }
-    await this.calendarPort.release(slotId);
+    await this.calendarPort.release(slotId, tx);
   }
 
   // reschedule()/approveExtension() mueven la ventana ocupada del MISMO vehicleId (a
@@ -98,14 +112,20 @@ export class AvailabilityService {
     vehicleId: string,
     newRange: DateRange,
     reservationId: string,
+    tx?: UnitOfWorkTransaction,
   ): Promise<void> {
-    const oldSlotId = await this.calendarPort.findActiveSlotId('vehicle', vehicleId, reservationId);
+    const oldSlotId = await this.calendarPort.findActiveSlotId(
+      'vehicle',
+      vehicleId,
+      reservationId,
+      tx,
+    );
     if (!oldSlotId) {
-      await this.reserve(companyId, vehicleId, newRange, reservationId);
+      await this.reserve(companyId, vehicleId, newRange, reservationId, tx);
       return;
     }
     try {
-      await this.calendarPort.move(oldSlotId, newRange.start, newRange.end);
+      await this.calendarPort.move(oldSlotId, newRange.start, newRange.end, tx);
     } catch (error) {
       if (error instanceof Error && error.name === AVAILABILITY_SLOT_OVERLAP_ERROR_NAME) {
         throw new ReservationOverlapError(vehicleId);

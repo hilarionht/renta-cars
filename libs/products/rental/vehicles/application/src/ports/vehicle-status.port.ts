@@ -5,13 +5,17 @@
 // Reservation no contiene branchId (docs/model/02-AGGREGATES.md SS11: "solo CustomerId/
 // VehicleId"), asi que Reservation.checkOut() encadena getBranchId() -> BranchLookupPort
 // (INV-112) en su propia capa de aplicacion.
+import type { UnitOfWorkTransaction } from '@platform/shared-kernel';
+
 export const VEHICLE_STATUS_PORT = Symbol('VehicleStatusPort');
 
 export interface VehicleStatusPort {
+  // tx (#141): leer dentro de la transaccion del que llama, despues de tomar el lock del
+  // vehiculo (sin segunda conexion del pool).
   // null = el vehicle no existe. false si status es Maintenance/OutOfService.
-  isOperational(vehicleId: string): Promise<boolean | null>;
+  isOperational(vehicleId: string, tx?: UnitOfWorkTransaction): Promise<boolean | null>;
   // null = el vehicle no existe.
-  getBranchId(vehicleId: string): Promise<string | null>;
+  getBranchId(vehicleId: string, tx?: UnitOfWorkTransaction): Promise<string | null>;
   // null = el vehicle no existe. Necesario para que PricingService resuelva la Rate
   // vigente (VEHICLE_CATEGORY_LOOKUP_PORT.getCurrentRate toma categoryId, no vehicleId).
   getCategoryId(vehicleId: string): Promise<string | null>;

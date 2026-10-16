@@ -20,6 +20,8 @@ function buildHandler(status: 'Draft' | 'Confirmed') {
       baseAmount: Money.from(10000, 'USD'),
       isCustomerEligible: true,
       areDriversValidated: true,
+      isBranchActive: true,
+      branchId: 'branch-1',
     });
   }
   reservation.pullDomainEvents();
@@ -42,6 +44,7 @@ function buildHandler(status: 'Draft' | 'Confirmed') {
   } as unknown as PricingService;
   const unitOfWork = { run: jest.fn((work: (tx: object) => Promise<void>) => work({})) };
   const eventPublisher = { publish: jest.fn().mockResolvedValue(undefined) };
+  const transactionLock = { acquire: jest.fn().mockResolvedValue(undefined) };
 
   const handler = new RescheduleReservationHandler(
     reservationRepository,
@@ -50,6 +53,7 @@ function buildHandler(status: 'Draft' | 'Confirmed') {
     pricingService,
     unitOfWork as never,
     eventPublisher,
+    transactionLock,
   );
 
   return { handler, reservation, availabilityService };
@@ -90,6 +94,7 @@ describe('RescheduleReservationHandler', () => {
       'vehicle-1',
       expect.anything(),
       reservation.id.toString(),
+      expect.anything(),
     );
   });
 });

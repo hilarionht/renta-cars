@@ -18,6 +18,8 @@ function buildConfirmed(): Reservation {
     baseAmount: Money.from(10000, 'USD'),
     isCustomerEligible: true,
     areDriversValidated: true,
+    isBranchActive: true,
+    branchId: 'branch-1',
   });
   reservation.pullDomainEvents();
   return reservation;
@@ -61,6 +63,7 @@ describe('MarkNoShowHandler', () => {
     expect(availabilityService.release).toHaveBeenCalledWith(
       'vehicle-1',
       reservation.id.toString(),
+      expect.anything(),
     );
     expect(reservationRepository.save).toHaveBeenCalled();
   });

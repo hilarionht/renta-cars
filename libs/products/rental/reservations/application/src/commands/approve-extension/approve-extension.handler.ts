@@ -6,10 +6,16 @@ import {
   type DomainEventPublisher,
   EntityId,
   Money,
+  TRANSACTION_LOCK,
+  type TransactionLock,
   UNIT_OF_WORK,
   type UnitOfWork,
 } from '@platform/shared-kernel';
-import { VEHICLE_STATUS_PORT, type VehicleStatusPort } from '@rental/vehicles/application';
+import {
+  VEHICLE_STATUS_PORT,
+  type VehicleStatusPort,
+  vehicleLockKey,
+} from '@rental/vehicles/application';
 import { ReservationNotFoundError, VehicleNotAvailableError } from '@rental/reservations/domain';
 
 import {
@@ -32,6 +38,7 @@ export class ApproveExtensionHandler {
     private readonly pricingService: PricingService,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
+    @Inject(TRANSACTION_LOCK) private readonly transactionLock: TransactionLock,
   ) {}
 
   async execute(command: ApproveExtensionCommand): Promise<void> {
@@ -64,14 +71,17 @@ export class ApproveExtensionHandler {
       isNewRangeAvailable,
     });
 
-    await this.availabilityService.moveOccupancy(
-      reservation.companyId,
-      reservation.vehicleId,
-      newRange,
-      reservation.id.toString(),
-    );
-
     await this.unitOfWork.run(async (tx) => {
+      // #141: mover la ocupacion y guardar en la misma transaccion, con el lock compartido del
+      // vehiculo.
+      await this.transactionLock.acquire(tx, vehicleLockKey(reservation.vehicleId), 'shared');
+      await this.availabilityService.moveOccupancy(
+        reservation.companyId,
+        reservation.vehicleId,
+        newRange,
+        reservation.id.toString(),
+        tx,
+      );
       await this.reservationRepository.save(reservation, tx);
       for (const event of reservation.pullDomainEvents()) {
         await this.eventPublisher.publish(tx, {

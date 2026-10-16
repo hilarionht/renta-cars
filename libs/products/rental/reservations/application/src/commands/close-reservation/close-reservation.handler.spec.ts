@@ -21,6 +21,8 @@ function buildCheckedIn(): Reservation {
     baseAmount: Money.from(10000, 'USD'),
     isCustomerEligible: true,
     areDriversValidated: true,
+    isBranchActive: true,
+    branchId: 'branch-1',
   });
   reservation.checkOut({
     odometer: Odometer.from(1000),
