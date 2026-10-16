@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
-import { ReadTransaction, RequestContext } from '@platform/persistence-kernel';
+import type { UnitOfWorkTransaction } from '@platform/shared-kernel';
+import { asPrismaTransaction, ReadTransaction, RequestContext } from '@platform/persistence-kernel';
 import {
   MoveSlotHandler,
   OccupySlotHandler,
@@ -45,24 +46,32 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
     return result.available;
   }
 
-  async occupy(params: OccupySlotParams): Promise<string> {
-    const slotId = await this.occupySlot.execute({
-      companyId: params.companyId,
-      resourceType: params.resourceType,
-      resourceId: params.resourceId,
-      startDate: params.startDate,
-      endDate: params.endDate,
-      slotKind: params.slotKind,
-    });
+  async occupy(params: OccupySlotParams, tx?: UnitOfWorkTransaction): Promise<string> {
+    const slotId = await this.occupySlot.execute(
+      {
+        companyId: params.companyId,
+        resourceType: params.resourceType,
+        resourceId: params.resourceId,
+        startDate: params.startDate,
+        endDate: params.endDate,
+        slotKind: params.slotKind,
+      },
+      tx,
+    );
     return slotId.toString();
   }
 
-  async release(slotId: string): Promise<void> {
-    await this.releaseSlot.execute({ slotId });
+  async release(slotId: string, tx?: UnitOfWorkTransaction): Promise<void> {
+    await this.releaseSlot.execute({ slotId }, tx);
   }
 
-  async move(slotId: string, startDate: Date, endDate: Date): Promise<string> {
-    const newSlotId = await this.moveSlot.execute({ slotId, startDate, endDate });
+  async move(
+    slotId: string,
+    startDate: Date,
+    endDate: Date,
+    tx?: UnitOfWorkTransaction,
+  ): Promise<string> {
+    const newSlotId = await this.moveSlot.execute({ slotId, startDate, endDate }, tx);
     return newSlotId.toString();
   }
 
@@ -70,16 +79,19 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
     resourceType: string,
     resourceId: string,
     referenceId: string,
+    tx?: UnitOfWorkTransaction,
   ): Promise<string | null> {
-    const { companyId } = this.requestContext.get();
-    const record = await this.readTransaction.run(
-      (tx) =>
-        tx.availabilitySlot.findFirst({
-          where: { resourceType, resourceId, referenceId, status: 'Active' },
-          select: { id: true },
-        }),
-      companyId,
-    );
+    const query = {
+      where: { resourceType, resourceId, referenceId, status: 'Active' as const },
+      select: { id: true },
+    };
+    // #141: dentro de la transaccion del que llama si la hay (sin segunda conexion).
+    const record = tx
+      ? await asPrismaTransaction(tx).availabilitySlot.findFirst(query)
+      : await this.readTransaction.run(
+          (readTx) => readTx.availabilitySlot.findFirst(query),
+          this.requestContext.get().companyId,
+        );
     return record?.id ?? null;
   }
 
@@ -88,16 +100,25 @@ export class PrismaCalendarPortAdapter implements CalendarPort {
     companyId: string,
     resourceType: string,
     resourceId: string,
+    tx?: UnitOfWorkTransaction,
   ): Promise<ActiveBooking[]> {
-    const records = await this.readTransaction.run(
-      (tx) =>
-        tx.availabilitySlot.findMany({
-          where: { resourceType, resourceId, slotType: 'Booking', status: 'Active' },
-          select: { referenceId: true, startDate: true, endDate: true },
-          orderBy: { startDate: 'asc' },
-        }),
-      companyId,
-    );
+    const query = {
+      where: {
+        resourceType,
+        resourceId,
+        slotType: 'Booking' as const,
+        status: 'Active' as const,
+      },
+      select: { referenceId: true, startDate: true, endDate: true },
+      orderBy: { startDate: 'asc' as const },
+    };
+    // #141: los guards la llaman con el lock tomado, dentro de su transaccion.
+    const records = tx
+      ? await asPrismaTransaction(tx).availabilitySlot.findMany(query)
+      : await this.readTransaction.run(
+          (readTx) => readTx.availabilitySlot.findMany(query),
+          companyId,
+        );
     return records.map((record) => ({
       referenceId: record.referenceId ?? '',
       startDate: record.startDate,
