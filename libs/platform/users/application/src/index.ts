@@ -31,6 +31,8 @@ export type { AssignRoleCommand } from './commands/assign-role/assign-role.comma
 export { AssignRoleHandler } from './commands/assign-role/assign-role.handler';
 export type { RevokeRoleCommand } from './commands/revoke-role/revoke-role.command';
 export { RevokeRoleHandler } from './commands/revoke-role/revoke-role.handler';
+export type { UpdateUserDetailsCommand } from './commands/update-user-details/update-user-details.command';
+export { UpdateUserDetailsHandler } from './commands/update-user-details/update-user-details.handler';
 export type { ConfirmMfaEnrollmentCommand } from './commands/confirm-mfa-enrollment/confirm-mfa-enrollment.command';
 export { ConfirmMfaEnrollmentHandler } from './commands/confirm-mfa-enrollment/confirm-mfa-enrollment.handler';
 export type { DisableMfaCommand } from './commands/disable-mfa/disable-mfa.command';

@@ -18,6 +18,7 @@ export { UserNotFoundError } from './errors/user-not-found.error';
 export { DuplicateEmailError } from './errors/duplicate-email.error';
 export { CompanyNotFoundError } from './errors/company-not-found.error';
 export { InvalidRoleAssignmentError } from './errors/invalid-role-assignment.error';
+export { InvalidBranchAssignmentError } from './errors/invalid-branch-assignment.error';
 export { InvalidMfaCodeError } from './errors/invalid-mfa-code.error';
 export { PasswordResetTokenInvalidError } from './errors/password-reset-token-invalid.error';
 export type { UserCreatedEvent } from './events/user-created.event';
@@ -26,6 +27,7 @@ export type { UserPasswordChangedEvent } from './events/user-password-changed.ev
 export type { UserMfaEnabledEvent } from './events/user-mfa-enabled.event';
 export type { UserMfaDisabledEvent } from './events/user-mfa-disabled.event';
 export type { UserReactivatedEvent } from './events/user-reactivated.event';
+export type { UserDetailsUpdatedEvent } from './events/user-details-updated.event';
 export type { UserRoleAssignedEvent } from './events/user-role-assigned.event';
 export type { UserRoleRevokedEvent } from './events/user-role-revoked.event';
 export type { PasswordResetTokenReplayedEvent } from './events/password-reset-token-replayed.event';

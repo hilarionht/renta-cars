@@ -46,7 +46,9 @@ export class PrismaUserRepository implements UserRepository {
     const prisma = asPrismaTransaction(tx);
     const data = {
       companyId: user.companyId,
-      branchId: user.branchId,
+      // #140: null explicito - con undefined Prisma no toca la columna y quitarle la sucursal a
+      // un usuario (PATCH branchId: null) no se guardaba.
+      branchId: user.branchId ?? null,
       email: user.email.toString(),
       passwordHash: user.passwordHash.toString(),
       name: user.name.toString(),

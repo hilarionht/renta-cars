@@ -7,12 +7,14 @@ import {
 import {
   CompanyNotFoundError,
   DuplicateEmailError,
+  InvalidBranchAssignmentError,
   InvalidRoleAssignmentError,
   PasswordHash,
   PersonName,
   User,
 } from '@platform/users/domain';
 import type { RoleLookupPort } from '@platform/roles-permissions/application';
+import type { BranchLookupPort } from '@platform/branches/application';
 
 import type { PasswordHasher } from '../../ports/password-hasher.port';
 import type { UserRepository } from '../../ports/user.repository';
@@ -23,6 +25,7 @@ function buildHandler(overrides?: {
   existingUser?: User | null;
   companyExists?: boolean;
   roleValid?: boolean;
+  branchStatus?: 'Active' | 'Closed' | null;
 }) {
   const savedUsers: User[] = [];
   const userRepository: UserRepository = {
@@ -41,6 +44,13 @@ function buildHandler(overrides?: {
     existsAndBelongsToCompanyOrSystem: jest.fn().mockResolvedValue(overrides?.roleValid ?? true),
     getPermissionsForRoles: jest.fn().mockResolvedValue([]),
   };
+  const branchLookup: BranchLookupPort = {
+    getStatus: jest
+      .fn()
+      .mockResolvedValue(
+        overrides && 'branchStatus' in overrides ? overrides.branchStatus : 'Active',
+      ),
+  };
   const companyExists: CompanyExistsPort = {
     exists: jest.fn().mockResolvedValue(overrides?.companyExists ?? true),
   };
@@ -56,6 +66,7 @@ function buildHandler(overrides?: {
     passwordHasher,
     roleLookup,
     companyExists,
+    branchLookup,
     unitOfWork,
     eventPublisher,
   );
@@ -80,6 +91,22 @@ const baseCommand: CreateUserCommand = {
 };
 
 describe('CreateUserHandler', () => {
+  // #140: antes se aceptaba una sucursal inexistente o cerrada.
+  it.each<['Closed' | null, string]>([
+    [null, 'no existe'],
+    ['Closed', 'esta cerrada'],
+  ])(
+    'lanza InvalidBranchAssignmentError si la sucursal %s (%s) y no guarda',
+    async (branchStatus) => {
+      const { handler, userRepository } = buildHandler({ branchStatus });
+
+      await expect(handler.execute({ ...baseCommand, branchId: 'branch-1' })).rejects.toThrow(
+        InvalidBranchAssignmentError,
+      );
+      expect(userRepository.save).not.toHaveBeenCalled();
+    },
+  );
+
   it('lanza CompanyNotFoundError si CompanyExistsPort dice que la company no existe', async () => {
     const { handler } = buildHandler({ companyExists: false });
 

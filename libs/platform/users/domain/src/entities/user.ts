@@ -7,6 +7,7 @@ import type { UserDisabledEvent } from '../events/user-disabled.event';
 import type { UserMfaDisabledEvent } from '../events/user-mfa-disabled.event';
 import type { UserMfaEnabledEvent } from '../events/user-mfa-enabled.event';
 import type { UserPasswordChangedEvent } from '../events/user-password-changed.event';
+import type { UserDetailsUpdatedEvent } from '../events/user-details-updated.event';
 import type { UserReactivatedEvent } from '../events/user-reactivated.event';
 import type { UserRoleAssignedEvent } from '../events/user-role-assigned.event';
 import type { UserRoleRevokedEvent } from '../events/user-role-revoked.event';
@@ -24,7 +25,8 @@ type UserDomainEvent =
   | UserMfaDisabledEvent
   | UserReactivatedEvent
   | UserRoleAssignedEvent
-  | UserRoleRevokedEvent;
+  | UserRoleRevokedEvent
+  | UserDetailsUpdatedEvent;
 
 export interface UserProps {
   id: UserId;
@@ -176,6 +178,29 @@ export class User {
     this.props.updatedAt = new Date();
     this.props.version += 1;
     this.domainEvents.push({ eventType: 'UserReactivated.v1', userId: this.props.id.toString() });
+  }
+
+  // #140: nombre y sucursal (el email no cambia: es el login). undefined = no tocar; branchId
+  // null = sin sucursal. Sin cambios reales es un no-op (sin version ni evento).
+  updateDetails(params: { name?: PersonName; branchId?: string | null }): void {
+    const event: UserDetailsUpdatedEvent = {
+      eventType: 'UserDetailsUpdated.v1',
+      userId: this.props.id.toString(),
+    };
+    if (params.name && params.name.toString() !== this.props.name.toString()) {
+      this.props.name = params.name;
+      event.name = params.name.toString();
+    }
+    if (params.branchId !== undefined && (params.branchId ?? undefined) !== this.props.branchId) {
+      this.props.branchId = params.branchId ?? undefined;
+      event.branchId = params.branchId;
+    }
+    if (event.name === undefined && event.branchId === undefined) {
+      return;
+    }
+    this.props.updatedAt = new Date();
+    this.props.version += 1;
+    this.domainEvents.push(event);
   }
 
   changePassword(newHash: PasswordHash, changedBy: string): void {

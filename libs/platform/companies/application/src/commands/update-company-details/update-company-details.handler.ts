@@ -15,6 +15,7 @@ import {
 } from '@platform/companies/domain';
 
 import { COMPANY_REPOSITORY, type CompanyRepository } from '../../ports/company.repository';
+import { billingPhoneFromInput } from '../../services/billing-phone';
 import type { UpdateCompanyDetailsCommand } from './update-company-details.command';
 
 @Injectable()
@@ -40,7 +41,10 @@ export class UpdateCompanyDetailsHandler {
       billingContact: needsNewBillingContact
         ? BillingContact.from({
             email: command.billingContactEmail ?? company.billingContact.toEmail().toString(),
-            phone: command.billingContactPhone ?? company.billingContact.toPhone(),
+            phone:
+              command.billingContactPhone !== undefined
+                ? billingPhoneFromInput(command.billingContactPhone)
+                : company.billingContact.toPhone(),
           })
         : undefined,
     });

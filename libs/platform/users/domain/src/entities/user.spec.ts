@@ -38,6 +38,51 @@ describe('User', () => {
     });
   });
 
+  // #140: PATCH /users/:id.
+  describe('updateDetails', () => {
+    it('cambia nombre y sucursal, sube la version y emite solo lo que cambio', () => {
+      const user = createUser();
+      user.pullDomainEvents();
+      const versionBefore = user.version;
+
+      user.updateDetails({ name: PersonName.from('Nombre Nuevo'), branchId: 'branch-9' });
+
+      expect(user.name.toString()).toBe('Nombre Nuevo');
+      expect(user.branchId).toBe('branch-9');
+      expect(user.version).toBe(versionBefore + 1);
+      expect(user.pullDomainEvents()).toEqual([
+        {
+          eventType: 'UserDetailsUpdated.v1',
+          userId: user.id.toString(),
+          name: 'Nombre Nuevo',
+          branchId: 'branch-9',
+        },
+      ]);
+    });
+
+    it('branchId null le quita la sucursal', () => {
+      const user = createUser();
+      user.updateDetails({ branchId: 'branch-9' });
+      user.pullDomainEvents();
+
+      user.updateDetails({ branchId: null });
+
+      expect(user.branchId).toBeUndefined();
+      expect(user.pullDomainEvents()[0]).toMatchObject({ branchId: null });
+    });
+
+    it('sin cambios reales es un no-op (sin version ni evento)', () => {
+      const user = createUser();
+      user.pullDomainEvents();
+      const versionBefore = user.version;
+
+      user.updateDetails({ name: PersonName.from(user.name.toString()), branchId: undefined });
+
+      expect(user.version).toBe(versionBefore);
+      expect(user.pullDomainEvents()).toHaveLength(0);
+    });
+  });
+
   describe('disable/reactivate', () => {
     it('disable() transiciona a Disabled, emite UserDisabled.v1, y es idempotente', () => {
       const user = createUser();
