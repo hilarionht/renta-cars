@@ -33,7 +33,7 @@ Plan aprobado (2026-10-16), validado con un agente Plan (`~/.claude/plans/drifti
 - [x] 1. Actor desde el token: DTOs, controller, domain-types, data-access-web, data-access (spec), web-admin (`currentUserId` fuera), mobile (`useAuth` muerto fuera), e2e (+ caso 400) y `tooling/scripts/smoke/reminder.ts`.
 - [x] 2. Responsable de mantenimiento: `getStatus` en el puerto, adapter y 3 specs de identity; `InvalidResponsibleUserError` 422; `VehiclesModule` importa `UsersModule`.
 - [x] 3. Trigram: **descartado** (2026-10-16, `trgm-rls-probe.cjs` del scratchpad, en una transacción revertida). Con seq scan e index scan apagados, el superusuario usa los 4 GIN (BitmapOr), pero `app_runtime` bajo RLS no: solo usa `customers_company_id_id_idx` y filtra el `ILIKE` fila por fila (`ILIKE` no es `LEAKPROOF`). Queda como gap en #142; la alternativa futura (función `SECURITY DEFINER` con filtro explícito por empresa) es una decisión de seguridad del usuario.
-- [ ] 4. Verificación y docs **hechos** (smokes 11/11 y 10/10, `next build`, 11 e2e individuales en verde, #142, `07-ERROR-CATALOG`, gaps de #135 y CLAUDE.md). Falta: PR y CI 6/6 (nunca aprobar ni mergear).
+- [x] 4. Verificación, docs (#142), **PR #11** y **CI 6/6 en verde** (2026-10-16). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
