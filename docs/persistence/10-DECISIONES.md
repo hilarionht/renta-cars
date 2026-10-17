@@ -1953,6 +1953,7 @@ Un `EXPLAIN` como el usuario dueño habría dado un falso positivo. La búsqueda
 - `_reusable-ci.yml` (`ci / test`): `nx affected --target=test --exclude=api-e2e`.
 - Job `e2e` de `pr.yml` y `main.yml`: genera el cliente de Prisma, arma el `.env` de desarrollo y las claves JWT (lo que necesita `apps/api` para arrancar), y corre `nx affected --target=test --exclude='*,!api-e2e'`. Así ejecuta solo `api-e2e:test` con su dependencia `api:build`, y solo si está afectado. Después sigue Playwright como antes.
 - `nightly-e2e.yml`: corre también `api-e2e:test` completo.
+- `nx.json`: `sharedGlobals` incluye `{workspaceRoot}/.github/workflows/**/*`, como en las plantillas de Nx. Un cambio en el CI afecta a todos los proyectos y se valida con el CI completo. Antes, un PR que solo tocaba workflows corría casi nada: este mismo PR habría pasado sin probar su propio cambio.
 - Verificado en local con `--graph=stdout` (sin ejecutar): con el exclude, `ci / test` deja afuera `api-e2e:test`; el patrón negado deja solo `api-e2e:test` y `api:build`, y nada cuando no está afectado.
 
 **Gap aceptado**: `web-admin-e2e` sigue sin recorridos. El check `e2e` prueba el API, pero no la web.

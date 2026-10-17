@@ -16,7 +16,7 @@ Estado al 2026-10-17. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupa
 
 **En curso, elegido por el usuario (2026-10-17): el check `e2e` corre los e2e del API** (#144), rama `ci/real-e2e-check`. El check obligatorio `e2e` pasaba sin ejecutar nada: solo corre Playwright (`web-admin-e2e`, sin recorridos). Decisión del usuario: mover `api-e2e` del job `ci / test` al job `e2e`. El primer recorrido de la web queda como pendiente aparte.
 
-- [x] 1. Workflows (`_reusable-ci.yml`, `pr.yml`, `main.yml`, `nightly-e2e.yml`) y docs (#144, `05-CI-CD`, `04-TESTING-FOUNDATION`), verificados con `nx affected --graph`.
+- [x] 1. Workflows (`_reusable-ci.yml`, `pr.yml`, `main.yml`, `nightly-e2e.yml`), `nx.json` (`sharedGlobals` con los workflows: un cambio de CI corre el CI completo) y docs (#144, `05-CI-CD`, `04-TESTING-FOUNDATION`), verificados con `nx affected --graph`.
 - [ ] 2. PR y CI 6/6: comprobar en los logs que `ci / test` ya no corre `api-e2e` y que `e2e` sí.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).

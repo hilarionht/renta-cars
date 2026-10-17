@@ -2,7 +2,7 @@
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "defaultBase": "master",
   "namedInputs": {
-    "sharedGlobals": [],
+    "sharedGlobals": ["{workspaceRoot}/.github/workflows/**/*"],
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
       "default",
