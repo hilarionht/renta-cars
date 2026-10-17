@@ -6,24 +6,18 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#143` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#144` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
 ## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-16. Mergeados: Incrementos 4 y 5 (PR #8 y #9, #139 y #140), reserva y ocupación atómicas (PR #10, #141) y actor desde el token (PR #11, #142). El detalle de cada uno está en su decisión.
+Estado al 2026-10-17. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142) y RustFS en el CI (PR #12, #143). El detalle de cada uno está en su decisión.
 
-**En curso, elegido por el usuario (2026-10-16): pendiente 10, sacar MinIO del CI y de docker-compose**, rama `chore/rustfs-instead-of-minio`. Investigación:
+**En curso, elegido por el usuario (2026-10-17): el check `e2e` corre los e2e del API** (#144), rama `ci/real-e2e-check`. El check obligatorio `e2e` pasaba sin ejecutar nada: solo corre Playwright (`web-admin-e2e`, sin recorridos). Decisión del usuario: mover `api-e2e` del job `ci / test` al job `e2e`. El primer recorrido de la web queda como pendiente aparte.
 
-- MinIO se usa en el testcontainer `tooling/testing/testcontainers/minio.ts` (api-e2e e integration-providers), en `docker-compose.yml` (+ job `minio-init` con `mc`) y en `docker-compose.override.yml`. El job `docker-validate` del CI solo construye el Dockerfile del API.
-- Imagen oficial `rustfs/rustfs:1.0.1` (la misma versión que corre en local), índice multi-arquitectura `sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c`. Corre como usuario `rustfs`, puertos 9000/9001, volumen `/data`, trae `curl`. Credenciales: `RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY`. `/health/ready` (verificado contra el RustFS local) chequea almacenamiento e IAM.
-- El bucket en compose se crea con `curl --aws-sigv4` de la misma imagen (sin `mc`).
-
-Pasos:
-
-- [x] 1. Plan aprobado (2026-10-16, `~/.claude/plans/drifting-leaping-emerson.md`).
-- [x] 2. Implementación, docs (#143), **PR #12** y **CI 6/6 en verde** (2026-10-17). En CI corrieron `platform-integration-providers-infrastructure:test` y `api-e2e:test` con el contenedor RustFS, y `docker compose config` en `docker-validate`. Nota: el job `e2e` del CI corre `nx affected --target=e2e`, que hoy no ejecuta nada (api-e2e corre como `test` dentro de `ci / test`). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
+- [x] 1. Workflows (`_reusable-ci.yml`, `pr.yml`, `main.yml`, `nightly-e2e.yml`), `nx.json` (`sharedGlobals` con los workflows: un cambio de CI corre el CI completo) y docs (#144, `05-CI-CD`, `04-TESTING-FOUNDATION`), verificados con `nx affected --graph`.
+- [x] 2. **PR #13** y **CI 6/6 en verde** (2026-10-17). En los logs: `ci / test` corrió 60 proyectos sin `api-e2e`; el job `e2e` corrió `api-e2e:test` (y Playwright). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
@@ -76,7 +70,7 @@ Pendiente del usuario: validación visual de Clientes y de Flota (la web queda e
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
 - **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, PR #8). **Incremento 5 (Administración)** hecho (#140, rama `feat/web-admin-administration`): con eso la hoja de ruta de #134 queda completa. Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas decisiones: `#143` (RustFS en el CI y en docker-compose), `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
+- Últimas decisiones: `#144` (el check `e2e` corre los e2e del API), `#143` (RustFS en el CI y en docker-compose), `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 
@@ -101,6 +95,7 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 10. **MinIO archivado: RESUELTO** (#143). El CI (testcontainers) y `docker-compose.yml` usan la imagen oficial `rustfs/rustfs` 1.0.1 fijada por digest; `docker-validate` valida el compose.
 11. **500 por ids que no son UUID v7 y por VO no migrados** (#137): un id v4 en un comando pasa `@IsUUID()` y `EntityId.from` responde 500; los VO de entrada de customers (#139) y de branches, roles, settings, users y companies (#140) ya lanzan `InvalidValueError`; los roles System v4 de seeds viejos se resuelven con un lookup por id crudo (#140). La web no los dispara.
 12. **`@aws-sdk/client-s3` va a exigir Node 22 o superior desde enero de 2027** (#138); el proyecto usa Node 20.
+13. **Sin recorridos e2e de la web** (#144): `web-admin-e2e` (Playwright) no tiene specs; el check `e2e` prueba solo el API.
 
 ## Entorno — cómo levantar todo
 

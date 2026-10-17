@@ -52,6 +52,20 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://build:build@build:5432/build
+      # api-e2e levanta apps/api real (docs/engineering/04-TESTING-FOUNDATION.md §5):
+      # ConfigModule falla fail-fast sin STORAGE_*/JWT_*. .env de desarrollo, no secreto.
+      - run: cp .env.example .env
+      - run: npm run security:generate-jwt-keys >> .env
+      # docs/persistence/10-DECISIONES.md #144: los e2e del API (Testcontainers con Postgres,
+      # Redis y RustFS) corren aca, no en `ci / test`. Solo api-e2e (con su dependencia
+      # api:build) y solo si esta afectado.
+      - name: api-e2e (afectado)
+        env:
+          NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+        run: npx nx affected --target=test --exclude='*,!api-e2e' --base=${{ github.event.before }} --head=${{ github.sha }}
       - run: npx playwright install --with-deps
       - name: nx affected --target=e2e
         env:

@@ -58,21 +58,18 @@ jobs:
       - run: npm run db:generate
         env:
           DATABASE_URL: postgresql://build:build@build:5432/build
-      # api-e2e:test levanta apps/api real (docs/engineering/04-TESTING-FOUNDATION.md §5) -
-      # ConfigModule falla fail-fast sin STORAGE_*/JWT_* (docs/engineering/02-DEVELOPER-
-      # EXPERIENCE.md §1 pasos 4-5). No hay .env en CI (gitignored) ni secretos de proveedor
-      # configurados todavia (docs/engineering/05-CI-CD.md §5) - mismo par de pasos que el
-      # bootstrap local, STORAGE_* de .env.example ya son valores de desarrollo no secretos.
+      # .env de desarrollo (no secreto) para los tests que leen configuracion. No hay .env en
+      # CI (gitignored) ni secretos de proveedor configurados todavia (docs/engineering/
+      # 05-CI-CD.md §5) - mismo par de pasos que el bootstrap local.
       - run: cp .env.example .env
       - run: npm run security:generate-jwt-keys >> .env
-      # Un unico target `test` cubre unitarios/aplicacion, integracion (Testcontainers, para
-      # cualquier proyecto `type:infrastructure` futuro) y el smoke e2e de api-e2e (mismo
-      # nombre de target `test`, docs/engineering/04-TESTING-FOUNDATION.md) - Nx ya resuelve
-      # `api:build` como dependencia de `api-e2e:test` dentro de esta misma invocación.
-      - name: nx affected --target=test
+      # El target `test` cubre unitarios/aplicacion e integracion (Testcontainers). api-e2e
+      # tambien se llama `test`, pero corre en el job `e2e` de pr.yml/main.yml
+      # (docs/persistence/10-DECISIONES.md #144): asi ese check obligatorio prueba algo real.
+      - name: nx affected --target=test (sin api-e2e)
         env:
           NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
-        run: npx nx affected --target=test --base=${{ inputs.base }} ${{ inputs.head != '' && format('--head={0}', inputs.head) || '' }}
+        run: npx nx affected --target=test --exclude=api-e2e --base=${{ inputs.base }} ${{ inputs.head != '' && format('--head={0}', inputs.head) || '' }}
       - name: Publicar reporte de cobertura
         if: always()
         uses: actions/upload-artifact@v4

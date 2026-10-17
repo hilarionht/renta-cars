@@ -23,6 +23,16 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://build:build@build:5432/build
+      - run: cp .env.example .env
+      - run: npm run security:generate-jwt-keys >> .env
+      # #144: la regresion nocturna tambien corre los e2e del API completos.
+      - name: api-e2e
+        env:
+          NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+        run: npx nx run api-e2e:test
       - run: npx playwright install --with-deps
       - name: nx run-many --target=e2e
         env:

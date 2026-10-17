@@ -6,12 +6,12 @@
 
 `@nx/jest` genera un `jest.config.ts` por proyecto, pero la configuración base es única en `tooling/eslint/../jest` (`tooling/jest/base.config.ts`), heredada vía `preset`:
 
-| Tipo de proyecto (`type:`) | Transform | Particularidad |
-|---|---|---|
-| `domain`, `application` (unit) | `@swc/jest` (rápido, sin type-check en el propio test run — el type-check ya lo cubre `nx affected --target=typecheck` en CI) | `testEnvironment: node`; cero mocks de infraestructura permitidos (regla de proceso, reforzada en review, no mecánicamente bloqueable por Jest) |
-| `infrastructure` (integration, sufijo `.integration.spec.ts`) | `@swc/jest` | `globalSetup`/`globalTeardown` apuntan a la librería compartida de Testcontainers (§2); `testTimeout` elevado (arranque de contenedor) |
-| `frontend` (`ui-kit-*`, `data-access`) | `@swc/jest` + `@testing-library/react` (o `@testing-library/react-native` para `ui-kit-mobile`) | `testEnvironment: jsdom` (web) / entorno de React Native para mobile |
-| `e2e` (`api-e2e`) | N/A (Jest + Supertest, no `@swc/jest` transform especial) | Levanta `apps/api` completo contra Testcontainers, ver §5 |
+| Tipo de proyecto (`type:`)                                    | Transform                                                                                                                     | Particularidad                                                                                                                                  |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `domain`, `application` (unit)                                | `@swc/jest` (rápido, sin type-check en el propio test run — el type-check ya lo cubre `nx affected --target=typecheck` en CI) | `testEnvironment: node`; cero mocks de infraestructura permitidos (regla de proceso, reforzada en review, no mecánicamente bloqueable por Jest) |
+| `infrastructure` (integration, sufijo `.integration.spec.ts`) | `@swc/jest`                                                                                                                   | `globalSetup`/`globalTeardown` apuntan a la librería compartida de Testcontainers (§2); `testTimeout` elevado (arranque de contenedor)          |
+| `frontend` (`ui-kit-*`, `data-access`)                        | `@swc/jest` + `@testing-library/react` (o `@testing-library/react-native` para `ui-kit-mobile`)                               | `testEnvironment: jsdom` (web) / entorno de React Native para mobile                                                                            |
+| `e2e` (`api-e2e`)                                             | N/A (Jest + Supertest, no `@swc/jest` transform especial)                                                                     | Levanta `apps/api` completo contra Testcontainers, ver §5. Target `test`, pero en CI corre en el job `e2e`, no en `ci / test` (#144)            |
 
 Cobertura (`collectCoverage`) activa por defecto en `domain`/`application`; opt-in en `infrastructure` (la cobertura de un adaptador contra Testcontainers es menos informativa que la de una regla de negocio, y más costosa de calcular). Umbral de gate (`coverageThreshold`) referenciado en §7 — no fijado en este documento (depende del umbral vigente por módulo, que evoluciona).
 
