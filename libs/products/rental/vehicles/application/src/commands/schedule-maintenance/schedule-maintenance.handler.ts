@@ -9,7 +9,9 @@ import {
   UNIT_OF_WORK,
   type UnitOfWork,
 } from '@platform/shared-kernel';
+import { USER_LOOKUP_PORT, type UserLookupPort } from '@platform/users/application';
 import {
+  InvalidResponsibleUserError,
   type MaintenanceTypeValue,
   type VehicleId,
   VehicleNotFoundError,
@@ -28,6 +30,7 @@ export class ScheduleMaintenanceHandler {
     @Inject(DOMAIN_EVENT_PUBLISHER) private readonly eventPublisher: DomainEventPublisher,
     private readonly activeBookingsGuard: ActiveBookingsGuard,
     @Inject(TRANSACTION_LOCK) private readonly transactionLock: TransactionLock,
+    @Inject(USER_LOOKUP_PORT) private readonly userLookup: UserLookupPort,
   ) {}
 
   async execute(command: ScheduleMaintenanceCommand): Promise<string> {
@@ -35,6 +38,17 @@ export class ScheduleMaintenanceHandler {
     const vehicle = await this.vehicleRepository.findById(vehicleId);
     if (!vehicle || vehicle.companyId !== command.companyId) {
       throw new VehicleNotFoundError(command.vehicleId);
+    }
+
+    // #142: el responsable (si viene) es un usuario activo de la misma company.
+    if (command.responsibleUserId) {
+      const status = await this.userLookup.getStatus(command.responsibleUserId, command.companyId);
+      if (status !== 'Active') {
+        throw new InvalidResponsibleUserError(
+          command.responsibleUserId,
+          status === null ? 'not-found' : 'inactive',
+        );
+      }
     }
 
     const maintenanceId = vehicle.scheduleMaintenance({

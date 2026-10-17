@@ -11,7 +11,7 @@ import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
-import { ApiError, useAuth, useCheckInReservation, useUploadPhoto } from '@frontend/data-access';
+import { ApiError, useCheckInReservation, useUploadPhoto } from '@frontend/data-access';
 import { Button, PhotoPicker, Screen, TextField } from '@frontend/ui-kit-mobile';
 
 const damageSchema = z.object({
@@ -39,7 +39,6 @@ type CheckInFormValues = z.output<typeof checkInSchema>;
 
 export default function CheckIn() {
   const { id: reservationId } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
   const checkInReservation = useCheckInReservation();
   const uploadPhoto = useUploadPhoto();
   const [photos, setPhotos] = useState<{ uri: string; fileId: string }[]>([]);
@@ -93,9 +92,6 @@ export default function CheckIn() {
   };
 
   const onSubmit = handleSubmit(async (values) => {
-    if (!user) {
-      return;
-    }
     setSubmitError(null);
     try {
       await checkInReservation.mutateAsync({
@@ -104,7 +100,6 @@ export default function CheckIn() {
           odometer: values.odometer,
           fuelLevelPercentage: values.fuelLevelPercentage,
           photoFileIds: photos.map((photo) => photo.fileId),
-          inspectedBy: user.sub,
           damages: values.damages.length > 0 ? values.damages : undefined,
         },
       });

@@ -21,4 +21,8 @@ export interface UserLookupPort {
   // lo pasa el caller (ya lo conoce via la Session encontrada por hash) - RLS de users exige
   // company_id = tenant actual, y en este punto no hay RequestContext poblado (@Public()).
   findById(userId: string, companyId: string): Promise<UserLookupResult | null>;
+  // docs/persistence/10-DECISIONES.md #142: lectura angosta para otros modulos (rental valida el
+  // responsable de un mantenimiento) sin exponerles passwordHash ni el secreto MFA. null = no
+  // existe en esa company (RLS).
+  getStatus(userId: string, companyId: string): Promise<string | null>;
 }

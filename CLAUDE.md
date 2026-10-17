@@ -6,50 +6,34 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#141` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#142` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
 ## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-16. Los Incrementos 4 (Clientes, PR #8, #139) y 5 (Administración, PR #9, #140) están **mergeados**. Historial del Incremento 5, rama `feat/web-admin-administration`: Alcance según #134: usuarios, roles, sucursales (incluida la zona horaria, pendiente 8 de abajo), configuración de la empresa, datos de la empresa y auditoría. Mismo proceso que Flota y Clientes (#137, #139):
+Estado al 2026-10-16. Mergeados: Incremento 4 (Clientes, PR #8, #139), Incremento 5 (Administración, PR #9, #140) y reserva y ocupación atómicas (PR #10, #141). El detalle de cada uno está en su decisión.
 
-1. [x] Auditoría en vivo (2026-10-15, `admin-audit.cjs` del scratchpad). Hallazgos:
-   - **A (500)**: sucursal con cierre antes de apertura o día repetido; rol con permiso inexistente; editar o desactivar un rol System; política de cancelación sin tramos; mantenimiento `applies` sin umbrales.
-   - **B (falso 409)**: una operación que no cambia nada (asignar un rol que ya tiene, revocar uno que no tiene, deshabilitar dos veces, cerrar una sucursal cerrada) responde `CONCURRENT_MODIFICATION`: el dominio no sube la versión pero el repositorio guarda igual.
-   - **C (seguridad, crítico)**: el único admin puede quitarse su rol o deshabilitarse; la empresa queda sin nadie que administre y no hay camino por API para recuperarla.
-   - **D (seguridad)**: asignar y revocar roles y reactivar usuarios no emiten evento: no quedan en la auditoría.
-   - **E (datos)**: se acepta un usuario con una sucursal inexistente o sin roles, un módulo de producto inexistente o repetido, un teléfono de facturación `abc`, y un rol cuyo nombre solo difiere en mayúsculas o copia uno System.
-   - **F (reglas)**: cerrar una sucursal con reservas confirmadas no avisa (después el check-out falla con `BRANCH_CLOSED`); se crea un usuario en una sucursal cerrada; desactivar un rol asignado deja a sus usuarios sin permisos sin aviso.
-   - **G (políticas)**: se aceptan tramos de cancelación repetidos o incoherentes (más anticipación con más multa), recargo tardío del 1000 %/h, depósito que "aplica" con 0 % y recordatorio de 10 años.
-   - **H**: `GET /audit-log` no pagina ni filtra por fecha (devuelve todo) y muestra el actor solo por id.
-2. [x] Decisiones del usuario (2026-10-15):
-   - **C**: la empresa **siempre conserva al menos un usuario activo que puede administrar usuarios y roles**; el API rechaza con 409 revocar o deshabilitar si eso la deja sin ninguno (también si lo hace otro admin).
-   - **F, sucursal**: cerrar una sucursal con reservas confirmadas o en curso se **rechaza con 409 y la lista de reservas** (como mantenimiento en Flota, #137).
-   - **F, rol**: desactivar un rol con usuarios asignados se **rechaza con 409** (primero hay que reasignarlos).
-   - **G**: la política de cancelación exige **coherencia**: al menos un tramo, sin horas repetidas, y a más anticipación la multa es menor o igual. Los topes de recargo tardío y depósito **no se tocan** (calibración de negocio).
-3. [x] Plan aprobado (2026-10-15), validado con un agente Plan (plan completo en `~/.claude/plans/drifting-leaping-emerson.md` de esta máquina; resumen acá). El agente encontró además **I (seguridad)**: un usuario deshabilitado puede seguir renovando su sesión (el refresh no mira el estado). Decisiones extra del usuario: se suma `PATCH /users/:id` (nombre y sucursal); los módulos de producto, de solo lectura en la web. Regla transversal: validar estricto solo lo que entra; al cargar de la base, tolerante (si no, los datos viejos quedan trabados).
-4. Implementar en capas (marcar cada una al commitearla):
-   - [x] 1. A y B: VO de branches/roles/settings/users/companies con `InvalidValueError`; no-op idempotente en disable-user, assign-role, revoke-role, close-branch, reopen-branch (patrón #56), `User.reactivate` y `Role.deactivate` no-op; lookup del rol por id crudo antes de `EntityId.from` (System → 403) y `existsWithName`; seeds en `uuidv7` (también `companyId` de `seedCompanyWithAdmin`).
-   - [x] 2. C, D e I: `ROLE_ASSIGNMENTS_PORT` en roles-permissions (application + infrastructure), administrador = activo con `users:assign-role` y `roles:create`, `pg_advisory_xact_lock`, 409 `LAST_ADMINISTRATOR` en revoke-role, disable-user y edit-role-permissions; eventos `UserRoleAssigned/Revoked/Reactivated.v1`; refresh rechaza usuario no `Active`.
-   - [x] 3. E: alta de usuario con roles ≥1 y activos y sucursal existente y activa (422); `PATCH /users/:id`; módulos deduplicados y con formato; teléfono de facturación E.164 al entrar; nombre de rol único sin mayúsculas y distinto de los System (migración, limpiar antes los datos de la auditoría local).
-   - [x] 4. F: `BRANCH_ACTIVE_RESERVATIONS_PORT` (branches/application, `@Optional`), adapter en rental/reservations/infrastructure, enlazado en `apps/api/src/app/composition/product-ports.module.ts` (`@Global`); 409 `BRANCH_HAS_ACTIVE_RESERVATIONS` y `ROLE_HAS_USERS`.
-   - [x] 5. G y H: cancelación coherente y mantenimiento sin umbrales (400, carga tolerante); `GET /audit-log` con cursor, limit (50, máx. 100), `from`/`to` e índice.
-   - [x] 6. Verificación en vivo (`admin-audit.cjs` en PASS/FAIL) y e2e `administration-rules` + los 11 de la lista del plan, individuales.
-   - [x] 7. `Checkbox` en ui-kit-web, tipos y hooks `data-access-web/src/admin/`.
-   - [x] 8. Pantallas `(admin)/admin/`: Usuarios, Roles, Sucursales, Empresa, Auditoría.
-   - [x] 9. Docs: #140, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, `06-DOMAIN_EVENTS`, `04-EVENT-CONTRACTS`, `09-SEGURIDAD`, `05-INDICES-Y-CONSTRAINTS`, CLAUDE.md.
-5. [x] Push, PR y CI 6/6. Nunca aprobar ni mergear. **PR #9** abierto (2026-10-16). La primera corrida dio 5/6: fallo `audit` por dos avisos altos nuevos (`deepmerge-ts`, `mysql2`), dependencias exactas del CLI de `prisma@7.10.0`, ajenas a este PR. Se resolvio con `prisma`, `@prisma/client` y `@prisma/adapter-pg` 7.10.1 (parche, solo cambia el lockfile); smokes de nuevo en PASS. **CI 6/6 en verde.** Aprobado y mergeado por el colaborador (2026-10-16).
+**En curso, elegido por el usuario (2026-10-16): pendiente 8, actor desde el token**, rama `feat/actor-from-token` (desde `master` con el PR #10). Hallazgos de la investigación:
 
-**Siguiente, elegido por el usuario (2026-10-16): pendiente 9, reserva y ocupación atómicas**, rama `feat/reservation-slot-atomicity` (basada en la del PR #9, porque incluye el cierre de sucursal de #140). Alcance decidido: (a) las 7 operaciones de reserva que tocan el calendario (confirmar, cancelar, check-in, no-show, cambio de vehículo, reprogramar, aprobar extensión) en **una sola transacción** con el calendario (hoy son dos: si falla entre medio, slot y reserva quedan desfasados); (b) cerrar la carrera chequeo/acción de mantenimiento, daño, fuera de servicio (#137) y cierre de sucursal (#140) con un lock por vehículo compartido con confirmar. Plan aprobado (2026-10-16), validado con un agente Plan. Decisiones extra del usuario: **confirmar (y cambiar de vehículo) en una sucursal cerrada responde 409 `BRANCH_CLOSED`**; **los eventos se emiten después del commit** (hoy la auditoría transcribe eventos de transacciones que después se revierten). Regla técnica: después de tomar un lock, toda lectura usa el `tx` exterior (si no, el pool de conexiones se traba). Capas:
+- `inspectedBy` (retiro y devolución) y `cancelledBy` (cancelación del personal) los manda el cliente: se puede firmar a nombre de otro. La auditoría ya usa el token (`requestContext.userId`); lo falsificable es lo guardado en la inspección y en `ReservationCancelled.v1`. El cliente de mobile ya cancela con el token.
+- `responsibleUserId` del mantenimiento acepta cualquier UUID (otra empresa o inexistente).
+- El `ValidationPipe` usa `forbidNonWhitelisted`: quitar un campo hace que un cliente viejo reciba 400.
 
-- [x] 1. Puerto `TRANSACTION_LOCK` (shared-kernel) + `PrismaTransactionLock` (persistence-kernel, `pg_advisory_xact_lock[_shared]`, `lock_timeout` 2 s, 55P03/40P01 → 409), enlazado en `apps/api` `prisma.module.ts`; `OutboxWriter` deja el emit en un buffer y `PrismaUnitOfWork` lo emite solo si la transacción confirma.
-- [x] 2. Calendario con `tx?` (port, adapter, repositorio, handlers occupy/release/move, `findActiveSlotId`/`findActiveBookings`).
-- [x] 3. Reservas: los 7 handlers con calendario adentro de su transacción; confirm con locks compartidos (sucursal, vehículo), relectura con `tx`, `Reservation.confirm` con `isBranchActive`, rechazo publicado después del rollback, sin compensación; swap valida la sucursal del vehículo nuevo.
-- [x] 4. Guards con lock exclusivo: mantenimiento/daño/fuera de servicio (vehículo) y cierre de sucursal (sucursal), con lecturas en `tx`.
-- [x] 5. Verificación: unitarios, integration spec, smoke en vivo de las carreras y 13 e2e individuales.
-- [x] 6. Docs: #141, `07-ERROR-CATALOG`, `08-STATE_MACHINES`, technical/05-EVENTING, CLAUDE.md (cerrar el pendiente 9).
-- [ ] 7. PR y CI 6/6.
+Decisiones del usuario (2026-10-16):
+
+- **Quitar `inspectedBy` y `cancelledBy` del contrato**; el API usa siempre el usuario del token y web y mobile se actualizan en el mismo PR (no hay builds en producción).
+- **`responsibleUserId` tiene que ser un usuario activo de la misma empresa** (si no, 422); elegir a otra persona sigue siendo válido.
+- **Índice trigram de la búsqueda de clientes en este PR** (`pg_trgm`, GIN sobre nombre, documento y email).
+
+Pasos:
+
+Plan aprobado (2026-10-16), validado con un agente Plan (`~/.claude/plans/drifting-leaping-emerson.md`). Correcciones del agente: cancelar queda sin body y un `cancelledBy` viejo se ignora (no da 400); `@RequireStaffActor()` en el controller; `USER_LOOKUP_PORT.getStatus` angosto (rental no recibe `passwordHash`). **Riesgo del trigram**: `rental.customers` tiene RLS forzado y Postgres no usa índices para `ILIKE` (no `LEAKPROOF`) bajo RLS; se prueba primero como `app_runtime` y, si no se usa, la capa sale del PR y queda como gap. Capas:
+
+- [x] 1. Actor desde el token: DTOs, controller, domain-types, data-access-web, data-access (spec), web-admin (`currentUserId` fuera), mobile (`useAuth` muerto fuera), e2e (+ caso 400) y `tooling/scripts/smoke/reminder.ts`.
+- [x] 2. Responsable de mantenimiento: `getStatus` en el puerto, adapter y 3 specs de identity; `InvalidResponsibleUserError` 422; `VehiclesModule` importa `UsersModule`.
+- [x] 3. Trigram: **descartado** (2026-10-16, `trgm-rls-probe.cjs` del scratchpad, en una transacción revertida). Con seq scan e index scan apagados, el superusuario usa los 4 GIN (BitmapOr), pero `app_runtime` bajo RLS no: solo usa `customers_company_id_id_idx` y filtra el `ILIKE` fila por fila (`ILIKE` no es `LEAKPROOF`). Queda como gap en #142; la alternativa futura (función `SECURITY DEFINER` con filtro explícito por empresa) es una decisión de seguridad del usuario.
+- [x] 4. Verificación, docs (#142), **PR #11** y **CI 6/6 en verde** (2026-10-16). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
@@ -102,7 +86,7 @@ Pendiente del usuario: validación visual de Clientes y de Flota (la web queda e
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
 - **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, PR #8). **Incremento 5 (Administración)** hecho (#140, rama `feat/web-admin-administration`): con eso la hoja de ruta de #134 queda completa. Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas decisiones: `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
+- Últimas decisiones: `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 
@@ -120,9 +104,9 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 6. **Sin `extra.eas.projectId`** vinculado en `apps/mobile/app.json` — requiere una cuenta EAS real (acción externa). Sin esto, `getExpoPushTokenAsync()` no puede obtener un token real en ningún entorno de desarrollo.
 7. **Validación visual manual**: hecha para el operador en un celular con Expo Go (#133), incluidos check-out y check-in. Falta completar el flujo del cliente. El teléfono del login ya se normaliza a E.164 con Argentina por defecto (#139).
 8. **Gaps de la web de reservas (#135)**:
-   - `inspectedBy` y `cancelledBy` todavía los manda el cliente; el API no los deriva del token;
+   - ~~`inspectedBy` y `cancelledBy` todavía los manda el cliente~~: resuelto en #142 (el API los toma del token; además el responsable de un mantenimiento se valida);
    - ~~la zona horaria de una sucursal no se edita desde la UI~~: resuelto en #140 (Administración → Sucursales);
-   - la búsqueda de clientes usa `ILIKE` sin índice trigram.
+   - la búsqueda de clientes usa `ILIKE` sin índice trigram: #142 probó que bajo RLS el índice no se usaría (`ILIKE` no es `LEAKPROOF`); la alternativa (función `SECURITY DEFINER`) es decisión del usuario.
 9. **Reserva y ocupación atómicas: RESUELTO** (#141). Las 7 operaciones que tocan el calendario van en una sola transacción; mantenimiento, daño, fuera de servicio y cierre de sucursal toman un lock exclusivo frente a confirmar; confirmar o cambiar de vehículo en una sucursal cerrada da 409 `BRANCH_CLOSED`; los eventos in-process se emiten después del commit.
 10. **MinIO archivado** (#138): el CI (`cgr.dev/chainguard/minio`) y `docker-compose.yml` dependen de un producto sin parches. La migración a RustFS va en un PR aparte (el integration spec del adaptador S3 ya pasa contra RustFS).
 11. **500 por ids que no son UUID v7 y por VO no migrados** (#137): un id v4 en un comando pasa `@IsUUID()` y `EntityId.from` responde 500; los VO de entrada de customers (#139) y de branches, roles, settings, users y companies (#140) ya lanzan `InvalidValueError`; los roles System v4 de seeds viejos se resuelven con un lookup por id crudo (#140). La web no los dispara.

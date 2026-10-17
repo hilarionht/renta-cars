@@ -58,13 +58,13 @@ describe('reservations hooks', () => {
     const { result } = renderHook(() => useCheckOutReservation(), { wrapper });
     result.current.mutate({
       reservationId: 'r1',
-      body: { odometer: 100, fuelLevelPercentage: 80, photoFileIds: [], inspectedBy: 'u1' },
+      body: { odometer: 100, fuelLevelPercentage: 80, photoFileIds: [] },
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(apiRequest).toHaveBeenCalledWith('/api/v1/reservations/r1/check-out', {
       method: 'POST',
-      body: { odometer: 100, fuelLevelPercentage: 80, photoFileIds: [], inspectedBy: 'u1' },
+      body: { odometer: 100, fuelLevelPercentage: 80, photoFileIds: [] },
     });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['reservations', 'to-check-out'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['reservations', 'to-check-in'] });
@@ -78,13 +78,13 @@ describe('reservations hooks', () => {
     const { result } = renderHook(() => useCheckInReservation(), { wrapper });
     result.current.mutate({
       reservationId: 'r2',
-      body: { odometer: 200, fuelLevelPercentage: 50, photoFileIds: [], inspectedBy: 'u1' },
+      body: { odometer: 200, fuelLevelPercentage: 50, photoFileIds: [] },
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(apiRequest).toHaveBeenCalledWith('/api/v1/reservations/r2/check-in', {
       method: 'POST',
-      body: { odometer: 200, fuelLevelPercentage: 50, photoFileIds: [], inspectedBy: 'u1' },
+      body: { odometer: 200, fuelLevelPercentage: 50, photoFileIds: [] },
     });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['reservations', 'to-check-in'] });
   });

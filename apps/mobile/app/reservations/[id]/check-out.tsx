@@ -1,7 +1,7 @@
 // Feature "check-out" - docs/06-CONVENCIONES-FRONTEND.md SS2. Fase 5 (operador de sucursal,
 // docs/persistence/10-DECISIONES.md #108). react-hook-form + zod (SS9), schema espeja
-// CheckOutReservationRequest salvo photoFileIds/inspectedBy (se completan en submit, no son
-// campos de formulario).
+// CheckOutReservationRequest salvo photoFileIds (se completa en submit, no es campo de
+// formulario). Quien inspecciona lo toma el API del token (docs/persistence/10-DECISIONES.md #142).
 //
 // PhotoPicker es 100% presentacional (docs/technical/01-MONOREPO.md SS4-5, type:ui no
 // conoce dominio) - la orquestacion real vive aca: onPick sube la foto de inmediato
@@ -14,7 +14,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { Text, StyleSheet } from 'react-native';
 import { z } from 'zod';
 
-import { ApiError, useAuth, useCheckOutReservation, useUploadPhoto } from '@frontend/data-access';
+import { ApiError, useCheckOutReservation, useUploadPhoto } from '@frontend/data-access';
 import { Button, PhotoPicker, Screen, TextField } from '@frontend/ui-kit-mobile';
 
 const checkOutSchema = z.object({
@@ -31,7 +31,6 @@ type CheckOutFormValues = z.output<typeof checkOutSchema>;
 
 export default function CheckOut() {
   const { id: reservationId } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
   const checkOutReservation = useCheckOutReservation();
   const uploadPhoto = useUploadPhoto();
   const [photos, setPhotos] = useState<{ uri: string; fileId: string }[]>([]);
@@ -55,9 +54,6 @@ export default function CheckOut() {
   };
 
   const onSubmit = handleSubmit(async (values) => {
-    if (!user) {
-      return;
-    }
     setSubmitError(null);
     try {
       await checkOutReservation.mutateAsync({
@@ -66,7 +62,6 @@ export default function CheckOut() {
           odometer: values.odometer,
           fuelLevelPercentage: values.fuelLevelPercentage,
           photoFileIds: photos.map((photo) => photo.fileId),
-          inspectedBy: user.sub,
         },
       });
       router.replace('/');

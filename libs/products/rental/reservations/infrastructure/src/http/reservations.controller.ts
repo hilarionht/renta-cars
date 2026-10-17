@@ -4,6 +4,7 @@ import { Throttle, seconds } from '@nestjs/throttler';
 import {
   RequestContext,
   RequirePermission,
+  RequireStaffActor,
   RequiresProductModule,
   WRITE_HEAVY_THROTTLE_PROFILE,
 } from '@platform/persistence-kernel';
@@ -25,7 +26,6 @@ import {
 import { GetReservationDetailHandler } from '../queries/get-reservation-detail.handler';
 import { ListReservationsHandler } from '../queries/list-reservations.handler';
 import { ApproveExtensionRequestDto } from './dto/approve-extension-request.dto';
-import { CancelReservationRequestDto } from './dto/cancel-reservation-request.dto';
 import { CheckInReservationRequestDto } from './dto/check-in-reservation-request.dto';
 import { CheckOutReservationRequestDto } from './dto/check-out-reservation-request.dto';
 import { CreateReservationRequestDto } from './dto/create-reservation-request.dto';
@@ -39,6 +39,10 @@ import { SwapVehicleRequestDto } from './dto/swap-vehicle-request.dto';
 // token (Company-level, no Branch - "un Customer alquila en cualquier Branch de su
 // Company"). Operaciones expuestas como POST sobre sub-rutas de accion, mismo criterio ya
 // establecido en VehiclesController (:id/enable, :id/report-damage, etc.), no PATCH.
+// docs/persistence/10-DECISIONES.md #142: quien inspecciona o cancela es el usuario del token,
+// nunca un campo del body. @RequireStaffActor() en toda la clase: un token de Customer nunca
+// llega aca aunque un rol mal configurado le diera permisos (el cliente usa /me/reservations).
+@RequireStaffActor()
 @RequiresProductModule('Rental')
 @Controller('reservations')
 export class ReservationsController {
@@ -129,16 +133,9 @@ export class ReservationsController {
 
   @Post(':id/cancel')
   @RequirePermission('reservations:cancel')
-  async cancel(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: CancelReservationRequestDto,
-  ): Promise<void> {
-    const { companyId } = this.requestContext.get();
-    await this.cancelReservation.execute({
-      companyId,
-      reservationId: id,
-      cancelledBy: dto.cancelledBy,
-    });
+  async cancel(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    const { companyId, userId } = this.requestContext.get();
+    await this.cancelReservation.execute({ companyId, reservationId: id, cancelledBy: userId });
   }
 
   @Post(':id/mark-no-show')
@@ -154,14 +151,14 @@ export class ReservationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CheckOutReservationRequestDto,
   ): Promise<void> {
-    const { companyId } = this.requestContext.get();
+    const { companyId, userId } = this.requestContext.get();
     await this.checkOutReservation.execute({
       companyId,
       reservationId: id,
       odometer: dto.odometer,
       fuelLevelPercentage: dto.fuelLevelPercentage,
       photoFileIds: dto.photoFileIds,
-      inspectedBy: dto.inspectedBy,
+      inspectedBy: userId,
     });
   }
 
@@ -171,14 +168,14 @@ export class ReservationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CheckInReservationRequestDto,
   ): Promise<void> {
-    const { companyId } = this.requestContext.get();
+    const { companyId, userId } = this.requestContext.get();
     await this.checkInReservation.execute({
       companyId,
       reservationId: id,
       odometer: dto.odometer,
       fuelLevelPercentage: dto.fuelLevelPercentage,
       photoFileIds: dto.photoFileIds,
-      inspectedBy: dto.inspectedBy,
+      inspectedBy: userId,
       damages: dto.damages?.map((damage) => ({
         description: damage.description,
         severity: damage.severity as 'Minor' | 'Severe',

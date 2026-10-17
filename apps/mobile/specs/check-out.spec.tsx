@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { router, useLocalSearchParams } from 'expo-router';
 
 import type * as DataAccess from '@frontend/data-access';
-import { ApiError, useAuth, useCheckOutReservation, useUploadPhoto } from '@frontend/data-access';
+import { ApiError, useCheckOutReservation, useUploadPhoto } from '@frontend/data-access';
 
 import CheckOut from '../app/reservations/[id]/check-out';
 
@@ -20,7 +20,6 @@ jest.mock('@frontend/data-access', () => {
   const actual = jest.requireActual<typeof DataAccess>('@frontend/data-access');
   return {
     ...actual,
-    useAuth: jest.fn(),
     useCheckOutReservation: jest.fn(),
     useUploadPhoto: jest.fn(),
   };
@@ -41,7 +40,6 @@ describe('CheckOut', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'reservation-1' });
-    (useAuth as jest.Mock).mockReturnValue({ user: { sub: 'user-1' } });
     (useCheckOutReservation as jest.Mock).mockReturnValue({ mutateAsync, isPending: false });
     (useUploadPhoto as jest.Mock).mockReturnValue({ mutateAsync: jest.fn() });
   });
@@ -58,7 +56,7 @@ describe('CheckOut', () => {
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 
-  it('con datos validos, llama a la mutation con inspectedBy = user.sub y navega a home', async () => {
+  it('con datos validos, llama a la mutation sin inspectedBy (lo toma el API del token, #142) y navega a home', async () => {
     mutateAsync.mockResolvedValue(undefined);
     renderCheckOut();
 
@@ -73,7 +71,6 @@ describe('CheckOut', () => {
           odometer: 15000,
           fuelLevelPercentage: 80,
           photoFileIds: [],
-          inspectedBy: 'user-1',
         },
       }),
     );

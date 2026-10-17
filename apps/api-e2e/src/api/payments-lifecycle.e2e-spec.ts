@@ -172,7 +172,6 @@ describe('Payments: SecurityDeposit event-driven + Payment manual', () => {
       odometer: 1000,
       fuelLevelPercentage: 100,
       photoFileIds: ['file-e2e-checkout'],
-      inspectedBy: admin.adminUserId,
     });
 
     const checkInResponse = await auth(
@@ -181,7 +180,6 @@ describe('Payments: SecurityDeposit event-driven + Payment manual', () => {
       odometer: 1300,
       fuelLevelPercentage: 80,
       photoFileIds: ['file-e2e-checkin'],
-      inspectedBy: admin.adminUserId,
       damages: [
         {
           description: 'rayón puerta trasera',

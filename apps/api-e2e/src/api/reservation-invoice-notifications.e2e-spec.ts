@@ -172,7 +172,6 @@ describe('Reservations/Invoices -> Notifications (Fase 3 item 3)', () => {
       odometer: 2000,
       fuelLevelPercentage: 100,
       photoFileIds: ['file-e2e-checkout-notif'],
-      inspectedBy: admin.adminUserId,
     });
 
     const checkInResponse = await auth(
@@ -181,7 +180,6 @@ describe('Reservations/Invoices -> Notifications (Fase 3 item 3)', () => {
       odometer: 2300,
       fuelLevelPercentage: 100,
       photoFileIds: ['file-e2e-checkin-notif'],
-      inspectedBy: admin.adminUserId,
       damages: [],
     });
     expect(checkInResponse.status).toBe(201);

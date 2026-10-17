@@ -47,6 +47,7 @@ export { DuplicateVehicleLicensePlateError } from './errors/duplicate-vehicle-li
 export { DuplicateVehicleVinError } from './errors/duplicate-vehicle-vin.error';
 export { DuplicateVehicleCategoryNameError } from './errors/duplicate-vehicle-category-name.error';
 export { InvalidDateRangeError } from './errors/invalid-date-range.error';
+export { InvalidResponsibleUserError } from './errors/invalid-responsible-user.error';
 export type { VehicleRegisteredEvent } from './events/vehicle-registered.event';
 export type { VehicleDocumentationLoadedEvent } from './events/vehicle-documentation-loaded.event';
 export type { VehicleEnabledEvent } from './events/vehicle-enabled.event';

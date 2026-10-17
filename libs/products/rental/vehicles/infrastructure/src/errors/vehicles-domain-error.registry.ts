@@ -10,6 +10,7 @@ import {
   DuplicateVehicleLicensePlateError,
   DuplicateVehicleVinError,
   InvalidDateRangeError,
+  InvalidResponsibleUserError,
   MaintenanceRecordInvalidStateTransitionError,
   MaintenanceRecordNotFoundError,
   RateNotFoundError,
@@ -99,6 +100,14 @@ export const VEHICLES_DOMAIN_ERROR_ENTRIES: DomainErrorEntries = [
   [
     DuplicateVehicleVinError,
     { status: 409, code: 'DUPLICATE_VEHICLE_VIN', title: 'VIN ya registrado' },
+  ],
+  [
+    InvalidResponsibleUserError,
+    {
+      status: 422,
+      code: 'INVALID_RESPONSIBLE_USER',
+      title: 'Responsable de mantenimiento invalido',
+    },
   ],
   [
     VehicleBranchNotFoundError,

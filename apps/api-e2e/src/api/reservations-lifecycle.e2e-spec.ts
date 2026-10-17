@@ -190,6 +190,18 @@ describe('Reservations: reserva -> confirmacion -> check-out -> check-in', () =>
     );
     expect(availabilityAfterConfirmResponse.body.data.available).toBe(false);
 
+    // docs/persistence/10-DECISIONES.md #142: quien inspecciona sale del token; mandarlo en el
+    // body es un campo desconocido (400) y no deja la reserva a medias.
+    const spoofedCheckOutResponse = await auth(
+      request(baseUrl).post(`/api/v1/reservations/${reservationId}/check-out`),
+    ).send({
+      odometer: 1000,
+      fuelLevelPercentage: 100,
+      photoFileIds: [],
+      inspectedBy: '01900000-0000-7000-8000-000000000000',
+    });
+    expect(spoofedCheckOutResponse.status).toBe(400);
+
     // CheckedOut
     const checkOutResponse = await auth(
       request(baseUrl).post(`/api/v1/reservations/${reservationId}/check-out`),
@@ -197,7 +209,6 @@ describe('Reservations: reserva -> confirmacion -> check-out -> check-in', () =>
       odometer: 1000,
       fuelLevelPercentage: 100,
       photoFileIds: ['file-e2e-checkout'],
-      inspectedBy: admin.adminUserId,
     });
     expect(checkOutResponse.status).toBe(201);
 
@@ -208,7 +219,12 @@ describe('Reservations: reserva -> confirmacion -> check-out -> check-in', () =>
     // #135: detalle para el personal, con la inspeccion de check-out.
     expect(getCheckedOutResponse.body.data.inspections).toHaveLength(1);
     expect(getCheckedOutResponse.body.data.inspections[0]).toEqual(
-      expect.objectContaining({ type: 'CheckOut', odometer: 1000, fuelLevel: 100 }),
+      expect.objectContaining({
+        type: 'CheckOut',
+        odometer: 1000,
+        fuelLevel: 100,
+        inspectedBy: admin.adminUserId,
+      }),
     );
     expect(getCheckedOutResponse.body.data.damageReports).toEqual([]);
 
@@ -219,7 +235,6 @@ describe('Reservations: reserva -> confirmacion -> check-out -> check-in', () =>
       odometer: 1300,
       fuelLevelPercentage: 80,
       photoFileIds: ['file-e2e-checkin'],
-      inspectedBy: admin.adminUserId,
       damages: [
         {
           description: 'rayón puerta trasera',
