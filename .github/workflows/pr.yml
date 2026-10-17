@@ -30,6 +30,10 @@ jobs:
           context: .
           file: apps/api/Dockerfile
           push: false
+      # #143: valida la sintaxis y la interpolacion de docker-compose (RustFS en lugar de MinIO);
+      # --quiet solo informa errores.
+      - name: docker compose config
+        run: docker compose -f docker-compose.yml -f docker-compose.override.yml config --quiet
 
   e2e:
     needs: [ci]

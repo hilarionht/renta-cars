@@ -30,7 +30,7 @@ Namespace `notifications` (`apps/api/src/config/notifications.config.ts`):
 | Twilio (SMS)                | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`                                              |
 | Expo (push)                 | `EXPO_PUSH_ACCESS_TOKEN`                                                                                     |
 
-Namespace `storage` (`apps/api/src/config/storage.config.ts`, MinIO/S3):
+Namespace `storage` (`apps/api/src/config/storage.config.ts`, S3 compatible):
 
 | Variable                                                                                           | Uso                                      |
 | -------------------------------------------------------------------------------------------------- | ---------------------------------------- |

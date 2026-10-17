@@ -11,7 +11,7 @@ Secuencia fija, cada paso depende solo del anterior:
 3. `npm run db:generate` — genera el cliente de Prisma (`node_modules/.prisma/client`). `npm install` no lo hace por sí solo (sin `postinstall` — ver [06-DOCKER.md §1](06-DOCKER.md), un `postinstall` automático rompería la etapa `deps` del `Dockerfile` de `apps/api`, que corre `npm ci` antes de copiar el schema de Prisma); sin este paso, `apps/api` compila pero falla en runtime con `Cannot find module '.prisma/client/default'`.
 4. `cp .env.example .env` — valores de desarrollo ya funcionales para todo lo que no sea secreto real (credenciales de sandbox de proveedores quedan vacías, ver [07-CONFIGURATION.md](07-CONFIGURATION.md)).
 5. `npm run security:generate-jwt-keys` — genera un par de claves RS256 de desarrollo e imprime las variables `JWT_*` por stdout; pegarlas en `.env` (el script nunca escribe el archivo directamente, para no pisar otras variables ya configuradas, ver [technical/07-SECURITY.md §1](../technical/07-SECURITY.md)). `.env.example` las deja vacías a propósito — sin este paso, `apps/api` falla fail-fast al arrancar con "Configuración inválida" (`ConfigModule`, ver [07-CONFIGURATION.md §4](07-CONFIGURATION.md)).
-6. `docker compose up -d` — levanta PostgreSQL, Redis, MinIO (§ ver [06-DOCKER.md](06-DOCKER.md)); observabilidad local queda fuera por defecto (perfil aparte, [08-OBSERVABILITY-BOOTSTRAP.md](08-OBSERVABILITY-BOOTSTRAP.md)).
+6. `docker compose up -d` — levanta PostgreSQL, Redis, RustFS (S3 compatible, #143) (§ ver [06-DOCKER.md](06-DOCKER.md)); observabilidad local queda fuera por defecto (perfil aparte, [08-OBSERVABILITY-BOOTSTRAP.md](08-OBSERVABILITY-BOOTSTRAP.md)).
 7. `npm run db:migrate` — aplica el historial de Prisma Migrate contra la base local (wrapper de `tooling/scripts/db/`, nunca `prisma migrate` invocado directamente, para que el script pueda fijar `DATABASE_URL` desde `ConfigModule`/`.env` de forma uniforme).
 8. `npm run db:seed` — datos sintéticos mínimos: una Company, una Branch, un usuario admin con rol completo — suficiente para iniciar sesión sin tocar la base de datos a mano.
 9. `npm run dev` — levanta `apps/api` en modo watch; `npm run dev:web` / `npm run dev:mobile` para los frontends, cada uno en su propia terminal (no se orquestan desde un único proceso, para que el log de cada uno sea legible por separado).
@@ -65,7 +65,7 @@ Carpeta `.vscode/` versionada (no `.gitignore`d) con:
 - Imagen base con la misma versión de Node fijada en §1.
 - `postCreateCommand` ejecuta exactamente los pasos 2, 3, 4, 5 y 7 de §1 (instala dependencias, genera el cliente de Prisma, copia `.env.example`, genera y agrega las claves JWT, migra) — nunca una secuencia distinta a la documentada para bootstrap local, para que ambos caminos (local nativo y Dev Container) sean el mismo flujo. El paso 5 se agrega al `.env` automáticamente ahí (`>> .env`) porque no hay una persona presente para pegarlo a mano, a diferencia del flujo local de §1.
 - Docker-outside-of-Docker (o Docker-in-Docker) habilitado para que `docker compose up` (paso 6) funcione dentro del contenedor de desarrollo.
-- Puertos reenviados: API, `web-admin`, Postgres, Redis, MinIO console (mismos puertos que §7 de [06-DOCKER.md](06-DOCKER.md)).
+- Puertos reenviados: API, `web-admin`, Postgres, Redis, consola de RustFS (mismos puertos que §7 de [06-DOCKER.md](06-DOCKER.md)).
 
 No reemplaza el entorno local nativo — es una alternativa válida, no la única soportada.
 

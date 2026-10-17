@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { config as loadEnv } from 'dotenv';
 
 import { registerContainer } from '../../../../tooling/testing/testcontainers/container-registry';
-import { startMinioContainer } from '../../../../tooling/testing/testcontainers/minio';
+import { startRustfsContainer } from '../../../../tooling/testing/testcontainers/rustfs';
 import { startPostgresContainer } from '../../../../tooling/testing/testcontainers/postgres';
 import { startRedisContainer } from '../../../../tooling/testing/testcontainers/redis';
 import { registerApiProcess } from './process-registry';
@@ -48,12 +48,12 @@ export default async function globalSetup(): Promise<void> {
   const redis = await startRedisContainer();
   registerContainer('api-e2e-redis', redis.container);
 
-  // MinIO real (no el de docker-compose local) - antes de esto, STORAGE_* se heredaba tal
-  // cual de .env, dependiendo silenciosamente de que `docker compose up` ya estuviera
-  // corriendo en la maquina; con Testcontainers el e2e queda autocontenido, mismo criterio
-  // que Postgres/Redis.
-  const minio = await startMinioContainer();
-  registerContainer('api-e2e-minio', minio.container);
+  // Almacenamiento S3 real (RustFS, #143; no el de docker-compose local) - antes de esto,
+  // STORAGE_* se heredaba tal cual de .env, dependiendo silenciosamente de que `docker compose
+  // up` ya estuviera corriendo en la maquina; con Testcontainers el e2e queda autocontenido,
+  // mismo criterio que Postgres/Redis.
+  const s3 = await startRustfsContainer();
+  registerContainer('api-e2e-s3', s3.container);
 
   const apiProcess = spawn('node', [join(WORKSPACE_ROOT, 'dist/apps/api/main.js')], {
     cwd: WORKSPACE_ROOT,
@@ -73,11 +73,11 @@ export default async function globalSetup(): Promise<void> {
       // e2e autocontenido que STORAGE_* abajo (#125).
       MFA_SECRET_ENCRYPTION_KEY: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0',
       REDIS_URL: redis.connectionUri,
-      STORAGE_ENDPOINT: minio.endpoint,
-      STORAGE_BUCKET: minio.bucket,
-      STORAGE_ACCESS_KEY: minio.accessKey,
-      STORAGE_SECRET_KEY: minio.secretKey,
-      STORAGE_REGION: minio.region,
+      STORAGE_ENDPOINT: s3.endpoint,
+      STORAGE_BUCKET: s3.bucket,
+      STORAGE_ACCESS_KEY: s3.accessKey,
+      STORAGE_SECRET_KEY: s3.secretKey,
+      STORAGE_REGION: s3.region,
     },
     // stdio heredado: si apps/api falla al arrancar (p.ej. env invalida), el error real
     // aparece en la salida de `nx run api-e2e:test` en vez de perderse en un pipe sin leer.

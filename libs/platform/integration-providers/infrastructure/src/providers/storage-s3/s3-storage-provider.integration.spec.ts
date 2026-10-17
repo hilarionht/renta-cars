@@ -2,13 +2,13 @@ import { ConfigService } from '@nestjs/config';
 
 import { S3StorageProviderAdapter } from './s3-storage-provider.adapter';
 
-// Round trip real contra MinIO (Testcontainers, tooling/testing/testcontainers/
-// minio-jest-global-setup.ts) - no un mock de S3Client. Confirma dos cosas que solo se
+// Round trip real contra un S3 compatible (RustFS en Testcontainers, tooling/testing/
+// testcontainers/s3-jest-global-setup.ts; antes MinIO, #143) - no un mock de S3Client. Confirma dos cosas que solo se
 // pueden verificar contra el proveedor real: (1) el ciclo completo getUploadUrl -> PUT ->
 // verifyUploadedObject -> getSignedUrl -> GET -> deleteObject funciona de punta a punta, y
 // (2) el enforcement de contentType via header firmado es real, no solo teorico (docs/
 // persistence/10-DECISIONES.md).
-describe('S3StorageProviderAdapter (MinIO real)', () => {
+describe('S3StorageProviderAdapter (S3 compatible real, RustFS)', () => {
   let adapter: S3StorageProviderAdapter;
 
   beforeAll(() => {

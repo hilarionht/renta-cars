@@ -1,8 +1,8 @@
 // docs/06-CONVENCIONES-FRONTEND.md SS6. Orquesta las 3 llamadas reales del flujo de subida
 // (libs/platform/files/infrastructure/src/http/files.controller.ts): pedir URL firmada,
-// subir el binario directo a esa URL (MinIO/S3, no pasa por apps/api), confirmar. Devuelve
+// subir el binario directo a esa URL (S3 compatible, no pasa por apps/api), confirmar. Devuelve
 // el id de archivo listo para photoFileIds. CORS no aplica (React Native fetch no lo
-// enforce, a diferencia de un browser) - sin configuracion adicional de MinIO necesaria.
+// enforce, a diferencia de un browser) - sin configuracion adicional del almacenamiento necesaria.
 import { useMutation } from '@tanstack/react-query';
 
 import type { RequestUploadUrlResponse, ConfirmUploadResponse } from '@frontend/domain-types';

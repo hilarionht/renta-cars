@@ -31,7 +31,7 @@ interface StorageConfig {
   region: string;
 }
 
-// docs/11-INTEGRACIONES.md SS11 / docs/ADR/0010: unico adaptador para MinIO local y
+// docs/11-INTEGRACIONES.md SS11 / docs/ADR/0010: unico adaptador para el S3 local (RustFS) y
 // cualquier proveedor S3-compatible real de produccion - forcePathStyle:true es lo que lo
 // hace funcionar contra ambos sin cambiar codigo, solo variables de entorno.
 const UPLOAD_URL_TTL_SECONDS = 300;

@@ -71,7 +71,7 @@ Los módulos consumidores (`notifications`, `payments`) declaran el puerto que n
 
 ## 11. Almacenamiento en la nube (Files)
 
-- Puerto `StorageProviderPort` (`upload`, `getSignedUrl`, `delete`), implementado en desarrollo por **MinIO** (S3-compatible, local, sin costo ni dependencia de red) y en producción por un proveedor S3-compatible real.
+- Puerto `StorageProviderPort` (`upload`, `getSignedUrl`, `delete`), implementado en desarrollo por un S3 compatible local (**RustFS** desde #138/#143; antes MinIO, archivado), sin costo ni dependencia de red, y en producción por un proveedor S3-compatible real.
 - Ningún módulo de dominio genera URLs de storage directamente ni conoce el proveedor — siempre a través del puerto, que retorna URLs firmadas de vida corta.
 - Esta es la integración más transversal de todas: Vehicles (fotos), Customers (documentos), Invoices (PDFs) dependen de ella desde Fase 0 (ver [01-ROADMAP.md](01-ROADMAP.md)).
 

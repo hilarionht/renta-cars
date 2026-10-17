@@ -6,7 +6,7 @@ import { seedAdminForCompany } from '../support/seed-identity';
 // Verifica de punta a punta el segundo item de Fase 1 (Alquiler de Vehiculos, MVP):
 // registrar company -> registrar branch (POST /branches real) -> crear VehicleCategory +
 // Rate -> registrar Vehicle (BRANCH_LOOKUP_PORT valida la branch, primer consumidor real
-// del puerto) -> flujo real de Files (upload-url -> PUT a MinIO -> confirm-upload, mismo
+// del puerto) -> flujo real de Files (upload-url -> PUT al S3 -> confirm-upload, mismo
 // patron que customers-lifecycle.e2e-spec.ts) -> cargar y verificar el documento del
 // vehicle -> enable() (INV-007) -> confirmar status: Available -> scheduleMaintenance() ->
 // confirmar Maintenance -> startMaintenance() -> completeMaintenance(true) -> confirmar
