@@ -1942,6 +1942,21 @@ Un `EXPLAIN` como el usuario dueño habría dado un falso positivo. La búsqueda
 - El compose no se puede levantar en esta máquina (sin Docker): su arranque real queda verificado solo por `docker compose config` y por el mismo contenedor que usa testcontainers.
 - RustFS es un proyecto joven (1.0 en octubre de 2026): la imagen se fija por digest y se actualiza a mano.
 
+## #144 — El check `e2e` corre los e2e del API
+
+**Contexto**: revisando los logs del PR #12 se vio que el check obligatorio `e2e` pasaba en verde sin ejecutar nada ("No tasks were run"). Corría `nx affected --target=e2e`, y el único proyecto con ese target es `web-admin-e2e` (Playwright), generado sin recorridos y con `--pass-with-no-tests` hasta que existiera la UI (`project.json`). La UI ya existe, pero nunca se escribió un recorrido. Los e2e reales del API (`api-e2e`, 25 specs) se llaman `test` y corrían dentro de `ci / test`. No faltaba cobertura, pero uno de los 6 checks obligatorios no probaba nada.
+
+**Decisión del usuario**: mover `api-e2e` al check `e2e`. El primer recorrido de la web con Playwright queda como pendiente aparte.
+
+**Cambios**:
+
+- `_reusable-ci.yml` (`ci / test`): `nx affected --target=test --exclude=api-e2e`.
+- Job `e2e` de `pr.yml` y `main.yml`: genera el cliente de Prisma, arma el `.env` de desarrollo y las claves JWT (lo que necesita `apps/api` para arrancar), y corre `nx affected --target=test --exclude='*,!api-e2e'`. Así ejecuta solo `api-e2e:test` con su dependencia `api:build`, y solo si está afectado. Después sigue Playwright como antes.
+- `nightly-e2e.yml`: corre también `api-e2e:test` completo.
+- Verificado en local con `--graph=stdout` (sin ejecutar): con el exclude, `ci / test` deja afuera `api-e2e:test`; el patrón negado deja solo `api-e2e:test` y `api:build`, y nada cuando no está afectado.
+
+**Gap aceptado**: `web-admin-e2e` sigue sin recorridos. El check `e2e` prueba el API, pero no la web.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
