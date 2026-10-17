@@ -12,12 +12,23 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-17. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142) y RustFS en el CI (PR #12, #143). El detalle de cada uno está en su decisión.
+Estado al 2026-10-17. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143) y check `e2e` real (PR #13, #144). El detalle de cada uno está en su decisión.
 
-**En curso, elegido por el usuario (2026-10-17): el check `e2e` corre los e2e del API** (#144), rama `ci/real-e2e-check`. El check obligatorio `e2e` pasaba sin ejecutar nada: solo corre Playwright (`web-admin-e2e`, sin recorridos). Decisión del usuario: mover `api-e2e` del job `ci / test` al job `e2e`. El primer recorrido de la web queda como pendiente aparte.
+**En curso, elegido por el usuario (2026-10-17): pendiente 1, recordatorios "al menos una vez"**, rama `feat/reminder-at-least-once`. Investigación:
 
-- [x] 1. Workflows (`_reusable-ci.yml`, `pr.yml`, `main.yml`, `nightly-e2e.yml`), `nx.json` (`sharedGlobals` con los workflows: un cambio de CI corre el CI completo) y docs (#144, `05-CI-CD`, `04-TESTING-FOUNDATION`), verificados con `nx affected --graph`.
-- [x] 2. **PR #13** y **CI 6/6 en verde** (2026-10-17). En los logs: `ci / test` corrió 60 proyectos sin `api-e2e`; el job `e2e` corrió `api-e2e:test` (y Playwright). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
+- `SendReservationReminderProcessor` inserta en `reservation_reminder_dispatches` **antes** de enviar: un reintento de BullMQ ve el registro (P2002) y no reenvía.
+- Además `SendNotificationHandler` **no lanza** si fallan todos los canales: marca la `Notification` `Failed` y vuelve normal. Aunque el registro fuera después, el job terminaría "bien" sin reintento.
+- El escaneo (`ReservationReminderScanProcessor`, cada 15 min) solo encola reservas sin despacho.
+
+Diseño propuesto: el despacho pasa a tener estado (`Sending` → `Sent`/`Failed`) y contador de intentos; el escaneo reencola los `Failed` y los `Sending` colgados; cada intento se reclama con una actualización condicional (sin duplicados entre workers).
+
+**Decisión del usuario (2026-10-17)**: **hasta 3 intentos en total**, y **nunca después del inicio de la reserva**; agotados, queda `Failed` (visible en la auditoría).
+
+Plan aprobado (2026-10-17, `~/.claude/plans/drifting-leaping-emerson.md`), validado con un agente Plan. Correcciones clave del agente: el reclamo es `createMany(skipDuplicates)` + `updateMany` condicional (un P2002 aborta la transacción); `markSent`/`markFailed` condicionados a `status='Sending' AND attempts=<reclamado>`; tres transacciones cortas (reclamo, envío, resultado); push después de `markSent` y fuera del `try`; jobs con `jobId` `reminder-<id>-<n>` y `removeOnComplete/removeOnFail` (sin eso BullMQ ignora el `add` de un id fallido); enum de Prisma y `TIMESTAMP(3)`; sin índice parcial. Capas:
+
+- [x] 1. `throwWhenUndelivered` en `SendNotificationHandler` y falla simulada del fake sender (`@fail.invalid`, sin escribir en `fake_notification_sends`).
+- [ ] 2. Migración (enum `ReservationReminderDispatchStatus`, `status`/`attempts`/`last_attempt_at`/`last_error`, filas viejas `Sent`), `ReminderDispatchStore`, processor y escaneo.
+- [ ] 3. Verificación (unitarios, integration spec del store contra la base local, smoke extendido, e2e), docs (#145, `02-TABLAS §4.18`, CLAUDE.md), PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 

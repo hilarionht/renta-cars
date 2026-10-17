@@ -63,10 +63,12 @@ export class SendNotificationHandler {
         );
 
     let lastFailureReason: string | undefined;
+    let lastChannelTried: string | undefined;
     for (const channel of channelOrder) {
       if (!recipient.hasChannel(channel)) {
         continue;
       }
+      lastChannelTried = channel;
       try {
         const result = await this.notificationSenderPort.send({
           channel,
@@ -91,6 +93,10 @@ export class SendNotificationHandler {
 
     if (command.requireExactChannel) {
       throw new NotificationDeliveryFailedError(command.requireExactChannel, failureReason);
+    }
+    // #145: sin canal intentado (el destinatario no tiene ninguno), el canal se informa como 'none'.
+    if (command.throwWhenUndelivered) {
+      throw new NotificationDeliveryFailedError(lastChannelTried ?? 'none', failureReason);
     }
     return notification.id;
   }
