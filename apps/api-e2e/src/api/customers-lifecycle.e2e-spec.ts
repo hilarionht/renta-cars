@@ -7,7 +7,7 @@ import { seedAdminForCompany } from '../support/seed-identity';
 // primer modulo scope:product-rental del proyecto: registrar company -> habilitar/probar el
 // gate de TenantModuleEnabledGuard (primer consumidor real de @RequiresProductModule(), sin
 // ejercitar durante toda la Fase 0) -> registrar customer -> flujo real de Files
-// (upload-url -> PUT a MinIO -> confirm-upload, mismo patron que
+// (upload-url -> PUT al S3 -> confirm-upload, mismo patron que
 // files-upload-signed-url-delete.e2e-spec.ts) -> cargar y verificar el documento propio ->
 // confirmar el efecto lateral status: Registered -> Active -> conductor adicional ->
 // validate-license falla 422 sin licencia (INV-012) -> cargar y verificar la licencia ->

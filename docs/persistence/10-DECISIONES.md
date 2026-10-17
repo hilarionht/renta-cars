@@ -1913,6 +1913,35 @@ Un `EXPLAIN` como el usuario dueño habría dado un falso positivo. La búsqueda
 - Un `cancelledBy` en el body de cancelar se ignora en vez de rechazarse.
 - Búsqueda de clientes sin índice trigram (RLS).
 
+## #143 — RustFS en lugar de MinIO en el CI y en docker-compose
+
+**Contexto**: pendiente 10 de CLAUDE.md, elegido por el usuario. El MinIO open source fue archivado (#138): no recibe parches de seguridad y `minio/minio` desapareció de Docker Hub. El CI seguía levantando `cgr.dev/chainguard/minio` (#125), un build del mismo binario sin mantenimiento, para api-e2e y para el integration spec del adaptador S3. `docker-compose.yml` lo usaba con un job `minio-init` que creaba el bucket con `mc`. En local ya se usaba RustFS 1.0.1 nativo, y el integration spec pasaba contra él.
+
+**Decisión**: RustFS en todos lados, con la **imagen oficial `rustfs/rustfs:1.0.1`** (la misma versión que en local), fijada por el digest del índice multi-arquitectura `sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c` (publicada el 2026-10-03). Los datos de la imagen se leyeron del registry, sin Docker:
+
+- corre como usuario no root (`rustfs`, 10001), con los datos en `/data` y `curl` incluido;
+- credenciales en `RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` y región en `RUSTFS_REGION`;
+- `GET /health/ready` (verificado contra el RustFS local) responde cuando almacenamiento e IAM están listos.
+
+**Cambios**:
+
+- **Testcontainers**: `tooling/testing/testcontainers/rustfs.ts` (`startRustfsContainer`, interfaz `S3TestContainer`) reemplaza a `minio.ts`. Espera `/health/ready` y crea el bucket con el SDK, como antes. `s3-jest-global-setup.ts`/`-teardown.ts` reemplazan a los de MinIO, con las mismas variables `TEST_STORAGE_*`. api-e2e registra el contenedor como `api-e2e-s3`.
+- **docker-compose**: el servicio `rustfs` reemplaza a `minio`, con healthcheck `curl /health/ready` y volumen `rustfs-data`. El job `rustfs-init` reemplaza a `minio-init` y **no usa `mc`**: crea el bucket con un `PUT` firmado (`curl --aws-sigv4`) desde la misma imagen. Se probó contra el RustFS local: crear un bucket da 200 y repetirlo también (idempotente). Se acepta 200 o 409. La CORS para la web la sigue configurando `npm run dev:storage-setup`, como antes. En el override, el puerto 9002 del host sigue apuntando al 9000.
+- **CI**: `docker-validate` (en `pr.yml` y `main.yml`) suma `docker compose config --quiet`. Antes el compose no se validaba en ninguna parte.
+- Comentarios del código y docs operativos (`06-DOCKER`, `02-DEVELOPER-EXPERIENCE`, `11-INTEGRACIONES`, el runbook de rotación, `02-PROYECTOS` y la guía del entorno) pasan a "S3 compatible (RustFS)". Las menciones históricas (roadmap, plan de bootstrap, decisiones viejas) no se tocan.
+
+**Verificación**:
+
+- Lint y typecheck de integration-providers-infrastructure, api-e2e, api y frontend-data-access.
+- Integration spec del adaptador S3 contra el RustFS local: 4/4.
+- YAML del compose parseado.
+- En CI, el único lugar con Docker: el contenedor nuevo en el integration spec y en api-e2e completo, `docker compose config` y CI 6/6.
+
+**Gaps aceptados**:
+
+- El compose no se puede levantar en esta máquina (sin Docker): su arranque real queda verificado solo por `docker compose config` y por el mismo contenedor que usa testcontainers.
+- RustFS es un proyecto joven (1.0 en octubre de 2026): la imagen se fija por digest y se actualiza a mano.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

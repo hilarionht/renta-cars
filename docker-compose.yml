@@ -1,7 +1,7 @@
 name: renta
 
 # Servicios base de desarrollo local (docs/engineering/06-DOCKER.md §3): Postgres, Redis,
-# MinIO. Sin puertos publicados aqui a proposito (docker-compose.override.yml los agrega) -
+# RustFS (S3 compatible, #143; reemplaza a MinIO, archivado). Sin puertos publicados aqui a proposito (docker-compose.override.yml los agrega) -
 # un entorno de CI con Testcontainers no los necesita fijos.
 
 networks:
@@ -10,7 +10,7 @@ networks:
 
 volumes:
   postgres-data:
-  minio-data:
+  rustfs-data:
 
 services:
   postgres:
@@ -39,39 +39,46 @@ services:
       timeout: 5s
       retries: 10
 
-  minio:
-    # minio/minio dejo de existir en Docker Hub/Quay: build de Chainguard del mismo binario,
-    # fijado por digest (docs/persistence/10-DECISIONES.md #125). Incluye mc, por eso el
-    # healthcheck de abajo sigue igual.
-    image: cgr.dev/chainguard/minio@sha256:7df55d002b698e4494a131b848dd553361bbe58b7e19f62d9623c29af1ba9ccf
-    command: server /data --console-address ":9001"
+  rustfs:
+    # Imagen oficial, fijada por digest del indice multi-arquitectura (rustfs/rustfs:1.0.1, la
+    # misma version que corre en local; docs/persistence/10-DECISIONES.md #143). Corre como
+    # usuario no root y trae curl, que usan el healthcheck y el job rustfs-init.
+    image: rustfs/rustfs@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
     environment:
-      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-renta}
-      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:-renta1234}
+      RUSTFS_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-renta}
+      RUSTFS_SECRET_KEY: ${STORAGE_SECRET_KEY:-renta1234}
+      RUSTFS_REGION: ${STORAGE_REGION:-us-east-1}
+      RUSTFS_CONSOLE_ENABLE: 'true'
+      RUSTFS_CONSOLE_ADDRESS: ':9001'
     volumes:
-      - minio-data:/data
+      - rustfs-data:/data
     networks:
       - renta-dev
     healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
+      # /health/ready responde cuando almacenamiento e IAM estan listos.
+      test: ['CMD', 'curl', '-fsS', '-o', '/dev/null', 'http://localhost:9000/health/ready']
       interval: 5s
       timeout: 5s
       retries: 10
 
-  # Job de un solo uso: crea el bucket por defecto al arrancar por primera vez
-  # (docs/engineering/06-DOCKER.md §3). Vuelve a correr en cada `up`, pero `--ignore-existing`
-  # lo vuelve un no-op cuando el bucket ya existe.
-  minio-init:
-    # Misma imagen que el servicio minio: trae mc y sh. cgr.dev/chainguard/minio-client no
-    # trae shell, y este job la necesita (#125).
-    image: cgr.dev/chainguard/minio@sha256:7df55d002b698e4494a131b848dd553361bbe58b7e19f62d9623c29af1ba9ccf
+  # Job de un solo uso: crea el bucket por defecto (docs/engineering/06-DOCKER.md §3). Sin mc:
+  # el curl de la imagen firma el PUT con SigV4. Vuelve a correr en cada `up`; si el bucket ya
+  # existe, RustFS responde 200 (o 409), y las dos cuentan como exito. La CORS para la web la
+  # configura `npm run dev:storage-setup`.
+  rustfs-init:
+    image: rustfs/rustfs@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
     networks:
       - renta-dev
-    entrypoint: >
-      /usr/bin/sh -c "
-      mc alias set local http://minio:9000 ${STORAGE_ACCESS_KEY:-renta} ${STORAGE_SECRET_KEY:-renta1234} &&
-      mc mb --ignore-existing local/${STORAGE_BUCKET:-renta-dev}
-      "
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        code=$$(curl -s -o /dev/null -w '%{http_code}'
+        --aws-sigv4 'aws:amz:${STORAGE_REGION:-us-east-1}:s3'
+        --user '${STORAGE_ACCESS_KEY:-renta}:${STORAGE_SECRET_KEY:-renta1234}'
+        -X PUT http://rustfs:9000/${STORAGE_BUCKET:-renta-dev});
+        echo "crear bucket: HTTP $$code";
+        [ "$$code" = 200 ] || [ "$$code" = 409 ]

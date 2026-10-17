@@ -11,7 +11,7 @@ services:
     ports:
       - '6379:6379'
 
-  minio:
+  rustfs:
     ports:
       # Puerto host remapeado a 9002 (9000 estaba ocupado por otro proceso en esta
       # maquina) - el puerto interno del contenedor sigue siendo 9000, sin cambios en

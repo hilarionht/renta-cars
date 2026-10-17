@@ -4,10 +4,10 @@ import { seedAdminForCompany } from '../support/seed-identity';
 
 // Verifica de punta a punta el flujo completo de Files (Fase 0 item #9, ultimo pendiente del
 // roadmap): POST /files/upload-url (URL firmada de subida) -> PUT real del binario directo a
-// MinIO (nunca via apps/api) -> POST /files/confirm-upload (crea el File, emite
+// almacenamiento S3 (nunca via apps/api) -> POST /files/confirm-upload (crea el File, emite
 // FileUploaded.v1) -> GET /files/:id/signed-url -> descarga y compara bytes -> DELETE
 // /files/:id (emite FileDeleted.v1) -> reintento de signed-url da 409 FILE_ALREADY_DELETED.
-// Corre contra el MinIO real de Testcontainers (global-setup.ts), no el de docker-compose
+// Corre contra el S3 real (RustFS) de Testcontainers (global-setup.ts), no el de docker-compose
 // local - el e2e queda autocontenido.
 describe('Files: upload-url -> confirm -> signed-url -> delete', () => {
   let baseUrl: string;

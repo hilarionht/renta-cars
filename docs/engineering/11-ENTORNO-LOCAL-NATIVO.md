@@ -104,7 +104,7 @@ Remove-Item Env:PGPASSWORD
 
 Hace falta solo para **subir y ver archivos** (documentos de vehículos desde la web, fotos de inspección desde mobile). Sin él, `apps/api` arranca igual.
 
-**Por qué RustFS y no MinIO**: el MinIO open source fue **archivado**. `dl.min.io` responde `410 Gone`, ya no hay binarios ni parches de seguridad, y la imagen `minio/minio` desapareció de Docker Hub (#125). RustFS es compatible con S3, tiene binario nativo para Windows y se desarrolla activamente. El adaptador del API (`S3StorageProviderAdapter`, `forcePathStyle: true`) funciona igual: su integration spec, escrito para MinIO, pasa completo contra RustFS.
+**Por qué RustFS y no MinIO**: el MinIO open source fue **archivado**. `dl.min.io` responde `410 Gone`, ya no hay binarios ni parches de seguridad, y la imagen `minio/minio` desapareció de Docker Hub (#125). RustFS es compatible con S3, tiene binario nativo para Windows y se desarrolla activamente. El adaptador del API (`S3StorageProviderAdapter`, `forcePathStyle: true`) funciona igual: su integration spec, escrito para MinIO, pasa completo contra RustFS. Desde #143 el CI (testcontainers de api-e2e y del integration spec) y `docker-compose.yml` también usan RustFS (`rustfs/rustfs` 1.0.1, la misma versión, fijada por digest).
 
 Instalación (PowerShell, sin elevar). Fuera del repo:
 

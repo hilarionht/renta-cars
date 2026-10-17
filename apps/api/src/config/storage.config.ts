@@ -2,7 +2,7 @@ import { registerAs } from '@nestjs/config';
 
 const DEFAULT_MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
-// Namespace "storage" (MinIO/S3, StorageProviderPort). Consumido por
+// Namespace "storage" (S3 compatible: RustFS en local y CI, StorageProviderPort). Consumido por
 // S3StorageProviderAdapter (platform-integration-providers-infrastructure) y por
 // FilesModule (STORAGE_LIMITS, docs/persistence/10-DECISIONES.md).
 export default registerAs('storage', () => ({

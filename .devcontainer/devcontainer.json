@@ -11,7 +11,7 @@
     "3001": { "label": "apps/web-admin" },
     "5432": { "label": "Postgres" },
     "6379": { "label": "Redis" },
-    "9001": { "label": "MinIO consola" }
+    "9001": { "label": "RustFS consola" }
   },
   "customizations": {
     "vscode": {
