@@ -23,7 +23,7 @@ Estado al 2026-10-16. Mergeados: Incrementos 4 y 5 (PR #8 y #9, #139 y #140), re
 Pasos:
 
 - [x] 1. Plan aprobado (2026-10-16, `~/.claude/plans/drifting-leaping-emerson.md`).
-- [ ] 2. Implementación, verificación local y docs **hechos** (testcontainer `rustfs.ts`, compose con `rustfs`/`rustfs-init`, `docker compose config` en CI, integration spec 4/4 contra el RustFS local, #143). Falta: PR y CI 6/6 (el contenedor nuevo solo se prueba en CI).
+- [x] 2. Implementación, docs (#143), **PR #12** y **CI 6/6 en verde** (2026-10-17). En CI corrieron `platform-integration-providers-infrastructure:test` y `api-e2e:test` con el contenedor RustFS, y `docker compose config` en `docker-validate`. Nota: el job `e2e` del CI corre `nx affected --target=e2e`, que hoy no ejecuta nada (api-e2e corre como `test` dentro de `ci / test`). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
