@@ -216,10 +216,10 @@ Total: **32 tablas** en 6 schemas (30 derivadas directamente de un agregado o en
 
 ### 4.18 `reservation_reminder_dispatches`
 
-- **Propósito**: registrar que ya se envió el recordatorio proactivo de check-out de una `Reservation` — estado operativo del job de Reminder ([persistence/10-DECISIONES.md #121](10-DECISIONES.md)), no una regla de negocio del aggregate `Reservation`.
+- **Propósito**: registrar el estado del recordatorio proactivo de check-out de una `Reservation` (intento en curso o último) — estado operativo del job de Reminder ([persistence/10-DECISIONES.md #121](10-DECISIONES.md) y #145), no una regla de negocio del aggregate `Reservation`.
 - **Agregado propietario**: ninguno — tabla de infraestructura del job `ReservationReminderScanProcessor`, deliberadamente separada del aggregate `Reservation` (mismo criterio de "duplicación deliberada" ya usado en este repo para no mezclar infraestructura con dominio).
-- **Responsabilidad**: idempotencia real ante redelivery _at-least-once_ de BullMQ — `reservation_id` `UNIQUE`, una fila existente es tanto la marca de "ya enviado" como el mecanismo de dedup (un segundo `INSERT` para la misma `Reservation` falla por la constraint).
-- **Ciclo de vida**: una única fila, creada cuando `send-reminder` procesa el job exitosamente — sin actualización ni eliminación.
+- **Responsabilidad**: entrega "al menos una vez" sin duplicados entre workers (#145). `reservation_id` `UNIQUE`: una fila por `Reservation`. `status` (`Sending`, `Sent`, `Failed`), `attempts` (hasta 3), `last_attempt_at` y `last_error`. Cada intento se reclama con `INSERT ... ON CONFLICT DO NOTHING` o un `UPDATE` condicional (`Failed`, o `Sending` colgado más de 10 minutos, con `attempts < 3`), y el resultado se escribe solo si el intento sigue siendo el reclamado.
+- **Ciclo de vida**: se crea en el primer intento (`Sending`) y se actualiza en cada uno (`Sent` o `Failed`). Las filas anteriores a #145 quedaron `Sent`. Sin eliminación.
 - **Relaciones conceptuales**: referencia `reservation_id` (FK, mismo schema, `onDelete: Restrict`).
 
 ## 5. Schema `commerce`

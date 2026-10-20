@@ -5,6 +5,11 @@ import type { Queue } from 'bullmq';
 import { PlatformAdminPrismaService, ReadTransaction } from '@platform/persistence-kernel';
 import { RecordAuditLogEntryHandler } from '@platform/audit/application';
 
+import {
+  REMINDER_MAX_ATTEMPTS,
+  REMINDER_STALE_SENDING_MS,
+} from '../persistence/prisma/reminder-dispatch.store';
+
 // docs/persistence/10-DECISIONES.md #121 - Reminder de reservas, primera cola de BullMQ de
 // este repo. Repetible (registrada en onModuleInit) - intervalo placeholder sin calibrar
 // (15min), mismo criterio que el resto de valores no calibrados de esta sesion.
@@ -88,23 +93,48 @@ export class ReservationReminderScanProcessor extends WorkerHost implements OnMo
       const now = new Date();
       const windowEnd = new Date(now.getTime() + settings.reminderLeadTimeMinutes * 60_000);
 
+      // #145: sin despacho, o con un despacho reintentable (fallado, o Sending colgado) y
+      // menos de REMINDER_MAX_ATTEMPTS intentos. La ventana termina en el inicio: nunca despues.
+      const staleBefore = new Date(now.getTime() - REMINDER_STALE_SENDING_MS);
       return tx.reservation.findMany({
         where: {
           companyId,
           status: 'Confirmed',
           startDate: { gte: now, lte: windowEnd },
-          reminderDispatch: null,
+          OR: [
+            { reminderDispatch: null },
+            {
+              reminderDispatch: {
+                is: {
+                  attempts: { lt: REMINDER_MAX_ATTEMPTS },
+                  OR: [
+                    { status: 'Failed' },
+                    { status: 'Sending', lastAttemptAt: { lt: staleBefore } },
+                  ],
+                },
+              },
+            },
+          ],
         },
-        select: { id: true, customerId: true },
+        select: { id: true, customerId: true, reminderDispatch: { select: { attempts: true } } },
       });
     }, companyId);
 
     for (const reservation of dueReservations) {
-      await this.sendReminderQueue.add('send-reminder', {
-        reservationId: reservation.id,
-        companyId,
-        customerId: reservation.customerId,
-      });
+      // #145: un jobId por intento evita encolar dos veces el mismo si el escaneo corre antes de
+      // que se procese (sin ':', que BullMQ va a prohibir). removeOn*: sin eso, un job fallido
+      // con un id ya usado haria que BullMQ ignore el add sin avisar. El reclamo del processor
+      // sigue siendo la garantia final.
+      const attempts = reservation.reminderDispatch?.attempts ?? 0;
+      await this.sendReminderQueue.add(
+        'send-reminder',
+        { reservationId: reservation.id, companyId, customerId: reservation.customerId },
+        {
+          jobId: `reminder-${reservation.id}-${attempts}`,
+          removeOnComplete: true,
+          removeOnFail: true,
+        },
+      );
     }
 
     if (dueReservations.length > 0) {

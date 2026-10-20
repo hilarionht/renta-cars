@@ -6,7 +6,10 @@ import { ReservationReminderScanProcessor } from './reservation-reminder-scan.pr
 function buildProcessor(options: {
   companies?: { id: string }[];
   settingsByCompany?: Record<string, { reminderLeadTimeMinutes: number } | null>;
-  reservationsByCompany?: Record<string, { id: string; customerId: string }[]>;
+  reservationsByCompany?: Record<
+    string,
+    { id: string; customerId: string; reminderDispatch?: { attempts: number } | null }[]
+  >;
 }) {
   const companies = options.companies ?? [];
   const settingsByCompany = options.settingsByCompany ?? {};
@@ -19,6 +22,7 @@ function buildProcessor(options: {
     company: { findMany: jest.fn().mockResolvedValue(companies) },
   } as unknown as PlatformAdminPrismaService;
 
+  const findManyCalls: unknown[] = [];
   const readTransaction = {
     run: jest.fn((work: (tx: unknown) => unknown, companyId: string) => {
       const tx = {
@@ -30,7 +34,10 @@ function buildProcessor(options: {
             ),
         },
         reservation: {
-          findMany: jest.fn().mockResolvedValue(reservationsByCompany[companyId] ?? []),
+          findMany: jest.fn((args: unknown) => {
+            findManyCalls.push(args);
+            return Promise.resolve(reservationsByCompany[companyId] ?? []);
+          }),
         },
       };
       return work(tx);
@@ -51,7 +58,7 @@ function buildProcessor(options: {
     recordAuditLogEntry,
   );
 
-  return { processor, scanQueue, sendReminderQueue, recordAuditLogEntry };
+  return { processor, scanQueue, sendReminderQueue, recordAuditLogEntry, findManyCalls };
 }
 
 describe('ReservationReminderScanProcessor', () => {
@@ -92,8 +99,9 @@ describe('ReservationReminderScanProcessor', () => {
       settingsByCompany: { 'company-1': { reminderLeadTimeMinutes: 60 } },
       reservationsByCompany: {
         'company-1': [
-          { id: 'reservation-1', customerId: 'customer-1' },
-          { id: 'reservation-2', customerId: 'customer-2' },
+          { id: 'reservation-1', customerId: 'customer-1', reminderDispatch: null },
+          // #145: un reintento (ya tuvo 1 intento fallido).
+          { id: 'reservation-2', customerId: 'customer-2', reminderDispatch: { attempts: 1 } },
         ],
       },
     });
@@ -101,16 +109,48 @@ describe('ReservationReminderScanProcessor', () => {
     await processor.process();
 
     expect(sendReminderQueue.add).toHaveBeenCalledTimes(2);
-    expect(sendReminderQueue.add).toHaveBeenCalledWith('send-reminder', {
-      reservationId: 'reservation-1',
-      companyId: 'company-1',
-      customerId: 'customer-1',
+    expect(sendReminderQueue.add).toHaveBeenCalledWith(
+      'send-reminder',
+      { reservationId: 'reservation-1', companyId: 'company-1', customerId: 'customer-1' },
+      { jobId: 'reminder-reservation-1-0', removeOnComplete: true, removeOnFail: true },
+    );
+    expect(sendReminderQueue.add).toHaveBeenCalledWith(
+      'send-reminder',
+      { reservationId: 'reservation-2', companyId: 'company-1', customerId: 'customer-2' },
+      { jobId: 'reminder-reservation-2-1', removeOnComplete: true, removeOnFail: true },
+    );
+  });
+
+  // docs/persistence/10-DECISIONES.md #145.
+  it('busca reservas sin despacho o con un despacho reintentable (menos de 3 intentos, Failed o Sending colgado)', async () => {
+    const { processor, findManyCalls } = buildProcessor({
+      companies: [{ id: 'company-1' }],
+      settingsByCompany: { 'company-1': { reminderLeadTimeMinutes: 60 } },
     });
-    expect(sendReminderQueue.add).toHaveBeenCalledWith('send-reminder', {
-      reservationId: 'reservation-2',
-      companyId: 'company-1',
-      customerId: 'customer-2',
-    });
+
+    await processor.process();
+
+    expect(findManyCalls[0]).toEqual(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: 'Confirmed',
+          OR: [
+            { reminderDispatch: null },
+            {
+              reminderDispatch: {
+                is: {
+                  attempts: { lt: 3 },
+                  OR: [
+                    { status: 'Failed' },
+                    { status: 'Sending', lastAttemptAt: { lt: expect.any(Date) } },
+                  ],
+                },
+              },
+            },
+          ],
+        }),
+      }),
+    );
   });
 
   it('una company sin CompanySettings se omite sin encolar nada ni romper', async () => {

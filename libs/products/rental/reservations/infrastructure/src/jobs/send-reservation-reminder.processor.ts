@@ -1,9 +1,6 @@
-import { randomUUID } from 'node:crypto';
-
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
-import { Prisma } from '@prisma/client';
 
 import { asPrismaTransaction } from '@platform/persistence-kernel';
 import {
@@ -18,19 +15,20 @@ import {
   RegisterCustomerPushTokenHandler,
 } from '@rental/customers/application';
 
+import { ReminderDispatchStore } from '../persistence/prisma/reminder-dispatch.store';
+
 interface SendReminderJobData {
   reservationId: string;
   companyId: string;
   customerId: string;
 }
 
-// docs/persistence/10-DECISIONES.md #121. Idempotente ante redelivery *at-least-once* de
-// BullMQ (03-BACKEND-ARCHITECTURE.md §11, requisito no negociable): el INSERT en
-// reservation_reminder_dispatches va ANTES del envio, no despues - si ya existe (P2002,
-// reservationId UNIQUE), el job ya se proceso en un intento anterior y se corta sin
-// reenviar. Falla "silencioso" (nunca reenvia) en vez de "duplicado" ante una carrera rara -
-// mismo criterio de "mejor sub-notificar una vez en mil que duplicar" ya implicito en el
-// resto de este mecanismo.
+// docs/persistence/10-DECISIONES.md #121 y #145 ("al menos una vez"). Antes el despacho se
+// registraba ANTES de enviar y un fallo no se reintentaba nunca. Ahora cada intento se reclama
+// (ReminderDispatchStore.claim: dos workers nunca reclaman el mismo) y despues se marca Sent o
+// Failed. El reintento lo maneja el escaneo (hasta 3 intentos, nunca despues del inicio de la
+// reserva), no BullMQ: este processor nunca relanza. Tres transacciones cortas (reclamo, envio,
+// resultado); el envio nunca corre dentro de una.
 @Injectable()
 @Processor('reservations.send-reminder')
 export class SendReservationReminderProcessor extends WorkerHost {
@@ -42,43 +40,83 @@ export class SendReservationReminderProcessor extends WorkerHost {
     private readonly sendNotification: SendNotificationHandler,
     private readonly sendPushNotification: SendPushNotificationHandler,
     private readonly registerCustomerPushToken: RegisterCustomerPushTokenHandler,
+    private readonly dispatchStore: ReminderDispatchStore,
   ) {
     super();
   }
 
   async process(job: Job<SendReminderJobData>): Promise<void> {
     const { reservationId, companyId, customerId } = job.data;
+    const now = new Date();
 
-    const isFirstDispatch = await this.recordDispatch(companyId, reservationId);
-    if (!isFirstDispatch) {
+    // Antes de reclamar: si la reserva ya no aplica (cancelada o ya empezo), no se consume un
+    // intento. El escaneo tampoco la vuelve a tomar.
+    if (!(await this.isStillDue(companyId, reservationId, now))) {
       this.logger.log(
-        `Recordatorio de la reservation "${reservationId}" ya estaba despachado, omitido (idempotencia).`,
+        `Recordatorio de la reservation "${reservationId}" omitido: ya no esta Confirmed o ya empezo.`,
       );
       return;
     }
 
-    const contact = await this.customerLookupPort.getContactInfo(customerId, companyId);
-    if (!contact) {
-      this.logger.error(
-        `No se encontro el customer "${customerId}" para el recordatorio de la reservation "${reservationId}".`,
+    const attempt = await this.dispatchStore.claim(companyId, reservationId, now);
+    if (attempt === null) {
+      this.logger.log(
+        `Recordatorio de la reservation "${reservationId}" omitido: ya salio, lo tiene otro intento o se agotaron los intentos.`,
       );
       return;
     }
 
-    await this.sendNotification.execute({
-      companyId,
-      kind: 'Reminder',
-      recipient: { email: contact.email, phone: contact.phone },
-      templateId: 'reservation-reminder',
-      templateParams: { customerName: contact.name, reservationId },
-    });
+    let contact: NonNullable<Awaited<ReturnType<CustomerLookupPort['getContactInfo']>>>;
+    try {
+      const found = await this.customerLookupPort.getContactInfo(customerId, companyId);
+      if (!found) {
+        throw new Error(`No se encontro el customer "${customerId}".`);
+      }
+      contact = found;
+      await this.sendNotification.execute({
+        companyId,
+        kind: 'Reminder',
+        recipient: { email: contact.email, phone: contact.phone },
+        templateId: 'reservation-reminder',
+        templateParams: { customerName: contact.name, reservationId },
+        throwWhenUndelivered: true,
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      await this.dispatchStore.markFailed(companyId, reservationId, attempt, reason);
+      this.logger.warn(
+        `Recordatorio de la reservation "${reservationId}" fallo (intento ${attempt}): ${reason}`,
+      );
+      return;
+    }
+    await this.dispatchStore.markSent(companyId, reservationId, attempt);
 
+    // Despues de marcar Sent y fuera del try: un error del push nunca vuelve el despacho a
+    // Failed (eso causaria un reintento y un mensaje duplicado).
     if (contact.pushDeviceToken) {
       await this.sendPushBestEffort(contact.pushDeviceToken, contact.name, reservationId, {
         companyId,
         customerId,
       });
     }
+  }
+
+  private async isStillDue(companyId: string, reservationId: string, now: Date): Promise<boolean> {
+    const reservation = await this.unitOfWork.run(
+      (tx) =>
+        asPrismaTransaction(tx).reservation.findFirst({
+          where: {
+            id: reservationId,
+            companyId,
+            status: 'Confirmed',
+            startDate: { gt: now },
+            deletedAt: null,
+          },
+          select: { id: true },
+        }),
+      companyId,
+    );
+    return reservation !== null;
   }
 
   // Best-effort: nunca lanza, nunca afecta el resultado del job ni la idempotencia ya
@@ -105,34 +143,20 @@ export class SendReservationReminderProcessor extends WorkerHost {
         this.logger.log(
           `Push del recordatorio de la reservation "${reservationId}" fallo con un token invalido, limpiando pushDeviceToken del customer "${owner.customerId}".`,
         );
-        await this.registerCustomerPushToken.execute({
-          customerId: owner.customerId,
-          companyId: owner.companyId,
-          deviceToken: null,
-        });
+        // #145: protegido, para que limpiar el token nunca haga fallar el job (el despacho ya
+        // quedo Sent).
+        await this.registerCustomerPushToken
+          .execute({ customerId: owner.customerId, companyId: owner.companyId, deviceToken: null })
+          .catch((cleanupError: unknown) =>
+            this.logger.warn(
+              `No se pudo limpiar el pushDeviceToken del customer "${owner.customerId}": ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
+            ),
+          );
         return;
       }
       this.logger.warn(
         `Push del recordatorio de la reservation "${reservationId}" fallo: ${error instanceof Error ? error.message : String(error)}`,
       );
-    }
-  }
-
-  // true = primer despacho real (procede a enviar). false = ya existia (P2002 sobre
-  // reservationId UNIQUE) - no reenvia.
-  private async recordDispatch(companyId: string, reservationId: string): Promise<boolean> {
-    try {
-      await this.unitOfWork.run(async (tx) => {
-        await asPrismaTransaction(tx).reservationReminderDispatch.create({
-          data: { id: randomUUID(), companyId, reservationId, dispatchedAt: new Date() },
-        });
-      }, companyId);
-      return true;
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        return false;
-      }
-      throw error;
     }
   }
 }

@@ -17,6 +17,11 @@
 //   4. queda auditado el bypass de RLS (PlatformAdminBypassUsed.v1);
 //   5. un segundo scan NO duplica ni el dispatch ni el envio (idempotencia);
 //   6. R2 del seed (fuera de la ventana) no tiene dispatch.
+//   7-9. (#145, "al menos una vez") con el email del cliente en @fail.invalid (el fake sender
+//      falla en todos los canales), cada scan suma un intento Failed hasta 3, el cuarto ya no
+//      reintenta, y no hay ningun envio;
+//   10-11. una reserva que falla una vez y, con el email restaurado, sale Sent en el scan
+//      siguiente (intento 2), con un unico envio.
 //
 // Nunca corre en CI ni en tests.
 
@@ -115,6 +120,26 @@ async function countEvidence(
   };
 }
 
+async function dispatchState(
+  db: Client,
+  reservationId: string,
+): Promise<{ status: string; attempts: number } | null> {
+  const result = await db.query<{ status: string; attempts: number }>(
+    'SELECT status, attempts FROM rental.reservation_reminder_dispatches WHERE reservation_id = $1',
+    [reservationId],
+  );
+  return result.rows[0] ?? null;
+}
+
+async function reminderSends(db: Client, reservationId: string): Promise<number> {
+  const result = await db.query<{ n: string }>(
+    `SELECT count(*) AS n FROM support.fake_notification_sends
+     WHERE template_id = 'reservation-reminder' AND template_params->>'reservationId' = $1`,
+    [reservationId],
+  );
+  return Number(result.rows[0].n);
+}
+
 async function runScan(queue: Queue, events: QueueEvents): Promise<boolean> {
   const job = await queue.add('smoke-manual-scan', {});
   try {
@@ -149,21 +174,30 @@ async function main(): Promise<void> {
     email: seed.admin.email,
     password: seed.admin.password,
   });
-  const start = new Date(Date.now() + HOUR_MS);
-  const reservation = await api<{ id: string }>(
-    seed,
-    'POST',
-    '/reservations',
-    {
-      customerId: seed.customers[0].id,
-      vehicleId: seed.vehicles[1].id,
-      startDate: start.toISOString(),
-      endDate: new Date(start.getTime() + 2 * HOUR_MS).toISOString(),
-    },
-    accessToken,
-  );
-  await api(seed, 'POST', `/reservations/${reservation.id}/confirm`, undefined, accessToken);
-  console.log(`Reserva de smoke ${reservation.id} confirmada (inicio ${start.toISOString()}).`);
+  // Reserva Confirmed en la ventana del Reminder (vehiculo 2 de la demo, +1h a +3h). Los casos
+  // de #145 crean la suya despues de cancelar la anterior (mismo vehiculo y rango).
+  const reservationsToCancel = new Set<string>();
+  let originalEmail: string | undefined;
+  const createConfirmed = async (): Promise<string> => {
+    const start = new Date(Date.now() + HOUR_MS);
+    const created = await api<{ id: string }>(
+      seed,
+      'POST',
+      '/reservations',
+      {
+        customerId: seed.customers[0].id,
+        vehicleId: seed.vehicles[1].id,
+        startDate: start.toISOString(),
+        endDate: new Date(start.getTime() + 2 * HOUR_MS).toISOString(),
+      },
+      accessToken,
+    );
+    await api(seed, 'POST', `/reservations/${created.id}/confirm`, undefined, accessToken);
+    reservationsToCancel.add(created.id);
+    console.log(`Reserva de smoke ${created.id} confirmada (inicio ${start.toISOString()}).`);
+    return created.id;
+  };
+  const reservation = { id: await createConfirmed() };
 
   const connection = redisConnection();
   const scanQueue = new Queue(SCAN_QUEUE, { connection });
@@ -197,15 +231,94 @@ async function main(): Promise<void> {
       second.dispatchR2 === 0,
       `dispatches=${second.dispatchR2}`,
     );
+
+    // Libera el vehiculo para los casos de #145 (usan el mismo vehiculo y la misma ventana).
+    await api(seed, 'POST', `/reservations/${reservation.id}/cancel`, undefined, accessToken);
+    reservationsToCancel.delete(reservation.id);
+
+    const customerId = seed.customers[0].id;
+    const customer = await api<{ contactEmail: string }>(
+      seed,
+      'GET',
+      `/customers/${customerId}`,
+      undefined,
+      accessToken,
+    );
+    originalEmail = customer.contactEmail;
+    const setEmail = (contactEmail: string): Promise<unknown> =>
+      api(seed, 'PATCH', `/customers/${customerId}`, { contactEmail }, accessToken);
+    const scan = async (): Promise<void> => {
+      await runScan(scanQueue, events);
+      await waitForSendQueueDrained(sendQueue);
+    };
+
+    // #145: tres intentos fallidos y el cuarto scan ya no reintenta.
+    await setEmail('smoke-reminder@fail.invalid');
+    const failing = await createConfirmed();
+    const attemptsSeen: string[] = [];
+    for (let scanNumber = 1; scanNumber <= 4; scanNumber++) {
+      await scan();
+      const state = await dispatchState(db, failing);
+      attemptsSeen.push(`${state?.status ?? 'sin-despacho'}/${state?.attempts ?? 0}`);
+    }
+    check(
+      'fallo en todos los canales: Failed y un intento mas por scan (1, 2, 3)',
+      attemptsSeen.slice(0, 3).join(',') === 'Failed/1,Failed/2,Failed/3',
+      attemptsSeen.join(' '),
+    );
+    check(
+      'agotados los 3 intentos, el cuarto scan no reintenta',
+      attemptsSeen[3] === 'Failed/3',
+      attemptsSeen[3],
+    );
+    const failingSends = await reminderSends(db, failing);
+    check('ningun envio con el email que falla', failingSends === 0, `envios=${failingSends}`);
+    await api(seed, 'POST', `/reservations/${failing}/cancel`, undefined, accessToken);
+    reservationsToCancel.delete(failing);
+
+    // #145: falla una vez y, con el email restaurado, sale en el scan siguiente.
+    const recovering = await createConfirmed();
+    await scan();
+    const afterFailure = await dispatchState(db, recovering);
+    await setEmail(originalEmail);
+    await scan();
+    const afterRecovery = await dispatchState(db, recovering);
+    const recoveredSends = await reminderSends(db, recovering);
+    check(
+      'reintento despues de un fallo: Failed/1 y despues Sent/2',
+      afterFailure?.status === 'Failed' &&
+        afterFailure.attempts === 1 &&
+        afterRecovery?.status === 'Sent' &&
+        afterRecovery.attempts === 2,
+      `${afterFailure?.status}/${afterFailure?.attempts} -> ${afterRecovery?.status}/${afterRecovery?.attempts}`,
+    );
+    check(
+      'el reintento exitoso envia una sola vez',
+      recoveredSends === 1,
+      `envios=${recoveredSends}`,
+    );
   } finally {
+    if (originalEmail) {
+      await api(
+        seed,
+        'PATCH',
+        `/customers/${seed.customers[0].id}`,
+        { contactEmail: originalEmail },
+        accessToken,
+      ).catch((error: unknown) =>
+        console.error('No se pudo restaurar el email del cliente:', error),
+      );
+    }
     await db.end();
     await events.close();
     await scanQueue.close();
     await sendQueue.close();
     // Libera el vehiculo para la proxima corrida (Confirmed -> Cancelled libera el slot).
-    await api(seed, 'POST', `/reservations/${reservation.id}/cancel`, undefined, accessToken).catch(
-      (error: unknown) => console.error('No se pudo cancelar la reserva de smoke:', error),
-    );
+    for (const id of reservationsToCancel) {
+      await api(seed, 'POST', `/reservations/${id}/cancel`, undefined, accessToken).catch(
+        (error: unknown) => console.error(`No se pudo cancelar la reserva de smoke ${id}:`, error),
+      );
+    }
   }
 
   const failed = results.filter((result) => !result.ok).length;

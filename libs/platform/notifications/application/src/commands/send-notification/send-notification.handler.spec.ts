@@ -1,6 +1,6 @@
 import type { DomainEventPublisher, UnitOfWork } from '@platform/shared-kernel';
 import type { SettingsLookupPort } from '@platform/settings/application';
-import type { Notification } from '@platform/notifications/domain';
+import { NotificationDeliveryFailedError, type Notification } from '@platform/notifications/domain';
 
 import { SendNotificationHandler } from './send-notification.handler';
 import type { NotificationRepository } from '../../ports/notification.repository';
@@ -161,5 +161,75 @@ describe('SendNotificationHandler', () => {
     const last = savedNotifications[savedNotifications.length - 1];
     expect(last.status).toBe('Failed');
     expect(last.channelsExhausted).toBe(true);
+  });
+
+  // docs/persistence/10-DECISIONES.md #145.
+  describe('throwWhenUndelivered', () => {
+    it('si se agotan todos los canales, marca Failed y lanza NotificationDeliveryFailedError', async () => {
+      const send = jest.fn().mockRejectedValue(new Error('proveedor caido'));
+      const { handler, savedNotifications } = buildHandler({ preferredChannel: 'Email', send });
+
+      await expect(
+        handler.execute({
+          companyId: 'company-1',
+          kind: 'Reminder',
+          recipient: { email: 'user@example.com', phone: '+525500000000' },
+          templateId: 'reservation-reminder',
+          throwWhenUndelivered: true,
+        }),
+      ).rejects.toBeInstanceOf(NotificationDeliveryFailedError);
+
+      // Email (preferido), WhatsApp y SMS: los tres canales del destinatario.
+      expect(send).toHaveBeenCalledTimes(3);
+      expect(savedNotifications[savedNotifications.length - 1].status).toBe('Failed');
+    });
+
+    it('si un canal sale, no lanza', async () => {
+      const send = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('WhatsApp caido'))
+        .mockResolvedValue({ providerReference: 'ref-ok' });
+      const { handler, savedNotifications } = buildHandler({ preferredChannel: 'WhatsApp', send });
+
+      await handler.execute({
+        companyId: 'company-1',
+        kind: 'Reminder',
+        recipient: { email: 'user@example.com', phone: '+525500000000' },
+        templateId: 'reservation-reminder',
+        throwWhenUndelivered: true,
+      });
+
+      expect(savedNotifications[savedNotifications.length - 1].status).toBe('Sent');
+    });
+
+    it("sin ningun canal en el destinatario, lanza con el canal 'none'", async () => {
+      const send = jest.fn();
+      const { handler } = buildHandler({ preferredChannel: 'Email', send });
+
+      await expect(
+        handler.execute({
+          companyId: 'company-1',
+          kind: 'Reminder',
+          recipient: {},
+          templateId: 'reservation-reminder',
+          throwWhenUndelivered: true,
+        }),
+      ).rejects.toThrow('"none"');
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('sin la opcion, el comportamiento de siempre: marca Failed y no lanza', async () => {
+      const send = jest.fn().mockRejectedValue(new Error('proveedor caido'));
+      const { handler, savedNotifications } = buildHandler({ preferredChannel: 'Email', send });
+
+      await handler.execute({
+        companyId: 'company-1',
+        kind: 'Reminder',
+        recipient: { email: 'user@example.com' },
+        templateId: 'reservation-reminder',
+      });
+
+      expect(savedNotifications[savedNotifications.length - 1].status).toBe('Failed');
+    });
   });
 });
