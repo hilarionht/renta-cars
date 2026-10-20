@@ -1,5 +1,3 @@
-import { Prisma } from '@prisma/client';
-
 import {
   PushTokenInvalidError,
   type SendNotificationHandler,
@@ -11,7 +9,11 @@ import type {
   RegisterCustomerPushTokenHandler,
 } from '@rental/customers/application';
 
+import type { ReminderDispatchStore } from '../persistence/prisma/reminder-dispatch.store';
 import { SendReservationReminderProcessor } from './send-reservation-reminder.processor';
+
+// docs/persistence/10-DECISIONES.md #121 y #145 ("al menos una vez").
+type ContactInfo = { email: string; phone: string; name: string; pushDeviceToken?: string };
 
 function buildJob(): Parameters<SendReservationReminderProcessor['process']>[0] {
   return {
@@ -20,25 +22,26 @@ function buildJob(): Parameters<SendReservationReminderProcessor['process']>[0] 
 }
 
 function buildProcessor(options: {
-  createRejectsWithDuplicate?: boolean;
-  contact?: { email: string; phone: string; name: string; pushDeviceToken?: string } | null;
+  stillDue?: boolean;
+  claimed?: number | null;
+  contact?: ContactInfo | null;
+  sendError?: Error;
   pushSendError?: Error;
+  registerPushTokenError?: Error;
 }) {
-  const create = options.createRejectsWithDuplicate
-    ? jest.fn().mockRejectedValue(
-        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-          code: 'P2002',
-          clientVersion: 'test',
-        }),
-      )
-    : jest.fn().mockResolvedValue(undefined);
-
+  const findFirst = jest
+    .fn()
+    .mockResolvedValue(options.stillDue === false ? null : { id: 'reservation-1' });
   const unitOfWork = {
-    run: jest.fn((work: (tx: unknown) => unknown) =>
-      work({ reservationReminderDispatch: { create } }),
-    ),
+    run: jest.fn((work: (tx: unknown) => unknown) => work({ reservation: { findFirst } })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as UnitOfWork;
+
+  const store = {
+    claim: jest.fn().mockResolvedValue(options.claimed === undefined ? 1 : options.claimed),
+    markSent: jest.fn().mockResolvedValue(undefined),
+    markFailed: jest.fn().mockResolvedValue(undefined),
+  };
 
   const customerLookupPort: CustomerLookupPort = {
     isEligibleForConfirmation: jest.fn(),
@@ -52,7 +55,9 @@ function buildProcessor(options: {
       ),
   };
 
-  const execute = jest.fn().mockResolvedValue(undefined);
+  const execute = options.sendError
+    ? jest.fn().mockRejectedValue(options.sendError)
+    : jest.fn().mockResolvedValue('notification-1');
   const sendNotification = { execute } as unknown as SendNotificationHandler;
 
   const sendPush = options.pushSendError
@@ -60,7 +65,9 @@ function buildProcessor(options: {
     : jest.fn().mockResolvedValue(undefined);
   const sendPushNotification = { execute: sendPush } as unknown as SendPushNotificationHandler;
 
-  const registerPushToken = jest.fn().mockResolvedValue(undefined);
+  const registerPushToken = options.registerPushTokenError
+    ? jest.fn().mockRejectedValue(options.registerPushTokenError)
+    : jest.fn().mockResolvedValue(undefined);
   const registerCustomerPushToken = {
     execute: registerPushToken,
   } as unknown as RegisterCustomerPushTokenHandler;
@@ -71,79 +78,127 @@ function buildProcessor(options: {
     sendNotification,
     sendPushNotification,
     registerCustomerPushToken,
+    store as unknown as ReminderDispatchStore,
   );
 
-  return {
-    processor,
-    unitOfWork,
-    customerLookupPort,
-    execute,
-    create,
-    sendPush,
-    registerPushToken,
-  };
+  return { processor, store, findFirst, execute, sendPush, registerPushToken };
 }
 
+const withPush: ContactInfo = {
+  email: 'user@example.com',
+  phone: '+525500000000',
+  name: 'Customer 1',
+  pushDeviceToken: 'ExponentPushToken[abc]',
+};
+
 describe('SendReservationReminderProcessor', () => {
-  it('primer despacho: registra el dispatch y envia la notificacion', async () => {
-    const { processor, execute, create } = buildProcessor({});
+  it('reclama el intento, envia pidiendo que lance si no entrega, y marca Sent', async () => {
+    const { processor, store, execute } = buildProcessor({});
 
     await processor.process(buildJob());
 
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ companyId: 'company-1', reservationId: 'reservation-1' }),
-      }),
-    );
+    expect(store.claim).toHaveBeenCalledWith('company-1', 'reservation-1', expect.any(Date));
     expect(execute).toHaveBeenCalledWith({
       companyId: 'company-1',
       kind: 'Reminder',
       recipient: { email: 'user@example.com', phone: '+525500000000' },
       templateId: 'reservation-reminder',
       templateParams: { customerName: 'Customer 1', reservationId: 'reservation-1' },
+      throwWhenUndelivered: true,
     });
+    expect(store.markSent).toHaveBeenCalledWith('company-1', 'reservation-1', 1);
+    expect(store.markFailed).not.toHaveBeenCalled();
   });
 
-  it('idempotente: si el dispatch ya existia (P2002), no reenvia', async () => {
-    const { processor, execute, sendPush } = buildProcessor({ createRejectsWithDuplicate: true });
+  it('si la reserva ya no aplica (cancelada o ya empezo), no reclama ni envia', async () => {
+    const { processor, store, execute } = buildProcessor({ stillDue: false });
+
+    await processor.process(buildJob());
+
+    expect(store.claim).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('relee la reserva Confirmed, sin borrar y con inicio posterior a ahora', async () => {
+    const { processor, findFirst } = buildProcessor({});
+
+    await processor.process(buildJob());
+
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'reservation-1',
+          companyId: 'company-1',
+          status: 'Confirmed',
+          deletedAt: null,
+          startDate: { gt: expect.any(Date) },
+        }),
+      }),
+    );
+  });
+
+  it('si otro intento lo tiene, ya salio o se agotaron los intentos (claim null), no envia', async () => {
+    const { processor, execute, sendPush, store } = buildProcessor({
+      claimed: null,
+      contact: withPush,
+    });
 
     await processor.process(buildJob());
 
     expect(execute).not.toHaveBeenCalled();
     expect(sendPush).not.toHaveBeenCalled();
+    expect(store.markSent).not.toHaveBeenCalled();
   });
 
-  it('no envia nada si el customer no existe (getContactInfo devuelve null)', async () => {
-    const { processor, execute, sendPush } = buildProcessor({ contact: null });
+  it('si ningun canal entrega, marca Failed con el motivo y no relanza (reintenta el escaneo)', async () => {
+    const { processor, store, sendPush } = buildProcessor({
+      claimed: 2,
+      contact: withPush,
+      // En produccion es NotificationDeliveryFailedError; al processor le da igual el tipo.
+      sendError: new Error('No se pudo enviar la notificacion por el canal "SMS": proveedor caido'),
+    });
+
+    await expect(processor.process(buildJob())).resolves.toBeUndefined();
+
+    expect(store.markFailed).toHaveBeenCalledWith(
+      'company-1',
+      'reservation-1',
+      2,
+      expect.stringContaining('proveedor caido'),
+    );
+    expect(store.markSent).not.toHaveBeenCalled();
+    expect(sendPush).not.toHaveBeenCalled();
+  });
+
+  it('sin contacto del customer, cuenta como fallo (Failed), no queda Sending', async () => {
+    const { processor, store, execute } = buildProcessor({ contact: null });
 
     await processor.process(buildJob());
 
     expect(execute).not.toHaveBeenCalled();
-    expect(sendPush).not.toHaveBeenCalled();
+    expect(store.markFailed).toHaveBeenCalledWith(
+      'company-1',
+      'reservation-1',
+      1,
+      expect.stringContaining('customer-1'),
+    );
   });
 
-  it('sin pushDeviceToken: no intenta enviar push', async () => {
-    const { processor, sendPush } = buildProcessor({
-      contact: { email: 'user@example.com', phone: '+525500000000', name: 'Customer 1' },
+  it('con pushDeviceToken: envia el push despues de marcar Sent', async () => {
+    const { processor, store, sendPush } = buildProcessor({ contact: withPush });
+    const order: string[] = [];
+    store.markSent.mockImplementation(() => {
+      order.push('markSent');
+      return Promise.resolve();
+    });
+    sendPush.mockImplementation(() => {
+      order.push('push');
+      return Promise.resolve();
     });
 
     await processor.process(buildJob());
 
-    expect(sendPush).not.toHaveBeenCalled();
-  });
-
-  it('con pushDeviceToken: envia el push ademas de la notificacion normal', async () => {
-    const { processor, sendPush } = buildProcessor({
-      contact: {
-        email: 'user@example.com',
-        phone: '+525500000000',
-        name: 'Customer 1',
-        pushDeviceToken: 'ExponentPushToken[abc]',
-      },
-    });
-
-    await processor.process(buildJob());
-
+    expect(order).toEqual(['markSent', 'push']);
     expect(sendPush).toHaveBeenCalledWith({
       deviceToken: 'ExponentPushToken[abc]',
       title: 'Recordatorio de tu reserva',
@@ -152,14 +207,17 @@ describe('SendReservationReminderProcessor', () => {
     });
   });
 
-  it('push con PushTokenInvalidError: limpia el token pero no rompe el job', async () => {
-    const { processor, registerPushToken } = buildProcessor({
-      contact: {
-        email: 'user@example.com',
-        phone: '+525500000000',
-        name: 'Customer 1',
-        pushDeviceToken: 'ExponentPushToken[abc]',
-      },
+  it('sin pushDeviceToken: no intenta enviar push', async () => {
+    const { processor, sendPush } = buildProcessor({});
+
+    await processor.process(buildJob());
+
+    expect(sendPush).not.toHaveBeenCalled();
+  });
+
+  it('push con PushTokenInvalidError: limpia el token, no rompe el job ni toca el despacho', async () => {
+    const { processor, registerPushToken, store } = buildProcessor({
+      contact: withPush,
       pushSendError: new PushTokenInvalidError('DeviceNotRegistered'),
     });
 
@@ -170,21 +228,29 @@ describe('SendReservationReminderProcessor', () => {
       companyId: 'company-1',
       deviceToken: null,
     });
+    expect(store.markFailed).not.toHaveBeenCalled();
+  });
+
+  it('si limpiar el token falla, tampoco rompe el job', async () => {
+    const { processor, store } = buildProcessor({
+      contact: withPush,
+      pushSendError: new PushTokenInvalidError('DeviceNotRegistered'),
+      registerPushTokenError: new Error('base caida'),
+    });
+
+    await expect(processor.process(buildJob())).resolves.toBeUndefined();
+    expect(store.markFailed).not.toHaveBeenCalled();
   });
 
   it('push con error generico: no limpia el token ni rompe el job', async () => {
-    const { processor, registerPushToken } = buildProcessor({
-      contact: {
-        email: 'user@example.com',
-        phone: '+525500000000',
-        name: 'Customer 1',
-        pushDeviceToken: 'ExponentPushToken[abc]',
-      },
+    const { processor, registerPushToken, store } = buildProcessor({
+      contact: withPush,
       pushSendError: new Error('Expo esta caido'),
     });
 
     await expect(processor.process(buildJob())).resolves.toBeUndefined();
 
     expect(registerPushToken).not.toHaveBeenCalled();
+    expect(store.markFailed).not.toHaveBeenCalled();
   });
 });

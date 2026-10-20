@@ -495,15 +495,31 @@ model Reservation {
 // Vive en rental (no scheduling, un schema de platform) - docs/persistence/01-SCHEMAS.md
 // (INV-P03) prohibe FKs de platform hacia rental, y esta tabla tiene FK a
 // rental.reservations.id.
+// Desde #145 la fila tiene estado: es el intento en curso o el ultimo ("al menos una vez", hasta 3
+// intentos, nunca despues del inicio de la reserva). Sending = reclamado y enviando; Sent = salio;
+// Failed = fallo (el escaneo lo reintenta mientras attempts < 3). dispatchedAt = primer intento.
 model ReservationReminderDispatch {
-  id            String   @id @db.Uuid
-  companyId     String   @map("company_id") @db.Uuid
-  reservationId String   @unique @map("reservation_id") @db.Uuid
-  dispatchedAt  DateTime @default(now()) @map("dispatched_at")
+  id            String                            @id @db.Uuid
+  companyId     String                            @map("company_id") @db.Uuid
+  reservationId String                            @unique @map("reservation_id") @db.Uuid
+  dispatchedAt  DateTime                          @default(now()) @map("dispatched_at")
+  status        ReservationReminderDispatchStatus @default(Sending)
+  attempts      Int                               @default(1)
+  lastAttemptAt DateTime                          @default(now()) @map("last_attempt_at")
+  lastError     String?                           @map("last_error")
 
   reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Restrict)
 
   @@map("reservation_reminder_dispatches")
+  @@schema("rental")
+}
+
+// docs/persistence/10-DECISIONES.md #145.
+enum ReservationReminderDispatchStatus {
+  Sending
+  Sent
+  Failed
+
   @@schema("rental")
 }
 

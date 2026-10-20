@@ -27,7 +27,7 @@ Diseño propuesto: el despacho pasa a tener estado (`Sending` → `Sent`/`Failed
 Plan aprobado (2026-10-17, `~/.claude/plans/drifting-leaping-emerson.md`), validado con un agente Plan. Correcciones clave del agente: el reclamo es `createMany(skipDuplicates)` + `updateMany` condicional (un P2002 aborta la transacción); `markSent`/`markFailed` condicionados a `status='Sending' AND attempts=<reclamado>`; tres transacciones cortas (reclamo, envío, resultado); push después de `markSent` y fuera del `try`; jobs con `jobId` `reminder-<id>-<n>` y `removeOnComplete/removeOnFail` (sin eso BullMQ ignora el `add` de un id fallido); enum de Prisma y `TIMESTAMP(3)`; sin índice parcial. Capas:
 
 - [x] 1. `throwWhenUndelivered` en `SendNotificationHandler` y falla simulada del fake sender (`@fail.invalid`, sin escribir en `fake_notification_sends`).
-- [ ] 2. Migración (enum `ReservationReminderDispatchStatus`, `status`/`attempts`/`last_attempt_at`/`last_error`, filas viejas `Sent`), `ReminderDispatchStore`, processor y escaneo.
+- [x] 2. Migración (enum `ReservationReminderDispatchStatus`, `status`/`attempts`/`last_attempt_at`/`last_error`, filas viejas `Sent`), `ReminderDispatchStore`, processor y escaneo.
 - [ ] 3. Verificación (unitarios, integration spec del store contra la base local, smoke extendido, e2e), docs (#145, `02-TABLAS §4.18`, CLAUDE.md), PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
