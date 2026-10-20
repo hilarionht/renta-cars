@@ -1958,6 +1958,62 @@ Un `EXPLAIN` como el usuario dueño habría dado un falso positivo. La búsqueda
 
 **Gap aceptado**: `web-admin-e2e` sigue sin recorridos. El check `e2e` prueba el API, pero no la web.
 
+## #145 — Recordatorio de reservas "al menos una vez"
+
+**Contexto**: pendiente 1 de CLAUDE.md (gap documentado en #131), elegido por el usuario. Un recordatorio que fallaba no se reintentaba nunca, por dos motivos:
+
+- `SendReservationReminderProcessor` registraba el despacho **antes** de enviar, y un reintento de BullMQ chocaba con el `UNIQUE(reservation_id)`;
+- `SendNotificationHandler` **no lanza** cuando fallan todos los canales: marca la `Notification` `Failed` y vuelve normal. Mover el registro después del envío no habría alcanzado.
+
+El plan se validó con un agente Plan contra el código.
+
+**Decisión del usuario**: hasta **3 intentos en total**, nunca después del inicio de la reserva. Agotados, el despacho queda `Failed`.
+
+**Cambios**:
+
+- **Notifications**: `SendNotificationCommand.throwWhenUndelivered`. Si se agotan los canales, la `Notification` queda `Failed` como siempre y además se lanza `NotificationDeliveryFailedError` (canal `none` si el destinatario no tiene ninguno). Los demás callers no lo pasan.
+- **Migración** `20261017120000_rental_reservation_reminder_dispatch_status`: enum `ReservationReminderDispatchStatus` (`Sending`, `Sent`, `Failed`) y las columnas `status`, `attempts`, `last_attempt_at` y `last_error`. Las filas existentes quedan `Sent`: ya se procesaron y no se reintentan. Sin índice nuevo: el escaneo une el despacho por `reservation_id`, que ya es `UNIQUE`.
+- **`ReminderDispatchStore`** (infraestructura de reservations):
+  - `claim` hace `createMany(skipDuplicates)` (`ON CONFLICT DO NOTHING`; un P2002 abortaría la transacción) y, si la fila ya existía, un `updateMany` condicional: `attempts < 3` y `Failed`, o `Sending` colgado más de 10 minutos. En READ COMMITTED dos workers nunca reclaman el mismo intento.
+  - `markSent`/`markFailed` escriben solo si la fila sigue en `Sending` con el mismo número de intento, así que un worker lento no pisa el intento siguiente.
+  - Todas las fechas salen del reloj de la app.
+- **Processor**: tres transacciones cortas (el envío nunca corre dentro de una).
+  1. Relee la reserva **antes** de reclamar (`Confirmed`, sin borrar, inicio posterior a ahora). Si ya no aplica, no consume un intento.
+  2. `claim`.
+  3. Envía con `throwWhenUndelivered`; sin contacto también cuenta como fallo.
+  4. Marca `Sent` o `Failed` sin relanzar: el reintento lo maneja el escaneo, no BullMQ.
+
+  El push best-effort va **después** de `Sent` y fuera del `try`: un error del push nunca vuelve el despacho a `Failed`, porque eso causaría un reintento y un mensaje duplicado. La limpieza del token inválido también quedó protegida.
+
+- **Escaneo**: encola las reservas en la ventana sin despacho o con un despacho reintentable. Cada job lleva un `jobId` por intento (`reminder-<reserva>-<intentos>`, sin `:`) y `removeOnComplete`/`removeOnFail`. Antes no había `defaultJobOptions`: los jobs quedaban en Redis para siempre, y con un id fijo BullMQ habría ignorado sin avisar el `add` de un job fallido.
+- **Fake sender** (desarrollo y test): un email `@fail.invalid` falla en todos los canales sin dejar registro de envío.
+
+**Verificación**:
+
+- Unitarios de notifications (16/16) y de reservations-infrastructure (33/33).
+- **Integration spec nuevo** del store contra Postgres real (en local, contra la base de desarrollo; en CI, con testcontainers), 4/4:
+  - dos reclamos en paralelo: gana uno solo;
+  - tres fallos y después ningún reclamo más;
+  - un `Sending` reciente no se reclama y uno colgado sí;
+  - el resultado de un intento viejo no pisa el siguiente.
+- Migración aplicada en local sin drift; las 3 filas existentes quedaron `Sent`.
+- **Smoke en vivo** (`npm run smoke:reminder`, extendido), 11/11:
+  - el caso feliz de siempre (6/6);
+  - con el email del cliente en `@fail.invalid`, tres escaneos dejan `Failed/1`, `Failed/2` y `Failed/3`, el cuarto no reintenta, y no hay ningún envío;
+  - otra reserva falla una vez y, con el email restaurado, sale `Sent/2` en el escaneo siguiente con un único envío.
+
+  El email se restaura en el `finally`.
+
+- e2e de regresión, individuales: `reservation-invoice-notifications` y `reservations-lifecycle`.
+
+**Gaps aceptados**:
+
+- "Al menos una vez": si el proveedor acepta el mensaje y el proceso muere, o falla guardar la `Notification`, antes de marcar `Sent`, el recordatorio sale dos veces. Antes el riesgo era que no saliera nunca.
+- Sin espera progresiva: los 3 intentos se gastan en unos 30 minutos (un escaneo cada 15). Una caída del proveedor más larga los agota.
+- Cada intento crea su propia `Notification`.
+- Una reserva reprogramada que ya recibió el recordatorio no recibe otro (ya pasaba).
+- Agotados los intentos no hay escalamiento humano (pendiente 4).
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
