@@ -6,7 +6,7 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#145` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#146` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
 ## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
 
@@ -24,7 +24,7 @@ Decisiones del usuario: **login + crear una reserva + confirmarla**, solo **Chro
 
 - [x] 1. Seed compartido en `tooling/testing/seed/` (api-e2e reexporta).
 - [x] 2. `globalSetup`, config de Playwright, el test, `project.json` y workflows.
-- [ ] 3. Verificación (local en modo externo, lint/typecheck, un e2e del API), docs (#146, `04-TESTING-FOUNDATION`, guía del entorno, CLAUDE.md), PR y CI 6/6.
+- [ ] 3. Verificación local (2 corridas en verde en modo externo, lint/typecheck, `reservations-lifecycle` con el seed movido) y docs (#146, `04-TESTING-FOUNDATION`, guía del entorno) **hechos**. Falta: PR y CI 6/6, verificando en los logs que `web-admin-e2e:e2e` corrió autocontenido (nunca aprobar ni mergear).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
@@ -77,7 +77,7 @@ Pendiente del usuario: validación visual de Clientes y de Flota (la web queda e
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
 - **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, PR #8). **Incremento 5 (Administración)** hecho (#140, rama `feat/web-admin-administration`): con eso la hoja de ruta de #134 queda completa. Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas decisiones: `#145` (recordatorio "al menos una vez"), `#144` (el check `e2e` corre los e2e del API), `#143` (RustFS en el CI y en docker-compose), `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
+- Últimas decisiones: `#146` (primer recorrido e2e de la web), `#145` (recordatorio "al menos una vez"), `#144` (el check `e2e` corre los e2e del API), `#143` (RustFS en el CI y en docker-compose), `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 
@@ -102,7 +102,7 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 10. **MinIO archivado: RESUELTO** (#143). El CI (testcontainers) y `docker-compose.yml` usan la imagen oficial `rustfs/rustfs` 1.0.1 fijada por digest; `docker-validate` valida el compose.
 11. **500 por ids que no son UUID v7 y por VO no migrados** (#137): un id v4 en un comando pasa `@IsUUID()` y `EntityId.from` responde 500; los VO de entrada de customers (#139) y de branches, roles, settings, users y companies (#140) ya lanzan `InvalidValueError`; los roles System v4 de seeds viejos se resuelven con un lookup por id crudo (#140). La web no los dispara.
 12. **`@aws-sdk/client-s3` va a exigir Node 22 o superior desde enero de 2027** (#138); el proyecto usa Node 20.
-13. **Sin recorridos e2e de la web** (#144): `web-admin-e2e` (Playwright) no tiene specs; el check `e2e` prueba solo el API.
+13. **Recorridos e2e de la web: primero hecho** (#146): login, crear una reserva y confirmarla (Playwright, Chromium), autocontenido en CI y con `WEB_E2E_EXTERNAL=1` en local. Los demás flujos de la web siguen sin e2e.
 
 ## Entorno — cómo levantar todo
 

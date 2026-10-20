@@ -41,7 +41,7 @@ Ejecuta mecánicamente la regla ya fijada en [10-TESTING.md §3](../10-TESTING.m
 ## 5. E2E
 
 - **`apps/api-e2e`**: Jest + Supertest contra una instancia real de `apps/api` levantada en proceso de test, con Testcontainers (§2) como backing de Postgres/Redis — nunca contra staging. Cubre exclusivamente los flujos críticos ya listados en [10-TESTING.md §5](../10-TESTING.md) (reserva→confirmación→check-out→check-in→factura; login→refresh→acceso protegido) — un flujo nuevo se agrega a este proyecto solo si es un "golden path" de negocio, no por cada endpoint.
-- **`apps/web-admin-e2e`**: Playwright, ejecutado contra un build de `web-admin` servido localmente (`next start`) apuntando a una instancia de `apps/api` de test — mismo criterio de alcance mínimo (golden paths de UI, no cada estado de componente).
+- **`apps/web-admin-e2e`**: Playwright, ejecutado contra un build de `web-admin` servido localmente (`next start`) apuntando a una instancia de `apps/api` de test — mismo criterio de alcance mínimo (golden paths de UI, no cada estado de componente). Desde [persistence/10-DECISIONES.md #146](../persistence/10-DECISIONES.md): solo Chromium; el `globalSetup` levanta Postgres y Redis por testcontainers y el API compilado en el 3333, y siembra los datos por la API; el `webServer` hace `next build` + `next start` en el 4300. En local, sin Docker: `WEB_E2E_EXTERNAL=1` ([11-ENTORNO-LOCAL-NATIVO.md §6](11-ENTORNO-LOCAL-NATIVO.md)).
 - Trazas y capturas de pantalla de Playwright se retienen únicamente en el fallo (`retain-on-failure`) y se publican como artefacto de CI (§ ver [05-CI-CD.md](05-CI-CD.md)) — no se versionan en el repositorio.
 
 ## 6. Mobile

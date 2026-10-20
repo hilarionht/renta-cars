@@ -2014,6 +2014,45 @@ El plan se validó con un agente Plan contra el código.
 - Una reserva reprogramada que ya recibió el recordatorio no recibe otro (ya pasaba).
 - Agotados los intentos no hay escalamiento humano (pendiente 4).
 
+## #146 — Primer recorrido e2e de la web (Playwright)
+
+**Contexto**: pendiente 13 de CLAUDE.md (#144), elegido por el usuario. La web (`apps/web-admin`) estaba completa pero no tenía ningún test de punta a punta: `apps/web-admin-e2e` solo tenía la config generada y corría con `--pass-with-no-tests`. El plan se validó con un agente Plan contra el código (Playwright 1.62.1, Next 16.3.8).
+
+**Decisiones del usuario**: un recorrido, **login + crear una reserva + confirmarla**, solo en **Chromium**.
+
+**Cambios**:
+
+- **Seed compartido**: `seed-identity.ts` pasa a `tooling/testing/seed/`, y api-e2e lo reexporta (sus specs no cambian). Un proyecto `type:e2e` no puede importar de otro (`boundaries.mjs`). El reseteo del throttler queda como función en `tooling/testing/seed/reset-throttler.ts`.
+- **`globalSetup`** (`apps/web-admin-e2e/src/support/global-setup.ts`). Devuelve su propio teardown y limpia lo que haya levantado si falla a mitad de camino.
+  - **CI (autocontenido)**: Postgres y Redis por testcontainers. Verifica que el 3333 esté libre (api-e2e lo usa antes en el mismo job) y lanza el API compilado con `CORS_ORIGINS=http://localhost:4300` y `STORAGE_*` ficticios (el recorrido no sube archivos). Aborta si el proceso termina antes de estar sano.
+  - **Local (`WEB_E2E_EXTERNAL=1`)**: usa el API del 3000 y la base de desarrollo.
+  - **Seed por la API real**: la company por `POST /companies` (así queda con el módulo Rental habilitado), el admin directo en la base (no tiene camino por API), sucursal, categoría con tarifa, vehículo habilitado y cliente con documentos verificados. Los datos pasan a los workers por `process.env`.
+- **Config**:
+  - solo Chromium, con `timezoneId` fijo;
+  - `retries: 1` en CI;
+  - `webServer`: en CI, `next build && next start` en el 4300, con `NEXT_PUBLIC_API_URL` en su `env` (se fija al compilar, así que no se usa el `web-admin:build` cacheado); en local reusa el `next dev` del 4200.
+- **El test** (`src/reservations.spec.ts`):
+  - el login va dentro de `expect(...).toPass()`, porque hay una carrera con la hidratación de React;
+  - navega por links;
+  - **destilda "Confirmar al crear"** (por defecto la reserva se crea ya confirmada);
+  - crea la reserva y la confirma desde el diálogo del detalle;
+  - las fechas se corren por intento, para que un reintento no choque con el vehículo ya ocupado por el intento anterior.
+- **Nx**: `implicitDependencies: ["web-admin", "api"]`, porque si no `nx affected` no lo incluía cuando cambiaban. El target `e2e` tiene `dependsOn: ["api:build"]`, sin `--pass-with-no-tests`, y sus inputs incluyen `tooling/testing` y `prisma`. Se suma un target `typecheck`; la config `.mts` queda excluida porque usa `import.meta`.
+- **CI**: `npx playwright install --with-deps chromium` en `pr.yml`, `main.yml` y `nightly-e2e.yml`.
+
+**Verificación**:
+
+- En local, en modo externo, dos corridas seguidas en verde (50 s y 23 s).
+- Lint y typecheck de `web-admin-e2e` y `api-e2e`.
+- `reservations-lifecycle` del API con el seed movido.
+- En CI, el modo autocontenido.
+
+**Gaps aceptados**:
+
+- Un solo recorrido: los demás flujos de la web siguen sin e2e.
+- Solo Chromium.
+- En local, cada corrida deja una company de prueba en la base de desarrollo.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

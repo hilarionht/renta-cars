@@ -183,6 +183,9 @@ Mobile: `cd apps/mobile && npx expo start --web`.
 | Tests `*-infrastructure` (testcontainers)                         | **No**                                                                                                                                | Sí                 |
 | `apps/api-e2e`                                                    | **No**                                                                                                                                | Sí                 |
 | Smoke test HTTP contra `apps/api` real                            | Sí (§5)                                                                                                                               | No                 |
+| `apps/web-admin-e2e` (Playwright)                                 | Sí, en modo externo (abajo)                                                                                                           | Sí (autocontenido) |
+
+**`apps/web-admin-e2e` en local** (#146): con el API corriendo en el 3000 y Redis, desde `apps/web-admin-e2e`: `WEB_E2E_EXTERNAL=1 npx playwright test`. Reusa el `next dev` del 4200 si está corriendo, o lo levanta. Hace falta Chromium de Playwright (`npx playwright install chromium`). Cada corrida deja una company de prueba en la base de desarrollo.
 
 Para reproducir el job `ci / lint-typecheck` completo: `npx nx affected --target=lint,typecheck --base=origin/master --parallel=1` con Node 20.19.4. `--parallel=1` es para no quedarse sin RAM; en máquinas con poca memoria tarda más de 10 minutos.
 
