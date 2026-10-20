@@ -12,23 +12,19 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-17. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143) y check `e2e` real (PR #13, #144). El detalle de cada uno está en su decisión.
+Estado al 2026-10-20. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144) y recordatorio "al menos una vez" (PR #14, #145). El detalle de cada uno está en su decisión.
 
-**En curso, elegido por el usuario (2026-10-17): pendiente 1, recordatorios "al menos una vez"**, rama `feat/reminder-at-least-once`. Investigación:
+**En curso, elegido por el usuario (2026-10-20): pendiente 13, primer recorrido e2e de la web** (Playwright, `apps/web-admin-e2e`), rama `test/web-admin-e2e-golden-path`. Investigación:
 
-- `SendReservationReminderProcessor` inserta en `reservation_reminder_dispatches` **antes** de enviar: un reintento de BullMQ ve el registro (P2002) y no reenvía.
-- Además `SendNotificationHandler` **no lanza** si fallan todos los canales: marca la `Notification` `Failed` y vuelve normal. Aunque el registro fuera después, el job terminaría "bien" sin reintento.
-- El escaneo (`ReservationReminderScanProcessor`, cada 15 min) solo encola reservas sin despacho.
+- `web-admin-e2e` tiene solo `playwright.config.mts` generado (3 navegadores, `webServer` comentado, `baseURL` 3000) y el target `e2e` con `--pass-with-no-tests`.
+- La web toma `NEXT_PUBLIC_API_URL` al compilar (CSP `connect-src` en `src/proxy.ts`); el login pide ID de compañía, email y contraseña (MFA solo si el usuario lo tiene activo). El refresh es una cookie httpOnly del API.
+- api-e2e ya resuelve el arranque autocontenido: `globalSetup` con testcontainers (Postgres con migraciones, Redis, RustFS) y el API compilado en el puerto 3333; `seedCompanyWithAdmin` siembra la company y el admin.
 
-Diseño propuesto: el despacho pasa a tener estado (`Sending` → `Sent`/`Failed`) y contador de intentos; el escaneo reencola los `Failed` y los `Sending` colgados; cada intento se reclama con una actualización condicional (sin duplicados entre workers).
+Decisiones del usuario: **login + crear una reserva + confirmarla**, solo **Chromium**. Plan aprobado (2026-10-20, `~/.claude/plans/drifting-leaping-emerson.md`), validado con un agente Plan. Claves: la reserva se crea ya confirmada si no se destilda "Confirmar al crear"; fechas corridas por intento (reintentos de CI); seed movido a `tooling/testing/seed/` (importar `type:e2e` está prohibido); `implicitDependencies: ["web-admin", "api"]`; login dentro de `expect(...).toPass()` (hidratación); CI con `next build && next start` en el 4300 y API en el 3333; local con `WEB_E2E_EXTERNAL=1` reusando el dev server del 4200 y el API del 3000.
 
-**Decisión del usuario (2026-10-17)**: **hasta 3 intentos en total**, y **nunca después del inicio de la reserva**; agotados, queda `Failed` (visible en la auditoría).
-
-Plan aprobado (2026-10-17, `~/.claude/plans/drifting-leaping-emerson.md`), validado con un agente Plan. Correcciones clave del agente: el reclamo es `createMany(skipDuplicates)` + `updateMany` condicional (un P2002 aborta la transacción); `markSent`/`markFailed` condicionados a `status='Sending' AND attempts=<reclamado>`; tres transacciones cortas (reclamo, envío, resultado); push después de `markSent` y fuera del `try`; jobs con `jobId` `reminder-<id>-<n>` y `removeOnComplete/removeOnFail` (sin eso BullMQ ignora el `add` de un id fallido); enum de Prisma y `TIMESTAMP(3)`; sin índice parcial. Capas:
-
-- [x] 1. `throwWhenUndelivered` en `SendNotificationHandler` y falla simulada del fake sender (`@fail.invalid`, sin escribir en `fake_notification_sends`).
-- [x] 2. Migración (enum `ReservationReminderDispatchStatus`, `status`/`attempts`/`last_attempt_at`/`last_error`, filas viejas `Sent`), `ReminderDispatchStore`, processor y escaneo.
-- [x] 3. Verificación (unitarios 16/16 y 33/33, integration spec del store 4/4, migración sin drift, smoke 11/11, e2e) y docs (#145, `02-TABLAS §4.18`). **PR #14** y **CI 6/6 en verde** (2026-10-20; en CI corrió `rental-reservations-infrastructure:test` con el integration spec del store). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
+- [x] 1. Seed compartido en `tooling/testing/seed/` (api-e2e reexporta).
+- [ ] 2. `globalSetup`, config de Playwright, el test, `project.json` y workflows.
+- [ ] 3. Verificación (local en modo externo, lint/typecheck, un e2e del API), docs (#146, `04-TESTING-FOUNDATION`, guía del entorno, CLAUDE.md), PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
