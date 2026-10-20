@@ -61,7 +61,7 @@ jobs:
         env:
           NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
         run: npx nx affected --target=test --exclude='*,!api-e2e' --base=origin/master
-      - run: npx playwright install --with-deps
+      - run: npx playwright install --with-deps chromium
       # E2E en cada PR por defecto (docs/engineering/05-CI-CD.md §2) - el umbral para
       # moverlo a nightly-e2e.yml se decide en Fase 0 con datos reales, no aquí.
       - name: nx affected --target=e2e

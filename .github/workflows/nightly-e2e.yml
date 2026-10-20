@@ -33,7 +33,7 @@ jobs:
         env:
           NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
         run: npx nx run api-e2e:test
-      - run: npx playwright install --with-deps
+      - run: npx playwright install --with-deps chromium
       - name: nx run-many --target=e2e
         env:
           NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}

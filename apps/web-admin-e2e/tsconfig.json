@@ -9,11 +9,12 @@
   "include": [
     "**/*.ts",
     "**/*.js",
-    "playwright.config.mts",
     "src/**/*.spec.ts",
     "src/**/*.spec.js",
     "src/**/*.test.ts",
     "src/**/*.test.js",
     "src/**/*.d.ts"
-  ]
+  ],
+  "// exclude": "playwright.config.mts usa import.meta (ESM) y este tsconfig es commonjs; Playwright la carga como ESM aparte (#146).",
+  "exclude": ["playwright.config.mts"]
 }

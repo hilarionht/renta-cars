@@ -23,7 +23,7 @@ Estado al 2026-10-20. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupa
 Decisiones del usuario: **login + crear una reserva + confirmarla**, solo **Chromium**. Plan aprobado (2026-10-20, `~/.claude/plans/drifting-leaping-emerson.md`), validado con un agente Plan. Claves: la reserva se crea ya confirmada si no se destilda "Confirmar al crear"; fechas corridas por intento (reintentos de CI); seed movido a `tooling/testing/seed/` (importar `type:e2e` está prohibido); `implicitDependencies: ["web-admin", "api"]`; login dentro de `expect(...).toPass()` (hidratación); CI con `next build && next start` en el 4300 y API en el 3333; local con `WEB_E2E_EXTERNAL=1` reusando el dev server del 4200 y el API del 3000.
 
 - [x] 1. Seed compartido en `tooling/testing/seed/` (api-e2e reexporta).
-- [ ] 2. `globalSetup`, config de Playwright, el test, `project.json` y workflows.
+- [x] 2. `globalSetup`, config de Playwright, el test, `project.json` y workflows.
 - [ ] 3. Verificación (local en modo externo, lint/typecheck, un e2e del API), docs (#146, `04-TESTING-FOUNDATION`, guía del entorno, CLAUDE.md), PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
