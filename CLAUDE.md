@@ -28,7 +28,7 @@ Plan aprobado (2026-10-17, `~/.claude/plans/drifting-leaping-emerson.md`), valid
 
 - [x] 1. `throwWhenUndelivered` en `SendNotificationHandler` y falla simulada del fake sender (`@fail.invalid`, sin escribir en `fake_notification_sends`).
 - [x] 2. Migración (enum `ReservationReminderDispatchStatus`, `status`/`attempts`/`last_attempt_at`/`last_error`, filas viejas `Sent`), `ReminderDispatchStore`, processor y escaneo.
-- [x] 3. Verificación (unitarios 16/16 y 33/33, integration spec del store 4/4, migración sin drift, smoke 11/11, e2e) y docs (#145, `02-TABLAS §4.18`). Falta: PR y CI 6/6 (nunca aprobar ni mergear).
+- [x] 3. Verificación (unitarios 16/16 y 33/33, integration spec del store 4/4, migración sin drift, smoke 11/11, e2e) y docs (#145, `02-TABLAS §4.18`). **PR #14** y **CI 6/6 en verde** (2026-10-20; en CI corrió `rental-reservations-infrastructure:test` con el integration spec del store). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
