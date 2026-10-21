@@ -41,7 +41,13 @@ export default defineConfig({
         command: 'npx next build && npx next start -p 4300',
         cwd: webDir,
         url: `${webUrl}/login`,
-        env: { NEXT_PUBLIC_API_URL: 'http://localhost:3333', NEXT_PUBLIC_DEFAULT_COMPANY_ID: '' },
+        // NODE_ENV explicito: Nx carga el .env raiz en el entorno de la tarea (NODE_ENV=development)
+        // y `next build` con un NODE_ENV que no es production falla al prerenderizar (#146).
+        env: {
+          NODE_ENV: 'production',
+          NEXT_PUBLIC_API_URL: 'http://localhost:3333',
+          NEXT_PUBLIC_DEFAULT_COMPANY_ID: '',
+        },
         reuseExistingServer: false,
         timeout: 300_000,
       },

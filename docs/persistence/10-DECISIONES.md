@@ -2039,6 +2039,8 @@ El plan se validó con un agente Plan contra el código.
   - las fechas se corren por intento, para que un reintento no choque con el vehículo ya ocupado por el intento anterior.
 - **Nx**: `implicitDependencies: ["web-admin", "api"]`, porque si no `nx affected` no lo incluía cuando cambiaban. El target `e2e` tiene `dependsOn: ["api:build"]`, sin `--pass-with-no-tests`, y sus inputs incluyen `tooling/testing` y `prisma`. Se suma un target `typecheck`; la config `.mts` queda excluida porque usa `import.meta`.
 - **CI**: `npx playwright install --with-deps chromium` en `pr.yml`, `main.yml` y `nightly-e2e.yml`.
+- **`NODE_ENV=production` en el `webServer` de CI**: la primera corrida falló en `next build` con `Cannot read properties of null (reading 'useContext')`. Nx carga el `.env` raíz en el entorno de la tarea (`NODE_ENV=development`, de `.env.example`), y Next no puede prerenderizar con un `NODE_ENV` que no sea `production`. Reproducido en local: con `development` falla igual y con `production` compila.
+- **`follow-redirects` 1.16.1**: un aviso alto nuevo (GHSA-q3jh-wrc6-jgq8, GHSA-8r9p-f939-6h3c), ajeno a este cambio, hacía fallar `audit`. Es un parche dentro de los rangos de `axios` y `http-proxy` y solo cambia el lockfile.
 
 **Verificación**:
 
