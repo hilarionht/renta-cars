@@ -2055,6 +2055,26 @@ El plan se validó con un agente Plan contra el código.
 - Solo Chromium.
 - En local, cada corrida deja una company de prueba en la base de desarrollo.
 
+## #147 — Los ids que no son UUID v7 dan 400 en el borde
+
+**Contexto**: pendiente 11 de CLAUDE.md (#137), elegido por el usuario. Un id UUID v4 (u otra versión) en un comando pasaba `@IsUUID()` y `ParseUUIDPipe`, que aceptan cualquier versión, llegaba a `EntityId.from`, lanzaba `TypeError` y terminaba en **500**. La web no lo dispara, pero sí cualquier cliente externo del API.
+
+**Decisión del usuario**: validar v7 **en el borde**. `EntityId.from` sigue lanzando `TypeError`, como fijó #137: si falla con un id leído de la base, es un bug del servidor y tiene que dar 500, no esconderse detrás de un 400. Se descartó que `EntityId` lanzara `InvalidValueError`, porque revertía #137.
+
+**Cambios**:
+
+- `ParseUuidV7Pipe` en persistence-kernel (`ParseUUIDPipe` con `version: '7'`), que reemplaza a `ParseUUIDPipe` en 62 `@Param` de 12 controllers.
+- Los DTOs pasan a `@IsUUID('7')` (y `@IsUUID('7', { each: true })`): reservas, vehículos, usuarios (`branchId`), clientes (`additionalDriverId`) y pagos (`targetId`).
+- Un id que no es v7 responde 400 `VALIDATION_FAILED`.
+- **Excepciones, que aceptan cualquier versión**:
+  - los ids de roles (`roles.controller.ts`, el `roleId` de asignar rol y el `roles` del alta de usuario), porque los roles System de bases anteriores a #140 tienen id v4 y se resuelven por id crudo;
+  - el `companyId` y el `mfaChallengeId` de los endpoints públicos de autenticación (login, MFA, recuperación de contraseña y OTP del cliente), para no cambiar las respuestas de auth.
+- `validator` 13.15 y Nest 11 soportan v7.
+
+**Verificación**: el spec del pipe (acepta v7; rechaza v4 y basura con 400), lint, typecheck y unitarios de los 12 proyectos tocados, smoke en vivo, e2e individuales y CI.
+
+**Gaps aceptados**: los ids de roles y de los endpoints públicos de auth siguen aceptando cualquier versión. Los ids en query que no usan validación de UUID (p. ej. `resourceId` de disponibilidad) no cambian.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
