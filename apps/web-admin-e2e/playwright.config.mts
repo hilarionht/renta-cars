@@ -1,76 +1,55 @@
+import { join } from 'node:path';
+
 import { defineConfig, devices } from '@playwright/test';
 import { nxE2EPreset } from '@nx/playwright/preset';
 
-// For CI, you may want to set BASE_URL to the deployed application.
-const baseURL = process.env['BASE_URL'] || 'http://localhost:3000';
+// docs/persistence/10-DECISIONES.md #146: primer recorrido e2e de la web (login, crear una
+// reserva y confirmarla), solo en Chromium (decision del usuario).
+// - CI (por defecto): `next build` + `next start` en el 4300 contra el API autocontenido del
+//   globalSetup en el 3333. NEXT_PUBLIC_API_URL se fija al compilar (CSP connect-src), por eso
+//   va en webServer.env y no se usa el web-admin:build cacheado.
+// - Local (WEB_E2E_EXTERNAL=1, sin Docker): reusa el `next dev` del desarrollador en el 4200,
+//   que ya apunta al API local (.env.local) y esta en CORS_ORIGINS.
+// Sin efectos al cargarse: Nx evalua esta config al calcular el grafo.
+// Los puertos coinciden con src/support/ports.ts.
+const external = process.env['WEB_E2E_EXTERNAL'] === '1';
+const webDir = join(import.meta.dirname, '..', 'web-admin');
+const webUrl = external ? 'http://localhost:4200' : 'http://localhost:4300';
 
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import 'dotenv/config';
-
-/**
- * See https://playwright.dev/docs/test-configuration.
- *
- * Generated as a .mts file so Node forces ESM regardless of workspace
- * `type`. Playwright routes `.mts` through its ESM loader (dynamic import,
- * bypassing the pirates CJS-compile path), and Nx's native TS strip loads
- * `.mts` directly. Playwright's configLoader auto-discovers
- * `playwright.config.mts` via its extension list
- * (.ts/.js/.mts/.mjs/.cts/.cjs).
- */
 export default defineConfig({
-  ...nxE2EPreset(import.meta.dirname, { testDir: './.' }),
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
+  ...nxE2EPreset(import.meta.dirname, { testDir: './src', openHtmlReport: 'never' }),
+  // Las fechas de la reserva se corren por intento (el reintento no choca con el vehiculo ya
+  // ocupado por el intento anterior).
+  retries: process.env['CI'] ? 1 : 0,
+  globalSetup: './src/support/global-setup.ts',
+  expect: { timeout: 10_000 },
   use: {
-    baseURL,
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+    baseURL: webUrl,
     trace: 'on-first-retry',
+    timezoneId: 'America/Mexico_City',
+    navigationTimeout: 30_000,
   },
-  // docs/engineering/10-BOOTSTRAP-PLAN.md paso 10: apps/web-admin-e2e se genera sin tests
-  // todavia porque apps/web-admin (paso 13, @nx/next) no existe aun. `webServer` se
-  // reactiva cuando exista un target real que sirva esa app.
-  // webServer: {
-  //   command: 'npx nx serve web-admin',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: true,
-  //   cwd: workspaceRoot,
-  // },
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    // Uncomment for mobile browsers support
-    /* {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
-    }, */
-
-    // Uncomment for branded browsers
-    /* {
-      name: 'Microsoft Edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    },
-    {
-      name: 'Google Chrome',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    } */
-  ],
+  webServer: external
+    ? {
+        command: 'npx next dev -p 4200',
+        cwd: webDir,
+        url: `${webUrl}/login`,
+        reuseExistingServer: true,
+        timeout: 180_000,
+      }
+    : {
+        command: 'npx next build && npx next start -p 4300',
+        cwd: webDir,
+        url: `${webUrl}/login`,
+        // NODE_ENV explicito: Nx carga el .env raiz en el entorno de la tarea (NODE_ENV=development)
+        // y `next build` con un NODE_ENV que no es production falla al prerenderizar (#146).
+        env: {
+          NODE_ENV: 'production',
+          NEXT_PUBLIC_API_URL: 'http://localhost:3333',
+          NEXT_PUBLIC_DEFAULT_COMPANY_ID: '',
+        },
+        reuseExistingServer: false,
+        timeout: 300_000,
+      },
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 });

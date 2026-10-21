@@ -6,29 +6,25 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#145` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#146` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
 ## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-17. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143) y check `e2e` real (PR #13, #144). El detalle de cada uno está en su decisión.
+Estado al 2026-10-20. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144) y recordatorio "al menos una vez" (PR #14, #145). El detalle de cada uno está en su decisión.
 
-**En curso, elegido por el usuario (2026-10-17): pendiente 1, recordatorios "al menos una vez"**, rama `feat/reminder-at-least-once`. Investigación:
+**En curso, elegido por el usuario (2026-10-20): pendiente 13, primer recorrido e2e de la web** (Playwright, `apps/web-admin-e2e`), rama `test/web-admin-e2e-golden-path`. Investigación:
 
-- `SendReservationReminderProcessor` inserta en `reservation_reminder_dispatches` **antes** de enviar: un reintento de BullMQ ve el registro (P2002) y no reenvía.
-- Además `SendNotificationHandler` **no lanza** si fallan todos los canales: marca la `Notification` `Failed` y vuelve normal. Aunque el registro fuera después, el job terminaría "bien" sin reintento.
-- El escaneo (`ReservationReminderScanProcessor`, cada 15 min) solo encola reservas sin despacho.
+- `web-admin-e2e` tiene solo `playwright.config.mts` generado (3 navegadores, `webServer` comentado, `baseURL` 3000) y el target `e2e` con `--pass-with-no-tests`.
+- La web toma `NEXT_PUBLIC_API_URL` al compilar (CSP `connect-src` en `src/proxy.ts`); el login pide ID de compañía, email y contraseña (MFA solo si el usuario lo tiene activo). El refresh es una cookie httpOnly del API.
+- api-e2e ya resuelve el arranque autocontenido: `globalSetup` con testcontainers (Postgres con migraciones, Redis, RustFS) y el API compilado en el puerto 3333; `seedCompanyWithAdmin` siembra la company y el admin.
 
-Diseño propuesto: el despacho pasa a tener estado (`Sending` → `Sent`/`Failed`) y contador de intentos; el escaneo reencola los `Failed` y los `Sending` colgados; cada intento se reclama con una actualización condicional (sin duplicados entre workers).
+Decisiones del usuario: **login + crear una reserva + confirmarla**, solo **Chromium**. Plan aprobado (2026-10-20, `~/.claude/plans/drifting-leaping-emerson.md`), validado con un agente Plan. Claves: la reserva se crea ya confirmada si no se destilda "Confirmar al crear"; fechas corridas por intento (reintentos de CI); seed movido a `tooling/testing/seed/` (importar `type:e2e` está prohibido); `implicitDependencies: ["web-admin", "api"]`; login dentro de `expect(...).toPass()` (hidratación); CI con `next build && next start` en el 4300 y API en el 3333; local con `WEB_E2E_EXTERNAL=1` reusando el dev server del 4200 y el API del 3000.
 
-**Decisión del usuario (2026-10-17)**: **hasta 3 intentos en total**, y **nunca después del inicio de la reserva**; agotados, queda `Failed` (visible en la auditoría).
-
-Plan aprobado (2026-10-17, `~/.claude/plans/drifting-leaping-emerson.md`), validado con un agente Plan. Correcciones clave del agente: el reclamo es `createMany(skipDuplicates)` + `updateMany` condicional (un P2002 aborta la transacción); `markSent`/`markFailed` condicionados a `status='Sending' AND attempts=<reclamado>`; tres transacciones cortas (reclamo, envío, resultado); push después de `markSent` y fuera del `try`; jobs con `jobId` `reminder-<id>-<n>` y `removeOnComplete/removeOnFail` (sin eso BullMQ ignora el `add` de un id fallido); enum de Prisma y `TIMESTAMP(3)`; sin índice parcial. Capas:
-
-- [x] 1. `throwWhenUndelivered` en `SendNotificationHandler` y falla simulada del fake sender (`@fail.invalid`, sin escribir en `fake_notification_sends`).
-- [x] 2. Migración (enum `ReservationReminderDispatchStatus`, `status`/`attempts`/`last_attempt_at`/`last_error`, filas viejas `Sent`), `ReminderDispatchStore`, processor y escaneo.
-- [x] 3. Verificación (unitarios 16/16 y 33/33, integration spec del store 4/4, migración sin drift, smoke 11/11, e2e) y docs (#145, `02-TABLAS §4.18`). **PR #14** y **CI 6/6 en verde** (2026-10-20; en CI corrió `rental-reservations-infrastructure:test` con el integration spec del store). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
+- [x] 1. Seed compartido en `tooling/testing/seed/` (api-e2e reexporta).
+- [x] 2. `globalSetup`, config de Playwright, el test, `project.json` y workflows.
+- [ ] 3. Verificación local (2 corridas en verde en modo externo, lint/typecheck, `reservations-lifecycle` con el seed movido) y docs (#146, `04-TESTING-FOUNDATION`, guía del entorno) **hechos**. **PR #15** y **CI 6/6 en verde** (2026-10-20): `web-admin-e2e:e2e` corrió autocontenido en el job `e2e` (30 s). La primera corrida destapó dos cosas, ya corregidas: `next build` con `NODE_ENV=development` heredado del `.env` (ahora `production` en el `webServer`) y un aviso nuevo de `follow-redirects` (1.16.1). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
@@ -81,7 +77,7 @@ Pendiente del usuario: validación visual de Clientes y de Flota (la web queda e
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
 - **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, PR #8). **Incremento 5 (Administración)** hecho (#140, rama `feat/web-admin-administration`): con eso la hoja de ruta de #134 queda completa. Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas decisiones: `#145` (recordatorio "al menos una vez"), `#144` (el check `e2e` corre los e2e del API), `#143` (RustFS en el CI y en docker-compose), `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
+- Últimas decisiones: `#146` (primer recorrido e2e de la web), `#145` (recordatorio "al menos una vez"), `#144` (el check `e2e` corre los e2e del API), `#143` (RustFS en el CI y en docker-compose), `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 
@@ -106,7 +102,7 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 10. **MinIO archivado: RESUELTO** (#143). El CI (testcontainers) y `docker-compose.yml` usan la imagen oficial `rustfs/rustfs` 1.0.1 fijada por digest; `docker-validate` valida el compose.
 11. **500 por ids que no son UUID v7 y por VO no migrados** (#137): un id v4 en un comando pasa `@IsUUID()` y `EntityId.from` responde 500; los VO de entrada de customers (#139) y de branches, roles, settings, users y companies (#140) ya lanzan `InvalidValueError`; los roles System v4 de seeds viejos se resuelven con un lookup por id crudo (#140). La web no los dispara.
 12. **`@aws-sdk/client-s3` va a exigir Node 22 o superior desde enero de 2027** (#138); el proyecto usa Node 20.
-13. **Sin recorridos e2e de la web** (#144): `web-admin-e2e` (Playwright) no tiene specs; el check `e2e` prueba solo el API.
+13. **Recorridos e2e de la web: primero hecho** (#146): login, crear una reserva y confirmarla (Playwright, Chromium), autocontenido en CI y con `WEB_E2E_EXTERNAL=1` en local. Los demás flujos de la web siguen sin e2e.
 
 ## Entorno — cómo levantar todo
 
