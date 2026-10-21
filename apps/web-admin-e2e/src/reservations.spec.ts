@@ -1,14 +1,16 @@
-import { expect, type Page, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
-// docs/persistence/10-DECISIONES.md #146: primer recorrido e2e de la web. Los datos (company,
-// admin, sucursal, vehiculo y cliente verificados) los siembra src/support/global-setup.ts.
-function seeded(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} no esta definida (la define src/support/global-setup.ts).`);
-  }
-  return value;
-}
+import {
+  createEligibleCustomer,
+  createEnabledVehicle,
+  loginStaff,
+} from '../../../tooling/testing/seed/api-seed';
+import { expect, seeded, test } from './support/fixtures';
+
+// docs/persistence/10-DECISIONES.md #146 y #148: login por la UI (la unica cobertura del
+// formulario de login), crear una reserva y confirmarla. El vehiculo y el cliente los siembra el
+// propio test por la API, con un login por fetch fuera del navegador: asi la pagina arranca sin
+// sesion y el login es de verdad por la UI.
 
 // Fecha de pared (YYYY-MM-DDTHH:mm) para un input datetime-local, en la zona de la sucursal.
 // Las 10:00 nunca caen en un hueco de horario de verano.
@@ -29,11 +31,19 @@ async function login(page: Page): Promise<void> {
   }).toPass({ timeout: 45_000 });
 }
 
-test('login, crear una reserva y confirmarla', async ({ page }, testInfo) => {
-  // Un reintento usa otras fechas: el intento anterior puede haber ocupado el vehiculo.
-  const startDay = 30 + testInfo.retry * 7;
-  const customerName = seeded('WEB_E2E_CUSTOMER_NAME');
-  const licensePlate = seeded('WEB_E2E_LICENSE_PLATE');
+test('login, crear una reserva y confirmarla', async ({ page }) => {
+  const api = await loginStaff(seeded('WEB_E2E_API_URL'), {
+    companyId: seeded('WEB_E2E_COMPANY_ID'),
+    email: seeded('WEB_E2E_EMAIL'),
+    password: seeded('WEB_E2E_PASSWORD'),
+  });
+  // Vehiculo y cliente nuevos por intento: un reintento no choca con el vehiculo ya ocupado.
+  const { licensePlate } = await createEnabledVehicle(api, {
+    branchId: seeded('WEB_E2E_BRANCH_ID'),
+    categoryId: seeded('WEB_E2E_CATEGORY_ID'),
+  });
+  const { name: customerName } = await createEligibleCustomer(api);
+  const startDay = 30;
 
   await login(page);
 

@@ -12,12 +12,24 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-21. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145) y primer e2e de la web (PR #15, #146). El detalle de cada uno está en su decisión.
+Estado al 2026-10-21. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145), primer e2e de la web (PR #15, #146) e ids v7 en el borde (PR #16, #147). El detalle de cada uno está en su decisión.
 
-**En curso, elegido por el usuario (2026-10-21): pendiente 11, ids que no son UUID v7 dan 400 y no 500**, rama `fix/non-v7-ids`. Decisión del usuario: **validar v7 en el borde** (`ParseUuidV7Pipe` en persistence-kernel y `@IsUUID('7')` en los DTOs); `EntityId.from` sigue con `TypeError` (#137). Excepciones explícitas, que aceptan cualquier versión: los ids de roles (System v4 en bases anteriores a #140) y `companyId`/`mfaChallengeId` de los endpoints públicos de auth. Plan aprobado (`~/.claude/plans/drifting-leaping-emerson.md`).
+**Pendiente de #147**: el smoke en vivo (id v4 → 400, rol System asignable) no se corrió porque el servicio `postgresql-x64-16` quedó detenido y arrancarlo pide consola elevada (lo tiene que hacer el usuario: `Start-Service postgresql-x64-16`). El CI ya corrió los e2e completos con el cambio.
 
-- [x] 1. `ParseUuidV7Pipe` (con spec), controllers y DTOs.
-- [ ] 2. Unitarios (spec del pipe; lint, typecheck y unitarios de los 12 proyectos) y docs (#147, `07-ERROR-CATALOG`, CLAUDE.md) **hechos**; **PR #16** con **CI 6/6 en verde** (2026-10-21; en el job `e2e` corrieron completos `api-e2e` y `web-admin-e2e`). **Falta el smoke en vivo local**: el servicio `postgresql-x64-16` quedó detenido y arrancarlo pide una consola elevada (`Start-Service postgresql-x64-16`), que tiene que correr el usuario.
+**En curso, elegido por el usuario (2026-10-21): más recorridos e2e de la web**, rama `test/web-admin-e2e-more-flows`. Decisión del usuario: los cuatro, **con todo lo necesario**:
+
+- retiro y devolución;
+- alta de vehículo (Flota);
+- alta de cliente (Clientes);
+- Administración (usuario con rol y sucursal).
+
+Las subidas de archivos necesitan RustFS en el e2e (CI y local). La verificación local también necesita Postgres arriba.
+
+Plan aprobado (2026-10-21, `~/.claude/plans/drifting-leaping-emerson.md`), diseñado con un agente Plan. Claves: RustFS en el **puerto fijo 9300** (el `webServer` arranca antes que el `globalSetup` y `NEXT_PUBLIC_STORAGE_ORIGIN` se fija al compilar); CORS del bucket con `ensureBucketWithWebCors` compartido con `dev:storage-setup`; **sin `storageState` compartido** (el refresh rota y un token reusado revoca todas las sesiones): cada test hace login por API con fixtures; seed por entidad en `tooling/testing/seed/api-seed.ts`; `workers: 2` en CI; `reservations.spec.ts` mantiene el login por la UI.
+
+- [x] 1. Infraestructura (RustFS con puerto, CORS, `api-seed`, `seedUserForCompany`, fixtures, `globalSetup`, config) y `reservations.spec.ts` migrado.
+- [ ] 2. Los 4 specs (`checkout-checkin`, `fleet`, `customers`, `admin-users`).
+- [ ] 3. Verificación (local con Postgres y RustFS arriba; CI), docs (#148, guía del entorno, CLAUDE.md), PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 

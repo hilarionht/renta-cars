@@ -123,3 +123,32 @@ export async function seedBranchUserForCompany(
     await client.end();
   }
 }
+
+// docs/persistence/10-DECISIONES.md #148: usuario del personal sin sucursal, con un rol ya
+// existente (p. ej. el System del admin). El e2e de la web crea uno por worker: cada uno tiene su
+// propia sesion, asi que una revocacion por refresh reusado nunca cruza entre workers.
+export async function seedUserForCompany(
+  companyId: string,
+  roleId: string,
+): Promise<SeededBranchUser> {
+  const client = new Client({ connectionString: process.env.TEST_DATABASE_URL });
+  await client.connect();
+  try {
+    const userId = uuidv7();
+    const email = `staff-${randomUUID()}@example.com`;
+    const password = 'Sup3rSecret!123';
+    await client.query(
+      `INSERT INTO identity.users (id, company_id, email, password_hash, name, status, updated_at, version)
+       VALUES ($1, $2, $3, $4, 'Staff E2E', 'Active', now(), 1)`,
+      [userId, companyId, email, hashSync(password, ARGON2_PARAMS)],
+    );
+    await client.query(
+      `INSERT INTO identity.user_roles (user_id, role_id, company_id, updated_at)
+       VALUES ($1, $2, $3, now())`,
+      [userId, roleId, companyId],
+    );
+    return { userId, email, password };
+  } finally {
+    await client.end();
+  }
+}
