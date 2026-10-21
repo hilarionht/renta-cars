@@ -19,7 +19,8 @@ test('alta de usuario con rol y sucursal: aparece activo en el listado', async (
   await create.getByLabel('Email').fill(email);
   await create.getByLabel('Contraseña inicial').fill('Mostrador!2026e2e');
   await create.getByRole('combobox', { name: 'Sucursal' }).selectOption({ label: branchName });
-  await create.getByRole('checkbox', { name: roleName, exact: true }).check();
+  // El nombre accesible del checkbox incluye la pista del label ("N permisos").
+  await create.getByRole('checkbox', { name: new RegExp(`^${roleName}`) }).check();
   await create.getByRole('button', { name: 'Crear' }).click();
 
   await expect(page).toHaveURL(/\/admin\/users\/[0-9a-f-]{36}$/);

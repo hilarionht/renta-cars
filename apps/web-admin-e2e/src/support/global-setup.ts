@@ -113,9 +113,15 @@ async function startSelfContained(cleanups: Cleanup[]): Promise<Runtime> {
     },
     stdio: 'inherit',
   });
-  cleanups.push(() => {
+  // Espera a que el API termine antes de seguir con el teardown: si no, se detiene Redis
+  // mientras el API todavia cierra y llena el log de reconexiones fallidas.
+  cleanups.push(async () => {
+    if (api.exitCode !== null) {
+      return;
+    }
+    const exited = new Promise<void>((resolve) => api.once('exit', () => resolve()));
     api.kill();
-    return Promise.resolve();
+    await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 10_000))]);
   });
 
   const apiUrl = `http://localhost:${E2E_API_PORT}`;
