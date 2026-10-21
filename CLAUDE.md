@@ -16,20 +16,12 @@ Estado al 2026-10-21. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupa
 
 **Pendiente de #147**: el smoke en vivo (id v4 → 400, rol System asignable) no se corrió porque el servicio `postgresql-x64-16` quedó detenido y arrancarlo pide consola elevada (lo tiene que hacer el usuario: `Start-Service postgresql-x64-16`). El CI ya corrió los e2e completos con el cambio.
 
-**En curso, elegido por el usuario (2026-10-21): más recorridos e2e de la web**, rama `test/web-admin-e2e-more-flows`. Decisión del usuario: los cuatro, **con todo lo necesario**:
+Mergeado también: más recorridos e2e de la web (PR #17, #148). **Pendiente local de #148**: correr los 5 specs en modo local (también espera Postgres).
 
-- retiro y devolución;
-- alta de vehículo (Flota);
-- alta de cliente (Clientes);
-- Administración (usuario con rol y sucursal).
+**En curso, elegido por el usuario (2026-10-21): pendiente 12, migrar a Node 24**, rama `chore/node-upgrade`. Node 20 llegó a fin de soporte el 2026-04-30. Decisiones del usuario: **Node 24.22.1** (LTS, soporte hasta 2028-04-30) e instalarlo localmente (hecho: zip oficial con SHA-256 verificado en `%APPDATA%\nvm\v24.22.1`, junto a la 20.19.4; `nvm install` no funciona desde una consola no interactiva). Plan aprobado (`~/.claude/plans/drifting-leaping-emerson.md`):
 
-Las subidas de archivos necesitan RustFS en el e2e (CI y local). La verificación local también necesita Postgres arriba.
-
-Plan aprobado (2026-10-21, `~/.claude/plans/drifting-leaping-emerson.md`), diseñado con un agente Plan. Claves: RustFS en el **puerto fijo 9300** (el `webServer` arranca antes que el `globalSetup` y `NEXT_PUBLIC_STORAGE_ORIGIN` se fija al compilar); CORS del bucket con `ensureBucketWithWebCors` compartido con `dev:storage-setup`; **sin `storageState` compartido** (el refresh rota y un token reusado revoca todas las sesiones): cada test hace login por API con fixtures; seed por entidad en `tooling/testing/seed/api-seed.ts`; `workers: 2` en CI; `reservations.spec.ts` mantiene el login por la UI.
-
-- [x] 1. Infraestructura (RustFS con puerto, CORS, `api-seed`, `seedUserForCompany`, fixtures, `globalSetup`, config) y `reservations.spec.ts` migrado.
-- [x] 2. Los 4 specs (`checkout-checkin`, `fleet`, `customers`, `admin-users`).
-- [ ] 3. Docs (#148, guía del entorno, CLAUDE.md) **hechos**. **PR #17** y **CI 6/6 en verde** (2026-10-21): los 5 specs pasan en el job `e2e` (55 s, 2 workers). Las primeras corridas destaparon selectores a ajustar en Administración (el nombre accesible del checkbox del rol incluye la pista; "Activo" aparece dos veces) y ruido de Redis en el teardown (ahora espera al API). La corrida local sigue pendiente de que el usuario arranque Postgres. Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
+- [x] 1. `.nvmrc`, `engines`, `@types/node` ^24 (lockfile bajo Node 24) y `apps/api/Dockerfile` (`node:24.22.1-alpine`).
+- [ ] 2. Verificación con Node 24 (`npm ci`, `prisma generate`, `nx affected -t lint,typecheck,test,build --parallel=1`), docs (#149, guía del entorno, README de engineering, CLAUDE.md), PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
