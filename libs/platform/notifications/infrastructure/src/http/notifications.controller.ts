@@ -1,6 +1,6 @@
-import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 
-import { RequestContext } from '@platform/persistence-kernel';
+import { ParseUuidV7Pipe, RequestContext } from '@platform/persistence-kernel';
 import type { NotificationSummary } from '@platform/notifications/application';
 
 import { GetNotificationHandler } from '../queries/get-notification.handler';
@@ -26,7 +26,7 @@ export class NotificationsController {
   }
 
   @Get(':id')
-  async get(@Param('id', ParseUUIDPipe) id: string): Promise<NotificationSummary> {
+  async get(@Param('id', ParseUuidV7Pipe) id: string): Promise<NotificationSummary> {
     const { companyId } = this.requestContext.get();
     return this.getNotification.execute({ companyId, notificationId: id });
   }

@@ -6,7 +6,7 @@ export class RequestPaymentRequestDto {
   @IsIn(PAYMENT_TARGET_TYPES)
   targetType!: 'Invoice' | 'SecurityDeposit';
 
-  @IsUUID()
+  @IsUUID('7')
   targetId!: string;
 
   @IsInt()

@@ -1,7 +1,7 @@
 import { IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class SwapVehicleRequestDto {
-  @IsUUID()
+  @IsUUID('7')
   newVehicleId!: string;
 
   @IsOptional()

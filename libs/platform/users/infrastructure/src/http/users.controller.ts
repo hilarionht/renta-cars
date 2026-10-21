@@ -1,6 +1,11 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
-import { RequestContext, RequirePermission, RequireStaffActor } from '@platform/persistence-kernel';
+import {
+  ParseUuidV7Pipe,
+  RequestContext,
+  RequirePermission,
+  RequireStaffActor,
+} from '@platform/persistence-kernel';
 import {
   AssignRoleHandler,
   ChangePasswordHandler,
@@ -73,7 +78,7 @@ export class UsersController {
   }
 
   // #134: perfil + permisos efectivos del usuario autenticado (menu de la web segun permisos).
-  // Declarado ANTES de @Get(':id') - si no, ParseUUIDPipe rechaza "me" con 400. Solo personal:
+  // Declarado ANTES de @Get(':id') - si no, ParseUuidV7Pipe rechaza "me" con 400. Solo personal:
   // un access token de Customer recibe 403 (mismo criterio que users/me/mfa).
   @Get('me')
   @RequireStaffActor()
@@ -83,7 +88,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  async get(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponseDto> {
+  async get(@Param('id', ParseUuidV7Pipe) id: string): Promise<UserResponseDto> {
     const { companyId } = this.requestContext.get();
     return this.getUser.execute({ userId: id, companyId });
   }
@@ -92,7 +97,7 @@ export class UsersController {
   @Patch(':id')
   @RequirePermission('users:edit')
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: UpdateUserRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
@@ -107,7 +112,7 @@ export class UsersController {
   @Post(':id/disable')
   @RequirePermission('users:disable')
   async disable(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: DisableUserRequestDto,
   ): Promise<void> {
     const { companyId, userId: actorId } = this.requestContext.get();
@@ -121,7 +126,7 @@ export class UsersController {
 
   @Post(':id/reactivate')
   @RequirePermission('users:reactivate')
-  async reactivate(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async reactivate(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.reactivateUser.execute({ userId: id, companyId });
   }
@@ -129,7 +134,7 @@ export class UsersController {
   @Post(':id/change-password')
   @RequirePermission('users:change-password')
   async changePasswordFor(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: ChangePasswordRequestDto,
   ): Promise<void> {
     const { companyId, userId: actorId } = this.requestContext.get();
@@ -144,7 +149,7 @@ export class UsersController {
   @Post(':id/assign-role')
   @RequirePermission('users:assign-role')
   async assignRoleTo(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: AssignRoleRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
@@ -154,7 +159,7 @@ export class UsersController {
   @Post(':id/revoke-role')
   @RequirePermission('users:revoke-role')
   async revokeRoleFrom(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: AssignRoleRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();

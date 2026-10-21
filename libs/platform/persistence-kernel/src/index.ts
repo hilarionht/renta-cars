@@ -29,3 +29,4 @@ export {
 export { CACHE_REDIS_CLIENT, redisClientProvider } from './redis-client.provider';
 export { RedisCacheModule } from './redis-cache.module';
 export { encodeCursor, decodeCursor } from './cursor-pagination';
+export { ParseUuidV7Pipe } from './parse-uuid-v7.pipe';

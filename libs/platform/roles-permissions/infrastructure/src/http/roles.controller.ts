@@ -12,6 +12,8 @@ import { CreateRoleRequestDto } from './dto/create-role-request.dto';
 import { EditRolePermissionsRequestDto } from './dto/edit-role-permissions-request.dto';
 import type { RoleResponseDto } from './dto/role-response.dto';
 
+// docs/persistence/10-DECISIONES.md #147: excepcion a ParseUuidV7Pipe. Los roles System de bases
+// anteriores a #140 tienen id v4 y se resuelven por id crudo (403), asi que aca sigue ParseUUIDPipe.
 // docs/contracts/02-RESOURCE-CATALOG.md SS1 "Identity & Access": roles (create Custom, edit
 // permission set - System es de solo lectura, ver EmptyPermissionSetError/
 // SystemRoleImmutableError). companyId siempre derivado de RequestContext, nunca del body

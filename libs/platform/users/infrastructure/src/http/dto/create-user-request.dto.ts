@@ -22,7 +22,7 @@ export class CreateUserRequestDto {
   name!: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('7')
   branchId?: string;
 
   @IsArray()

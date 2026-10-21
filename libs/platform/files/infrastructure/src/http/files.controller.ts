@@ -1,6 +1,6 @@
-import { Controller, Delete, Get, Header, Param, ParseUUIDPipe, Post, Body } from '@nestjs/common';
+import { Controller, Delete, Get, Header, Param, Post, Body } from '@nestjs/common';
 
-import { RequestContext, RequirePermission } from '@platform/persistence-kernel';
+import { ParseUuidV7Pipe, RequestContext, RequirePermission } from '@platform/persistence-kernel';
 import {
   ConfirmUploadHandler,
   DeleteFileHandler,
@@ -63,7 +63,7 @@ export class FilesController {
   // representacion estable del recurso.
   @Header('Cache-Control', 'no-store')
   @Get(':id/signed-url')
-  async signedUrl(@Param('id', ParseUUIDPipe) id: string): Promise<SignedUrlResponseDto> {
+  async signedUrl(@Param('id', ParseUuidV7Pipe) id: string): Promise<SignedUrlResponseDto> {
     const { companyId } = this.requestContext.get();
     const result = await this.getSignedUrl.execute({ fileId: id, companyId });
     return { url: result.url, expiresAt: result.expiresAt.toISOString() };
@@ -71,7 +71,7 @@ export class FilesController {
 
   @Delete(':id')
   @RequirePermission('files:delete')
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async remove(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.deleteFile.execute({ fileId: id, companyId });
   }

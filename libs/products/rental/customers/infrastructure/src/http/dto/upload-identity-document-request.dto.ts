@@ -17,7 +17,7 @@ export class UploadIdentityDocumentRequestDto {
   // Si se provee, el documento pertenece a ese AdditionalDriver (debe pertenecer a este
   // Customer); si se omite, pertenece al propio Customer.
   @IsOptional()
-  @IsUUID()
+  @IsUUID('7')
   additionalDriverId?: string;
 
   // true si el operador uso POST .../identity-documents/extract (OCR) y confirmo/edito la

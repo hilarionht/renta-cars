@@ -11,11 +11,11 @@ import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 // alcance de esta tanda de paginacion).
 export class ListReservationsRequestDto {
   @IsOptional()
-  @IsUUID()
+  @IsUUID('7')
   customerId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('7')
   vehicleId?: string;
 
   @IsOptional()
@@ -26,7 +26,7 @@ export class ListReservationsRequestDto {
   // 10-DECISIONES.md #135): solo filtra para usuarios sin sucursal en el token; si el token
   // trae branchId, manda el del token y este se ignora.
   @IsOptional()
-  @IsUUID()
+  @IsUUID('7')
   branchId?: string;
 
   // #135: separados por coma, allow-list en el handler (customer, vehicle).

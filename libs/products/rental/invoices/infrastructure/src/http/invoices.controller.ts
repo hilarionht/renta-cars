@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 
 import {
+  ParseUuidV7Pipe,
   RequestContext,
   RequirePermission,
   RequiresProductModule,
@@ -34,7 +35,7 @@ export class InvoicesController {
   }
 
   @Get(':id')
-  async get(@Param('id', ParseUUIDPipe) id: string): Promise<InvoiceSummary> {
+  async get(@Param('id', ParseUuidV7Pipe) id: string): Promise<InvoiceSummary> {
     const { companyId } = this.requestContext.get();
     return this.getInvoice.execute({ companyId, invoiceId: id });
   }
@@ -42,7 +43,7 @@ export class InvoicesController {
   @Post(':id/void')
   @RequirePermission('invoices:void')
   async void(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: VoidInvoiceRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();

@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 
-import { RequestContext, RequirePermission } from '@platform/persistence-kernel';
+import { ParseUuidV7Pipe, RequestContext, RequirePermission } from '@platform/persistence-kernel';
 import {
   AuthorizePaymentHandler,
   CapturePaymentHandler,
@@ -55,28 +55,28 @@ export class PaymentsController {
   }
 
   @Get(':id')
-  async get(@Param('id', ParseUUIDPipe) id: string): Promise<PaymentSummary> {
+  async get(@Param('id', ParseUuidV7Pipe) id: string): Promise<PaymentSummary> {
     const { companyId } = this.requestContext.get();
     return this.getPayment.execute({ companyId, paymentId: id });
   }
 
   @Post(':id/authorize')
   @RequirePermission('payments:authorize')
-  async authorize(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async authorize(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.authorizePayment.execute({ companyId, paymentId: id });
   }
 
   @Post(':id/capture')
   @RequirePermission('payments:capture')
-  async capture(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async capture(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.capturePayment.execute({ companyId, paymentId: id });
   }
 
   @Post(':id/refund')
   @RequirePermission('payments:refund')
-  async refund(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async refund(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.refundPayment.execute({ companyId, paymentId: id });
   }

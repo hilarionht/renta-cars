@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 
 import {
+  ParseUuidV7Pipe,
   RequestContext,
   RequirePermission,
   RequiresProductModule,
@@ -46,7 +47,7 @@ export class VehicleCategoriesController {
   }
 
   @Get(':id')
-  async get(@Param('id', ParseUUIDPipe) id: string): Promise<VehicleCategoryResponseDto> {
+  async get(@Param('id', ParseUuidV7Pipe) id: string): Promise<VehicleCategoryResponseDto> {
     const { companyId } = this.requestContext.get();
     return this.getVehicleCategory.execute({ vehicleCategoryId: id, companyId });
   }
@@ -54,7 +55,7 @@ export class VehicleCategoriesController {
   @Post(':id/rates')
   @RequirePermission('vehicle-categories:manage')
   async addNewRate(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: AddRateRequestDto,
   ): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();

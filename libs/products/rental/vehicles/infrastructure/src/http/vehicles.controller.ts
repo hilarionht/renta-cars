@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 
 import {
+  ParseUuidV7Pipe,
   RequestContext,
   RequirePermission,
   RequiresProductModule,
@@ -84,7 +85,7 @@ export class VehiclesController {
   }
 
   @Get(':id')
-  async get(@Param('id', ParseUUIDPipe) id: string): Promise<VehicleResponseDto> {
+  async get(@Param('id', ParseUuidV7Pipe) id: string): Promise<VehicleResponseDto> {
     const { companyId, actorType } = this.requestContext.get();
     return this.getVehicle.execute({
       vehicleId: id,
@@ -96,7 +97,7 @@ export class VehiclesController {
   @Post(':id/documents')
   @RequirePermission('vehicles:manage')
   async uploadDocument(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: UploadVehicleDocumentRequestDto,
   ): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
@@ -113,8 +114,8 @@ export class VehiclesController {
   @Post(':id/documents/:documentId/verify')
   @RequirePermission('vehicles:manage')
   async verifyDocument(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
+    @Param('documentId', ParseUuidV7Pipe) documentId: string,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.verifyVehicleDocument.execute({ vehicleId: id, companyId, documentId });
@@ -122,7 +123,7 @@ export class VehiclesController {
 
   @Post(':id/enable')
   @RequirePermission('vehicles:manage')
-  async enable(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async enable(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.enableVehicle.execute({ vehicleId: id, companyId });
   }
@@ -130,7 +131,7 @@ export class VehiclesController {
   @Post(':id/maintenance')
   @RequirePermission('vehicles:manage')
   async schedule(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: ScheduleMaintenanceRequestDto,
   ): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
@@ -148,8 +149,8 @@ export class VehiclesController {
   @Post(':id/maintenance/:maintenanceId/start')
   @RequirePermission('vehicles:manage')
   async start(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('maintenanceId', ParseUUIDPipe) maintenanceId: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
+    @Param('maintenanceId', ParseUuidV7Pipe) maintenanceId: string,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.startMaintenance.execute({ vehicleId: id, companyId, maintenanceId });
@@ -158,8 +159,8 @@ export class VehiclesController {
   @Post(':id/maintenance/:maintenanceId/complete')
   @RequirePermission('vehicles:manage')
   async complete(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('maintenanceId', ParseUUIDPipe) maintenanceId: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
+    @Param('maintenanceId', ParseUuidV7Pipe) maintenanceId: string,
     @Body() dto: CompleteMaintenanceRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
@@ -174,7 +175,7 @@ export class VehiclesController {
   @Post(':id/report-damage')
   @RequirePermission('vehicles:manage')
   async reportVehicleDamage(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: ReportDamageRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
@@ -189,7 +190,7 @@ export class VehiclesController {
   @Post(':id/mark-out-of-service')
   @RequirePermission('vehicles:manage')
   async markOutOfService(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: MarkVehicleOutOfServiceRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();

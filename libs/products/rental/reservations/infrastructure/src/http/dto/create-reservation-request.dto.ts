@@ -1,10 +1,10 @@
 import { IsArray, IsDateString, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateReservationRequestDto {
-  @IsUUID()
+  @IsUUID('7')
   customerId!: string;
 
-  @IsUUID()
+  @IsUUID('7')
   vehicleId!: string;
 
   @IsDateString()
@@ -15,6 +15,6 @@ export class CreateReservationRequestDto {
 
   @IsOptional()
   @IsArray()
-  @IsUUID(undefined, { each: true })
+  @IsUUID('7', { each: true })
   authorizedDriverIds?: string[];
 }
