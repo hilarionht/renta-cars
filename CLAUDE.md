@@ -29,7 +29,7 @@ Plan aprobado (2026-10-21, `~/.claude/plans/drifting-leaping-emerson.md`), dise�
 
 - [x] 1. Infraestructura (RustFS con puerto, CORS, `api-seed`, `seedUserForCompany`, fixtures, `globalSetup`, config) y `reservations.spec.ts` migrado.
 - [x] 2. Los 4 specs (`checkout-checkin`, `fleet`, `customers`, `admin-users`).
-- [ ] 3. Docs (#148, guía del entorno, CLAUDE.md) **hechos**. Falta: PR y CI 6/6 verificando en los logs que corrieron los 5 specs (la corrida local espera que el usuario arranque Postgres). Nunca aprobar ni mergear.
+- [ ] 3. Docs (#148, guía del entorno, CLAUDE.md) **hechos**. **PR #17** y **CI 6/6 en verde** (2026-10-21): los 5 specs pasan en el job `e2e` (55 s, 2 workers). Las primeras corridas destaparon selectores a ajustar en Administración (el nombre accesible del checkbox del rol incluye la pista; "Activo" aparece dos veces) y ruido de Redis en el teardown (ahora espera al API). La corrida local sigue pendiente de que el usuario arranque Postgres. Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
