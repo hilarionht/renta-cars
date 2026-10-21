@@ -17,7 +17,7 @@ Estado al 2026-10-21. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupa
 **En curso, elegido por el usuario (2026-10-21): pendiente 11, ids que no son UUID v7 dan 400 y no 500**, rama `fix/non-v7-ids`. Decisión del usuario: **validar v7 en el borde** (`ParseUuidV7Pipe` en persistence-kernel y `@IsUUID('7')` en los DTOs); `EntityId.from` sigue con `TypeError` (#137). Excepciones explícitas, que aceptan cualquier versión: los ids de roles (System v4 en bases anteriores a #140) y `companyId`/`mfaChallengeId` de los endpoints públicos de auth. Plan aprobado (`~/.claude/plans/drifting-leaping-emerson.md`).
 
 - [x] 1. `ParseUuidV7Pipe` (con spec), controllers y DTOs.
-- [ ] 2. Unitarios (spec del pipe; lint, typecheck y unitarios de los 12 proyectos) y docs (#147, `07-ERROR-CATALOG`, CLAUDE.md) **hechos**; PR y CI en curso. **Falta el smoke en vivo y los e2e individuales**: el servicio `postgresql-x64-16` quedó detenido y arrancarlo pide una consola elevada (`Start-Service postgresql-x64-16`), que tiene que correr el usuario.
+- [ ] 2. Unitarios (spec del pipe; lint, typecheck y unitarios de los 12 proyectos) y docs (#147, `07-ERROR-CATALOG`, CLAUDE.md) **hechos**; **PR #16** con **CI 6/6 en verde** (2026-10-21; en el job `e2e` corrieron completos `api-e2e` y `web-admin-e2e`). **Falta el smoke en vivo local**: el servicio `postgresql-x64-16` quedó detenido y arrancarlo pide una consola elevada (`Start-Service postgresql-x64-16`), que tiene que correr el usuario.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
