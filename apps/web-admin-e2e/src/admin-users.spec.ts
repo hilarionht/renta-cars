@@ -25,7 +25,8 @@ test('alta de usuario con rol y sucursal: aparece activo en el listado', async (
 
   await expect(page).toHaveURL(/\/admin\/users\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { name })).toBeVisible();
-  await expect(page.getByText('Activo', { exact: true })).toBeVisible();
+  // "Activo" tambien aparece en la tabla de roles: el estado del usuario va en el encabezado.
+  await expect(page.locator('header').getByText('Activo', { exact: true })).toBeVisible();
 
   await page.getByRole('link', { name: 'Usuarios', exact: true }).click();
   const row = page.getByRole('row', { name: new RegExp(email) });
