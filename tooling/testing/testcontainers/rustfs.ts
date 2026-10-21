@@ -25,15 +25,18 @@ export interface S3TestContainer {
 }
 
 // El bucket se crea aca con el SDK (en docker-compose.yml lo hace el job `rustfs-init`): un
-// contenedor efimero de test no tiene ese job.
-export async function startRustfsContainer(): Promise<S3TestContainer> {
+// contenedor efimero de test no tiene ese job. hostPort (#148): puerto fijo en el host, para
+// quien necesita conocer el origen antes de arrancar (la CSP de la web se fija al compilar).
+export async function startRustfsContainer(options?: {
+  hostPort?: number;
+}): Promise<S3TestContainer> {
   const container = await new GenericContainer(RUSTFS_IMAGE)
     .withEnvironment({
       RUSTFS_ACCESS_KEY: ACCESS_KEY,
       RUSTFS_SECRET_KEY: SECRET_KEY,
       RUSTFS_REGION: REGION,
     })
-    .withExposedPorts(S3_PORT)
+    .withExposedPorts(options?.hostPort ? { container: S3_PORT, host: options.hostPort } : S3_PORT)
     .withWaitStrategy(Wait.forHttp('/health/ready', S3_PORT))
     .start();
 

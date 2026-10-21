@@ -21,6 +21,8 @@ export default defineConfig({
   // Las fechas de la reserva se corren por intento (el reintento no choca con el vehiculo ya
   // ocupado por el intento anterior).
   retries: process.env['CI'] ? 1 : 0,
+  // Cada test arma sus propios datos y cada worker tiene su usuario (#148).
+  workers: process.env['CI'] ? 2 : undefined,
   globalSetup: './src/support/global-setup.ts',
   expect: { timeout: 10_000 },
   use: {
@@ -46,6 +48,9 @@ export default defineConfig({
         env: {
           NODE_ENV: 'production',
           NEXT_PUBLIC_API_URL: 'http://localhost:3333',
+          // Origen del RustFS del globalSetup (puerto fijo, src/support/ports.ts): la CSP lo
+          // fija al compilar (#148).
+          NEXT_PUBLIC_STORAGE_ORIGIN: 'http://127.0.0.1:9300',
           NEXT_PUBLIC_DEFAULT_COMPANY_ID: '',
         },
         reuseExistingServer: false,

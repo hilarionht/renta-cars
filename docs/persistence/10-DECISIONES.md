@@ -2075,6 +2075,39 @@ El plan se validó con un agente Plan contra el código.
 
 **Gaps aceptados**: los ids de roles y de los endpoints públicos de auth siguen aceptando cualquier versión. Los ids en query que no usan validación de UUID (p. ej. `resourceId` de disponibilidad) no cambian.
 
+## #148 — Más recorridos e2e de la web: retiro y devolución, Flota, Clientes y Administración
+
+**Contexto**: seguimiento de #146, elegido por el usuario: los cuatro recorridos, "con todo lo necesario". Dos de ellos suben archivos desde el navegador (URL firmada, PUT directo al storage), así que el e2e necesita storage real, el origen del storage en la CSP de la web y CORS en el bucket. El diseño lo hizo un agente Plan leyendo el código.
+
+**Decisiones técnicas**:
+
+- **RustFS en un puerto fijo (9300) en CI**. El `webServer` de Playwright arranca antes que el `globalSetup`, y `NEXT_PUBLIC_STORAGE_ORIGIN` se fija al compilar, así que el origen tiene que conocerse antes. `startRustfsContainer({ hostPort })` y `E2E_STORAGE_ORIGIN = http://127.0.0.1:9300`; el endpoint y la CSP usan el mismo host.
+- **CORS del bucket**: `tooling/testing/storage/bucket-cors.ts` (`ensureBucketWithWebCors`), compartido con `npm run dev:storage-setup`. En local, el `globalSetup` exige RustFS en el 9002 y le deja el CORS del 4200.
+- **Sin `storageState` compartido**. El API rota el refresh token en cada uso, y uno ya rotado revoca **todas** las sesiones del usuario (#134), así que reusar una sesión entre tests las mata. En cambio:
+  - un usuario por worker (`seedUserForCompany`);
+  - login por la API en cada test (la cookie de refresh queda en el contexto, más la cookie indicadora de la web);
+  - `open()` espera el menú lateral, que solo se dibuja con la sesión autenticada.
+- **Datos por test**: el `globalSetup` siembra solo la base compartida (company, admin, sucursal, categoría). Cada spec arma lo suyo con `tooling/testing/seed/api-seed.ts`, que tiene funciones por entidad. `workers: 2` en CI.
+- `reservations.spec.ts` siembra su vehículo y su cliente con un login por `fetch` fuera del navegador, y **mantiene el login por la UI**: es la única cobertura del formulario.
+
+**Recorridos nuevos**:
+
+- **`checkout-checkin.spec.ts`**: sobre una reserva confirmada por la API, check-out y check-in con un daño leve con penalidad. La reserva queda "Cerrada" y la factura muestra la renta base y la línea del daño. El retiro no tiene ventana de fechas. La factura y el cierre van por evento en el mismo proceso, así que se espera el estado final.
+- **`fleet.spec.ts`**: alta de un vehículo, documento PDF subido, verificado y vehículo "Disponible".
+- **`customers.spec.ts`**: alta de un cliente con el teléfono validado antes de enviar, documento PNG subido, verificado y cliente "Activo".
+- **`admin-users.spec.ts`**: alta de un usuario con un rol propio (sembrado por la API: el selector lista también roles System de otras companies) y una sucursal; aparece "Activo" en el listado con el rol y la sucursal.
+
+**Verificación**:
+
+- Lint y typecheck de `web-admin-e2e`, `api-e2e` y `platform-integration-providers-infrastructure`.
+- La corrida local no se pudo hacer: el servicio de Postgres local estaba detenido y arrancarlo pide una consola elevada.
+- La prueba de punta a punta es el job `e2e` del CI.
+
+**Gaps aceptados**:
+
+- En local, cada corrida suma datos de prueba a la base de desarrollo.
+- No se prueba la vista del archivo subido.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
