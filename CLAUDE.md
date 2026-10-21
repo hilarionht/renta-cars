@@ -21,7 +21,8 @@ Mergeado también: más recorridos e2e de la web (PR #17, #148). **Pendiente loc
 **En curso, elegido por el usuario (2026-10-21): pendiente 12, migrar a Node 24**, rama `chore/node-upgrade`. Node 20 llegó a fin de soporte el 2026-04-30. Decisiones del usuario: **Node 24.22.1** (LTS, soporte hasta 2028-04-30) e instalarlo localmente (hecho: zip oficial con SHA-256 verificado en `%APPDATA%\nvm\v24.22.1`, junto a la 20.19.4; `nvm install` no funciona desde una consola no interactiva). Plan aprobado (`~/.claude/plans/drifting-leaping-emerson.md`):
 
 - [x] 1. `.nvmrc`, `engines`, `@types/node` ^24 (lockfile bajo Node 24) y `apps/api/Dockerfile` (`node:24.22.1-alpine`).
-- [ ] 2. (verificación local hecha; PR #18 abierto; la primera corrida dio 5/6: carrera latente de auditoría en `vehicles-lifecycle`, corregida con `readAuditActionsUntil`; falta CI 6/6) Verificación con Node 24 (`npm ci`, `prisma generate`, `nx affected -t lint,typecheck,test,build --parallel=1`), docs (#149, guía del entorno, README de engineering, CLAUDE.md), PR y CI 6/6.
+- [x] 2. (PR #18, CI 6/6; la primera corrida encontró una carrera latente de auditoría en `vehicles-lifecycle`, corregida con `readAuditActionsUntil`)
+- [ ] 3. Esperar el merge del PR #18 (lo aprueba y mergea el colaborador, nunca Claude). Verificación con Node 24 (`npm ci`, `prisma generate`, `nx affected -t lint,typecheck,test,build --parallel=1`), docs (#149, guía del entorno, README de engineering, CLAUDE.md), PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
