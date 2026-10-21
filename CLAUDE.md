@@ -28,7 +28,7 @@ Las subidas de archivos necesitan RustFS en el e2e (CI y local). La verificació
 Plan aprobado (2026-10-21, `~/.claude/plans/drifting-leaping-emerson.md`), diseñado con un agente Plan. Claves: RustFS en el **puerto fijo 9300** (el `webServer` arranca antes que el `globalSetup` y `NEXT_PUBLIC_STORAGE_ORIGIN` se fija al compilar); CORS del bucket con `ensureBucketWithWebCors` compartido con `dev:storage-setup`; **sin `storageState` compartido** (el refresh rota y un token reusado revoca todas las sesiones): cada test hace login por API con fixtures; seed por entidad en `tooling/testing/seed/api-seed.ts`; `workers: 2` en CI; `reservations.spec.ts` mantiene el login por la UI.
 
 - [x] 1. Infraestructura (RustFS con puerto, CORS, `api-seed`, `seedUserForCompany`, fixtures, `globalSetup`, config) y `reservations.spec.ts` migrado.
-- [ ] 2. Los 4 specs (`checkout-checkin`, `fleet`, `customers`, `admin-users`).
+- [x] 2. Los 4 specs (`checkout-checkin`, `fleet`, `customers`, `admin-users`).
 - [ ] 3. Verificación (local con Postgres y RustFS arriba; CI), docs (#148, guía del entorno, CLAUDE.md), PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
