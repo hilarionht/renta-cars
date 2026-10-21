@@ -1,10 +1,10 @@
 import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
 
 export class RegisterVehicleRequestDto {
-  @IsUUID()
+  @IsUUID('7')
   branchId!: string;
 
-  @IsUUID()
+  @IsUUID('7')
   vehicleCategoryId!: string;
 
   @IsString()

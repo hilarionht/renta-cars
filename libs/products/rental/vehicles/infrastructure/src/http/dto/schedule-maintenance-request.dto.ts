@@ -13,6 +13,6 @@ export class ScheduleMaintenanceRequestDto {
   scheduledEnd!: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('7')
   responsibleUserId?: string;
 }

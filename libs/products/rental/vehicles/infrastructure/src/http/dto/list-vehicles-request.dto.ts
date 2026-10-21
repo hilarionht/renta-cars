@@ -6,7 +6,7 @@ import { IsDateString, IsIn, IsOptional, IsString, IsUUID, ValidateIf } from 'cl
 // token trae branchId, manda el del token.
 export class ListVehiclesRequestDto {
   @IsOptional()
-  @IsUUID()
+  @IsUUID('7')
   branchId?: string;
 
   // #135: el handler ya lo soportaba pero el controller nunca lo pasaba. Se ignora si viene

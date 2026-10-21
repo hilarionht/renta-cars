@@ -10,6 +10,6 @@ export class UpdateUserRequestDto {
 
   @IsOptional()
   @ValidateIf((_dto, value) => value !== null)
-  @IsUUID()
+  @IsUUID('7')
   branchId?: string | null;
 }

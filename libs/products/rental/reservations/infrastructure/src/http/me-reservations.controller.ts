@@ -1,7 +1,8 @@
-import { Controller, Get, Param, ParseUUIDPipe, Post, Body } from '@nestjs/common';
+import { Controller, Get, Param, Post, Body } from '@nestjs/common';
 import { Throttle, seconds } from '@nestjs/throttler';
 
 import {
+  ParseUuidV7Pipe,
   RequestContext,
   RequireCustomerActor,
   RequiresProductModule,
@@ -72,7 +73,7 @@ export class MeReservationsController {
   }
 
   @Get(':id')
-  async get(@Param('id', ParseUUIDPipe) id: string): Promise<ReservationSummary> {
+  async get(@Param('id', ParseUuidV7Pipe) id: string): Promise<ReservationSummary> {
     const { companyId, userId: customerId } = this.requestContext.get();
     const reservation = await this.getReservation.execute({ companyId, reservationId: id });
     this.assertOwnership(reservation, customerId, id);
@@ -80,7 +81,7 @@ export class MeReservationsController {
   }
 
   @Post(':id/cancel')
-  async cancel(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async cancel(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId, userId: customerId } = this.requestContext.get();
     const reservation = await this.getReservation.execute({ companyId, reservationId: id });
     this.assertOwnership(reservation, customerId, id);

@@ -12,19 +12,12 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-20. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144) y recordatorio "al menos una vez" (PR #14, #145). El detalle de cada uno está en su decisión.
+Estado al 2026-10-21. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145) y primer e2e de la web (PR #15, #146). El detalle de cada uno está en su decisión.
 
-**En curso, elegido por el usuario (2026-10-20): pendiente 13, primer recorrido e2e de la web** (Playwright, `apps/web-admin-e2e`), rama `test/web-admin-e2e-golden-path`. Investigación:
+**En curso, elegido por el usuario (2026-10-21): pendiente 11, ids que no son UUID v7 dan 400 y no 500**, rama `fix/non-v7-ids`. Decisión del usuario: **validar v7 en el borde** (`ParseUuidV7Pipe` en persistence-kernel y `@IsUUID('7')` en los DTOs); `EntityId.from` sigue con `TypeError` (#137). Excepciones explícitas, que aceptan cualquier versión: los ids de roles (System v4 en bases anteriores a #140) y `companyId`/`mfaChallengeId` de los endpoints públicos de auth. Plan aprobado (`~/.claude/plans/drifting-leaping-emerson.md`).
 
-- `web-admin-e2e` tiene solo `playwright.config.mts` generado (3 navegadores, `webServer` comentado, `baseURL` 3000) y el target `e2e` con `--pass-with-no-tests`.
-- La web toma `NEXT_PUBLIC_API_URL` al compilar (CSP `connect-src` en `src/proxy.ts`); el login pide ID de compañía, email y contraseña (MFA solo si el usuario lo tiene activo). El refresh es una cookie httpOnly del API.
-- api-e2e ya resuelve el arranque autocontenido: `globalSetup` con testcontainers (Postgres con migraciones, Redis, RustFS) y el API compilado en el puerto 3333; `seedCompanyWithAdmin` siembra la company y el admin.
-
-Decisiones del usuario: **login + crear una reserva + confirmarla**, solo **Chromium**. Plan aprobado (2026-10-20, `~/.claude/plans/drifting-leaping-emerson.md`), validado con un agente Plan. Claves: la reserva se crea ya confirmada si no se destilda "Confirmar al crear"; fechas corridas por intento (reintentos de CI); seed movido a `tooling/testing/seed/` (importar `type:e2e` está prohibido); `implicitDependencies: ["web-admin", "api"]`; login dentro de `expect(...).toPass()` (hidratación); CI con `next build && next start` en el 4300 y API en el 3333; local con `WEB_E2E_EXTERNAL=1` reusando el dev server del 4200 y el API del 3000.
-
-- [x] 1. Seed compartido en `tooling/testing/seed/` (api-e2e reexporta).
-- [x] 2. `globalSetup`, config de Playwright, el test, `project.json` y workflows.
-- [ ] 3. Verificación local (2 corridas en verde en modo externo, lint/typecheck, `reservations-lifecycle` con el seed movido) y docs (#146, `04-TESTING-FOUNDATION`, guía del entorno) **hechos**. **PR #15** y **CI 6/6 en verde** (2026-10-20): `web-admin-e2e:e2e` corrió autocontenido en el job `e2e` (30 s). La primera corrida destapó dos cosas, ya corregidas: `next build` con `NODE_ENV=development` heredado del `.env` (ahora `production` en el `webServer`) y un aviso nuevo de `follow-redirects` (1.16.1). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
+- [x] 1. `ParseUuidV7Pipe` (con spec), controllers y DTOs.
+- [ ] 2. Verificación (unitarios, smoke en vivo, 5 e2e individuales), docs (#147, `07-ERROR-CATALOG`, CLAUDE.md), PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
@@ -132,6 +125,7 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
   2. Mantener esa sección al día **antes** de cada paso largo (push, CI, builds), para que un corte en el medio no pierda el estado.
   3. Al arrancar una tanda larga, programar en la sesión un recordatorio recurrente (`CronCreate`, cada hora): "revisar 'Trabajo en curso' en CLAUDE.md y continuar el primer paso pendiente". Si el límite corta la sesión pero la terminal sigue abierta, el recordatorio la reactiva apenas se libere. Es solo de esa sesión (no sobrevive a cerrar la terminal) y vence a los 7 días.
   4. Si la terminal se cerró, nada puede arrancarla solo: la próxima sesión que se abra aplica el punto 1.
+  5. **Ampliación (regla del usuario, 2026-10-21)**: si la sesión **se cuelga** o **se desconecta el remote de Claude**, hay que **volver a conectar siempre** y seguir desde el primer paso pendiente. Si **se agotan los tokens** a mitad de un proceso, se **reanuda en cuanto se restablezca el límite** (en la hora en que se libere), sin esperar instrucciones. El recordatorio horario del punto 3 es el que reactiva la sesión; una vez reconectada, se aplica el punto 1. Antes de cada paso largo, el estado tiene que quedar en "Trabajo en curso" para que la reconexión sepa dónde seguir.
 
 - Nunca mergear/aprobar/bypassear PRs vos mismo.
 - Nunca pushear a `origin/master` sin que el usuario lo pida explícitamente en ese momento (no alcanza con una autorización de una sesión anterior).

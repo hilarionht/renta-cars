@@ -3,7 +3,7 @@ import { IsArray, IsDateString, IsOptional, IsUUID } from 'class-validator';
 // Espejo de CreateReservationRequestDto sin customerId - el customerId siempre viene del
 // access_token (request.user.sub), nunca del body (me-reservations.controller.ts).
 export class CreateMyReservationRequestDto {
-  @IsUUID()
+  @IsUUID('7')
   vehicleId!: string;
 
   @IsDateString()
@@ -14,6 +14,6 @@ export class CreateMyReservationRequestDto {
 
   @IsOptional()
   @IsArray()
-  @IsUUID(undefined, { each: true })
+  @IsUUID('7', { each: true })
   authorizedDriverIds?: string[];
 }

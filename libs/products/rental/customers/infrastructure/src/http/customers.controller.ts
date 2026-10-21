@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
 import {
+  ParseUuidV7Pipe,
   RequestContext,
   RequirePermission,
   RequiresProductModule,
@@ -87,7 +88,7 @@ export class CustomersController {
   }
 
   @Get(':id')
-  async get(@Param('id', ParseUUIDPipe) id: string): Promise<CustomerResponseDto> {
+  async get(@Param('id', ParseUuidV7Pipe) id: string): Promise<CustomerResponseDto> {
     const { companyId } = this.requestContext.get();
     return this.getCustomer.execute({ customerId: id, companyId });
   }
@@ -95,7 +96,7 @@ export class CustomersController {
   @Patch(':id')
   @RequirePermission('customers:edit')
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: UpdateCustomerRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
@@ -111,7 +112,7 @@ export class CustomersController {
   @Post(':id/block')
   @RequirePermission('customers:block')
   async block(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: BlockCustomerRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
@@ -120,7 +121,7 @@ export class CustomersController {
 
   @Post(':id/unblock')
   @RequirePermission('customers:unblock')
-  async unblock(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async unblock(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId, userId } = this.requestContext.get();
     await this.unblockCustomer.execute({ customerId: id, companyId, unblockedBy: userId });
   }
@@ -131,7 +132,7 @@ export class CustomersController {
   @Post(':id/identity-documents')
   @RequirePermission('customers:manage-documents')
   async uploadDocument(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: UploadIdentityDocumentRequestDto,
   ): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
@@ -154,7 +155,7 @@ export class CustomersController {
   @Post(':id/identity-documents/extract')
   @RequirePermission('customers:manage-documents')
   async extractDocument(
-    @Param('id', ParseUUIDPipe) _id: string,
+    @Param('id', ParseUuidV7Pipe) _id: string,
     @Body() dto: ExtractIdentityDocumentRequestDto,
   ): Promise<ExtractedDocumentFields | null> {
     return this.extractIdentityDocument.execute({ fileId: dto.fileId });
@@ -163,8 +164,8 @@ export class CustomersController {
   @Post(':id/identity-documents/:documentId/verify')
   @RequirePermission('customers:verify-documents')
   async verifyDocument(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
+    @Param('documentId', ParseUuidV7Pipe) documentId: string,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.verifyIdentityDocument.execute({ customerId: id, companyId, documentId });
@@ -173,7 +174,7 @@ export class CustomersController {
   @Post(':id/additional-drivers')
   @RequirePermission('customers:manage-documents')
   async registerDriver(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: RegisterAdditionalDriverRequestDto,
   ): Promise<{ id: string }> {
     const { companyId } = this.requestContext.get();
@@ -188,8 +189,8 @@ export class CustomersController {
   @Post(':id/additional-drivers/:driverId/validate-license')
   @RequirePermission('customers:verify-documents')
   async validateLicense(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('driverId', ParseUUIDPipe) driverId: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
+    @Param('driverId', ParseUuidV7Pipe) driverId: string,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.validateAdditionalDriverLicense.execute({ customerId: id, companyId, driverId });
@@ -198,8 +199,8 @@ export class CustomersController {
   @Post(':id/additional-drivers/:driverId/revoke')
   @RequirePermission('customers:verify-documents')
   async revokeDriver(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('driverId', ParseUUIDPipe) driverId: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
+    @Param('driverId', ParseUuidV7Pipe) driverId: string,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.revokeAdditionalDriver.execute({ customerId: id, companyId, driverId });

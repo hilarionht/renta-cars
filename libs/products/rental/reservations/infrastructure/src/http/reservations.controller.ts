@@ -1,11 +1,12 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { Throttle, seconds } from '@nestjs/throttler';
 
 import {
+  ParseUuidV7Pipe,
   RequestContext,
   RequirePermission,
-  RequireStaffActor,
   RequiresProductModule,
+  RequireStaffActor,
   WRITE_HEAVY_THROTTLE_PROFILE,
 } from '@platform/persistence-kernel';
 import {
@@ -113,7 +114,7 @@ export class ReservationsController {
   // GetReservationHandler y no expone nada de eso.
   @Get(':id')
   async get(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Query() dto: GetReservationRequestDto,
   ): Promise<ReservationDetail> {
     const { companyId } = this.requestContext.get();
@@ -126,21 +127,21 @@ export class ReservationsController {
 
   @Post(':id/confirm')
   @RequirePermission('reservations:confirm')
-  async confirm(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async confirm(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.confirmReservation.execute({ companyId, reservationId: id });
   }
 
   @Post(':id/cancel')
   @RequirePermission('reservations:cancel')
-  async cancel(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async cancel(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId, userId } = this.requestContext.get();
     await this.cancelReservation.execute({ companyId, reservationId: id, cancelledBy: userId });
   }
 
   @Post(':id/mark-no-show')
   @RequirePermission('reservations:mark-no-show')
-  async markReservationNoShow(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async markReservationNoShow(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.markNoShow.execute({ companyId, reservationId: id });
   }
@@ -148,7 +149,7 @@ export class ReservationsController {
   @Post(':id/check-out')
   @RequirePermission('reservations:check-out')
   async checkOut(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: CheckOutReservationRequestDto,
   ): Promise<void> {
     const { companyId, userId } = this.requestContext.get();
@@ -165,7 +166,7 @@ export class ReservationsController {
   @Post(':id/check-in')
   @RequirePermission('reservations:check-in')
   async checkIn(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: CheckInReservationRequestDto,
   ): Promise<void> {
     const { companyId, userId } = this.requestContext.get();
@@ -189,7 +190,7 @@ export class ReservationsController {
   @Post(':id/reschedule')
   @RequirePermission('reservations:reschedule')
   async reschedule(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: RescheduleReservationRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
@@ -204,7 +205,7 @@ export class ReservationsController {
   @Post(':id/request-extension')
   @RequirePermission('reservations:request-extension')
   async requestReservationExtension(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: RequestExtensionRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
@@ -218,7 +219,7 @@ export class ReservationsController {
   @Post(':id/approve-extension')
   @RequirePermission('reservations:approve-extension')
   async approveReservationExtension(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: ApproveExtensionRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
@@ -232,7 +233,7 @@ export class ReservationsController {
   @Post(':id/swap-vehicle')
   @RequirePermission('reservations:swap-vehicle')
   async swap(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: SwapVehicleRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();

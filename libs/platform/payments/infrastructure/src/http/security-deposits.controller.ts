@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 
-import { RequestContext, RequirePermission } from '@platform/persistence-kernel';
+import { ParseUuidV7Pipe, RequestContext, RequirePermission } from '@platform/persistence-kernel';
 import {
   ReleaseSecurityDepositHandler,
   RetainSecurityDepositHandler,
@@ -34,14 +34,14 @@ export class SecurityDepositsController {
   }
 
   @Get(':id')
-  async get(@Param('id', ParseUUIDPipe) id: string): Promise<SecurityDepositSummary> {
+  async get(@Param('id', ParseUuidV7Pipe) id: string): Promise<SecurityDepositSummary> {
     const { companyId } = this.requestContext.get();
     return this.getSecurityDeposit.execute({ companyId, securityDepositId: id });
   }
 
   @Post(':id/release')
   @RequirePermission('security-deposits:release')
-  async release(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async release(@Param('id', ParseUuidV7Pipe) id: string): Promise<void> {
     const { companyId } = this.requestContext.get();
     await this.releaseSecurityDeposit.execute({ companyId, securityDepositId: id });
   }
@@ -49,7 +49,7 @@ export class SecurityDepositsController {
   @Post(':id/retain')
   @RequirePermission('security-deposits:retain')
   async retain(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUuidV7Pipe) id: string,
     @Body() dto: RetainSecurityDepositRequestDto,
   ): Promise<void> {
     const { companyId } = this.requestContext.get();
