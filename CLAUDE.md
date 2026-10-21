@@ -24,7 +24,7 @@ Decisiones del usuario: **login + crear una reserva + confirmarla**, solo **Chro
 
 - [x] 1. Seed compartido en `tooling/testing/seed/` (api-e2e reexporta).
 - [x] 2. `globalSetup`, config de Playwright, el test, `project.json` y workflows.
-- [ ] 3. Verificación local (2 corridas en verde en modo externo, lint/typecheck, `reservations-lifecycle` con el seed movido) y docs (#146, `04-TESTING-FOUNDATION`, guía del entorno) **hechos**. Falta: PR y CI 6/6, verificando en los logs que `web-admin-e2e:e2e` corrió autocontenido (nunca aprobar ni mergear).
+- [ ] 3. Verificación local (2 corridas en verde en modo externo, lint/typecheck, `reservations-lifecycle` con el seed movido) y docs (#146, `04-TESTING-FOUNDATION`, guía del entorno) **hechos**. **PR #15** y **CI 6/6 en verde** (2026-10-20): `web-admin-e2e:e2e` corrió autocontenido en el job `e2e` (30 s). La primera corrida destapó dos cosas, ya corregidas: `next build` con `NODE_ENV=development` heredado del `.env` (ahora `production` en el `webServer`) y un aviso nuevo de `follow-redirects` (1.16.1). Solo falta lo del usuario: revisión, aprobación del colaborador y merge (nunca hacerlo Claude).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
