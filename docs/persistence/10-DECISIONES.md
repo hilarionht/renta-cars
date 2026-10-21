@@ -2131,6 +2131,7 @@ El plan se validó con un agente Plan contra el código.
 - `nx affected -t lint,typecheck,test,build --parallel=1` con Node 24: todo en verde salvo lo que no corre en local. Los tests de infraestructura y los e2e solo corren en CI, por testcontainers.
 - Cada fallo se comparó con Node 20. `frontend-ui-kit-web:test` era de Node 24 (corregido arriba: 41/41 con las dos versiones). `mobile:test` falló una vez por los timeouts intermitentes de 5 s ya conocidos (#125) y pasa (49/49). `mobile:build` (`expo export`) falla igual con Node 20 en esta máquina: Metro no calcula el SHA-1 de `node_modules/expo-router/entry.js` a través del enlace de `apps/mobile/node_modules` (#133). No lo causa Node 24 y en CI pasa.
 - CI 6/6 con Node 24, incluido `docker-validate` con la imagen nueva.
+- **Carrera latente en `vehicles-lifecycle.e2e-spec.ts`**, que apareció en la primera corrida de CI con Node 24 (esperaba 2 `VehicleStatusChanged.v1` y vio 1). El `AuditLogEntry` lo escribe un listener fire-and-forget (`05-EVENTING` §5) después de que el API respondió, y el test leía `/audit-log` enseguida. No es un bug del API: la auditoría es eventual por diseño. Se corrige en el test con `readAuditActionsUntil` (`apps/api-e2e/src/support/audit-log.ts`), que relee hasta ver los eventos esperados o vencer 5 s. Los otros specs que leen `/audit-log` tienen el mismo patrón y no fallaron; se pasan al helper si alguno falla.
 
 **Gaps aceptados**:
 
