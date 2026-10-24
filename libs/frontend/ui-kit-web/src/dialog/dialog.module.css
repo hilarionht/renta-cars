@@ -12,6 +12,10 @@
 .dialog {
   width: 100%;
   max-width: 480px;
+  /* docs/persistence/10-DECISIONES.md #150: con contenido mas alto que la pantalla (p.ej. muchos
+     roles en el alta de usuario), el dialogo hace scroll en lugar de dejar campos inalcanzables. */
+  max-height: 100%;
+  overflow-y: auto;
   padding: var(--rk-space-lg);
   border-radius: var(--rk-radius-md);
   background: var(--rk-color-background);
