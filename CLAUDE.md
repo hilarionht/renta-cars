@@ -12,22 +12,13 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-21. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145), primer e2e de la web (PR #15, #146) e ids v7 en el borde (PR #16, #147). El detalle de cada uno está en su decisión.
+Estado al 2026-10-23. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145), primer e2e de la web (PR #15, #146) e ids v7 en el borde (PR #16, #147). El detalle de cada uno está en su decisión.
 
-**Pendiente de #147**: el smoke en vivo (id v4 → 400, rol System asignable) no se corrió porque el servicio `postgresql-x64-16` quedó detenido y arrancarlo pide consola elevada (lo tiene que hacer el usuario: `Start-Service postgresql-x64-16`). El CI ya corrió los e2e completos con el cambio.
+Mergeado también: más recorridos e2e de la web (PR #17, #148) y Node 24.22.1 (PR #18, #149; en local se usa la instalación de `%APPDATA%\nvm\v24.22.1`). El smoke en vivo de #147 (10/10) y los 5 recorridos de #148 en local ya se corrieron con Node 24; eso encontró que los diálogos no hacían scroll (#150).
 
-Mergeado también: más recorridos e2e de la web (PR #17, #148). **Pendiente local de #148**: correr los 5 specs en modo local (también espera Postgres).
+Mergeado también: audit gate de octubre (PR #21, #151): Next 16.4.3, body-parser con parche y override acotado `overrides.nx.undici = 7.30.1`, que se quita cuando Nx suba undici.
 
-**En curso, elegido por el usuario (2026-10-21): pendiente 12, migrar a Node 24**, rama `chore/node-upgrade`. Node 20 llegó a fin de soporte el 2026-04-30. Decisiones del usuario: **Node 24.22.1** (LTS, soporte hasta 2028-04-30) e instalarlo localmente (hecho: zip oficial con SHA-256 verificado en `%APPDATA%\nvm\v24.22.1`, junto a la 20.19.4; `nvm install` no funciona desde una consola no interactiva). Plan aprobado (`~/.claude/plans/drifting-leaping-emerson.md`):
-
-- [x] 1. `.nvmrc`, `engines`, `@types/node` ^24 (lockfile bajo Node 24) y `apps/api/Dockerfile` (`node:24.22.1-alpine`).
-- [x] 2. (PR #18, CI 6/6; la primera corrida encontró una carrera latente de auditoría en `vehicles-lifecycle`, corregida con `readAuditActionsUntil`)
-- [ ] 3. Esperar el merge del PR #18 (lo aprueba y mergea el colaborador, nunca Claude). Verificación con Node 24 (`npm ci`, `prisma generate`, `nx affected -t lint,typecheck,test,build --parallel=1`), docs (#149, guía del entorno, README de engineering, CLAUDE.md), PR y CI 6/6.
-
-**En curso (2026-10-23): audit gate rojo en todos los PR** por advisories nuevos (`next` crítica, `body-parser`, `undici`). Rama `chore/audit-2026-10-23`. Decisión del usuario: override acotado `overrides.nx.undici = 7.30.1` (Nx 23.3.1 y 24 siguen fijando 7.29.0). Pasos:
-
-- [x] 1. `next` ~16.4.3, override, `npm install` + `npm audit fix` (body-parser y undici raíz), verificación (`nx affected`, build de web-admin, e2e de la web en local) y decisión #151.
-- [ ] 2. PR y CI 6/6; después los PR #19 y #20 se actualizan con `master` y vuelven a correr.
+En espera: PR #20 (#150, diálogos con scroll), actualizado con `master`; lo aprueba y mergea el colaborador.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
