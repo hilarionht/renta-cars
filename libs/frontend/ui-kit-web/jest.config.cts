@@ -2,6 +2,11 @@
 // @swc/jest (heredado del preset base) + testEnvironment jsdom. moduleFileExtensions/
 // testMatch amplian el preset base (solo .ts/.js) con .tsx/.jsx - particularidad de
 // proyecto frontend, no del preset compartido con backend (tooling/jest/base.config.ts).
+//
+// .cts (CommonJS), como ui-kit-mobile y apps/mobile (docs/persistence/10-DECISIONES.md #149):
+// con Node 24, un jest.config.ts con import/export se carga como modulo ES (Node ya entiende
+// TypeScript) y ahi __dirname no existe.
+/// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -15,7 +20,7 @@ const tsconfig = JSON.parse(readFileSync(join(repoRoot, 'tsconfig.base.json'), '
   compilerOptions: { paths: Record<string, string[]> };
 };
 
-export default {
+module.exports = {
   displayName: 'frontend-ui-kit-web',
   preset: '../../../tooling/jest/base.config.ts',
   testEnvironment: 'jsdom',

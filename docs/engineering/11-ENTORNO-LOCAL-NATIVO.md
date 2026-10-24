@@ -8,7 +8,7 @@ Está escrita para que **cualquier máquina nueva** llegue al mismo estado sigui
 
 | Servicio                              | ¿Obligatorio para arrancar `apps/api`?                                                                           | Por qué                                                                                                                                                    |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Node **20.19.4** (`.nvmrc`)           | Sí                                                                                                               | Es la versión de CI (`setup-node` usa `node-version-file: .nvmrc`). Correr con otra versión no es evidencia válida de que CI va a pasar                    |
+| Node **24.22.1** (`.nvmrc`, #149)     | Sí                                                                                                               | Es la versión de CI (`setup-node` usa `node-version-file: .nvmrc`). Correr con otra versión no es evidencia válida de que CI va a pasar                    |
 | PostgreSQL 16                         | Sí                                                                                                               | `DATABASE_URL`, `APP_DATABASE_URL` y `PLATFORM_ADMIN_DATABASE_URL` son obligatorias (`apps/api/src/config/env.validation.ts`), y `/health/ready` hace ping |
 | Redis 7 (API compatible)              | Sí                                                                                                               | `REDIS_URL` es obligatoria. `/health/ready` lo chequea y BullMQ (#121) lo necesita                                                                         |
 | Almacenamiento S3 (RustFS, §4.1)      | Solo las **variables** `STORAGE_*` son obligatorias. El servicio solo hace falta para subir y descargar archivos | `S3Client` se construye al iniciar, pero no hay chequeo de bucket. MinIO OSS está archivado (#138)                                                         |
@@ -16,14 +16,14 @@ Está escrita para que **cualquier máquina nueva** llegue al mismo estado sigui
 
 **Tests**: sin Docker solo corren los tests que no usan testcontainers (`domain`, `application`, `apps/*` unitarios, `frontend/*`), además de lint, typecheck y build. Los `*-infrastructure` (17 proyectos) y `apps/api-e2e` levantan contenedores y **solo corren en CI** (decisión del usuario, #124). Ver §6.
 
-## 2. Node 20.19.4 sin pisar el Node global
+## 2. Node 24.22.1 sin pisar el Node global
 
-La máquina puede tener otro Node global para otros proyectos. No se cambia: se usa el 20.19.4 solo en la terminal de este repo.
+La máquina puede tener otro Node global para otros proyectos. No se cambia: se usa el 24.22.1 solo en la terminal de este repo (desde #149; antes 20.19.4, que llegó a fin de soporte el 2026-04-30).
 
 Con **nvm-windows** ya instalado (`%NVM_HOME%`), `nvm install` desde una terminal no interactiva puede no hacer nada. El método que funcionó: bajar el zip oficial, verificar su checksum y dejarlo en la carpeta de nvm, donde nvm lo reconoce.
 
 ```powershell
-$v='v20.19.4'; $dl="$env:TEMP\node-$v-dl"; New-Item -ItemType Directory -Force $dl | Out-Null
+$v='v24.22.1'; $dl="$env:TEMP\node-$v-dl"; New-Item -ItemType Directory -Force $dl | Out-Null
 $zip="node-$v-win-x64.zip"
 Invoke-WebRequest "https://nodejs.org/dist/$v/$zip" -OutFile "$dl\$zip"
 Invoke-WebRequest "https://nodejs.org/dist/$v/SHASUMS256.txt" -OutFile "$dl\SHASUMS256.txt"
@@ -37,15 +37,15 @@ Move-Item "$dl\node-$v-win-x64" "$env:NVM_HOME\$v"
 Para usarlo en la terminal actual (no cambia nada global):
 
 ```powershell
-$env:PATH = "$env:NVM_HOME\v20.19.4;$env:PATH"; node -v   # v20.19.4
+$env:PATH = "$env:NVM_HOME\v24.22.1;$env:PATH"; node -v   # v24.22.1
 ```
 
 ```bash
 # Git Bash
-export PATH="/c/Users/$USERNAME/AppData/Roaming/nvm/v20.19.4:$PATH"; node -v
+export PATH="/c/Users/$USERNAME/AppData/Roaming/nvm/v24.22.1:$PATH"; node -v
 ```
 
-Alternativa si querés que sea el Node por defecto de toda la máquina: `nvm use 20.19.4` desde una terminal **como administrador**. Esto afecta a todos tus proyectos.
+Alternativa si querés que sea el Node por defecto de toda la máquina: `nvm use 24.22.1` desde una terminal **como administrador**. Esto afecta a todos tus proyectos.
 
 ## 3. Redis: Memurai Developer
 
@@ -132,12 +132,12 @@ npm run dev:storage-setup   # crea STORAGE_BUCKET y la regla CORS para http://lo
 
 - **CORS**: el navegador sube el archivo con un `PUT` directo a la URL firmada. `application/pdf` e `image/*` disparan preflight, así que el bucket necesita la regla que crea `dev:storage-setup`. Mobile no la necesita.
 - **CSP de la web**: `apps/web-admin/.env.local` necesita `NEXT_PUBLIC_STORAGE_ORIGIN=http://localhost:9002`, **exactamente** el origen de `STORAGE_ENDPOINT`. La URL se firma con ese host; `localhost` y `127.0.0.1` no son intercambiables.
-- **Riesgo anotado (#138)**: el SDK de AWS (`@aws-sdk/client-s3`) avisa que desde enero de 2027 va a exigir Node 22 o superior, y el proyecto usa Node 20.
+- ~~**Riesgo anotado (#138)**: el SDK de AWS (`@aws-sdk/client-s3`) avisa que desde enero de 2027 va a exigir Node 22 o superior, y el proyecto usa Node 20.~~ Resuelto en #149 (Node 24).
 
 ## 5. Arranque
 
 ```bash
-# 0. Node 20.19.4 en esta terminal (§2)
+# 0. Node 24.22.1 en esta terminal (§2)
 npm install                                  # solo la primera vez o si cambió package-lock.json
 cp .env.example .env                         # solo si no existe; los valores por defecto ya apuntan a localhost
 npm run security:generate-jwt-keys >> .env   # solo si .env no tiene JWT_* (CI hace lo mismo)
@@ -187,7 +187,7 @@ Mobile: `cd apps/mobile && npx expo start --web`.
 
 **`apps/web-admin-e2e` en local** (#146): con el API corriendo en el 3000 y Redis, desde `apps/web-admin-e2e`: `WEB_E2E_EXTERNAL=1 npx playwright test`. Reusa el `next dev` del 4200 si está corriendo, o lo levanta. Hace falta Chromium de Playwright (`npx playwright install chromium`) y, desde #148, **RustFS corriendo** (§4.1): los recorridos de Flota y Clientes suben archivos, y el `globalSetup` aborta si `STORAGE_ENDPOINT/health` no responde (deja el CORS del bucket igual que `npm run dev:storage-setup`). Cada corrida deja una company de prueba y usuarios en la base de desarrollo.
 
-Para reproducir el job `ci / lint-typecheck` completo: `npx nx affected --target=lint,typecheck --base=origin/master --parallel=1` con Node 20.19.4. `--parallel=1` es para no quedarse sin RAM; en máquinas con poca memoria tarda más de 10 minutos.
+Para reproducir el job `ci / lint-typecheck` completo: `npx nx affected --target=lint,typecheck --base=origin/master --parallel=1` con Node 24.22.1. `--parallel=1` es para no quedarse sin RAM; en máquinas con poca memoria tarda más de 10 minutos.
 
 ## 7. Apagado
 
@@ -208,4 +208,5 @@ Cada máquina donde se arme este entorno agrega una entrada: qué se instaló, c
 - `apps/api` arrancado con este entorno: `/health/ready` 200 (postgres up, redis up). BullMQ sobre Memurai verificado (#124).
 - `apps/mobile` tests: los 11 specs fallan localmente por #108 (`node_modules` duplicado).
 - RAM libre típica con VS Code y Chrome abiertos: alrededor de 1,3 GB. Correr `nx` con `--parallel=1`.
+- **2026-10-21 (#149)**: Node 24.22.1 en `%NVM_HOME%\v24.22.1` con el mismo método de §2 (zip oficial, SHA-256 verificado contra el publicado; `nvm install` no funcionó desde una consola no interactiva). La 20.19.4 queda instalada al lado. Con Node 24 viene npm 11: avisa "install scripts not yet covered by allowScripts" (fase 1 de su política de scripts, solo aviso: los scripts corren igual) y ya no instala peers opcionales. `npm ci` limpio, Prisma y el enlace `apps/mobile/node_modules` (#133) verificados.
 - **2026-10-14 (#138)**: RustFS 1.0.1 en `%LOCALAPPDATA%\rustfs` (zip oficial del release de GitHub, SHA-256 verificado contra el publicado), datos en `%LOCALAPPDATA%\rustfs\data`, `127.0.0.1:9002`. Bucket `renta-dev` y CORS creados con `npm run dev:storage-setup`. Verificado: subida real de punta a punta (preflight CORS, `PUT`, confirmación y lectura firmada), integration spec del adaptador S3 4/4 y e2e `vehicles-lifecycle` con subida real. MinIO no se pudo instalar: `dl.min.io` responde `410 Gone` (proyecto archivado).

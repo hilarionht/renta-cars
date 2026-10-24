@@ -3,12 +3,12 @@
 # monorepo (Nx necesita el workspace completo para resolver el grafo de dependencias del
 # proyecto que construye).
 
-FROM node:20.19.0-alpine AS deps
+FROM node:24.22.1-alpine AS deps
 WORKDIR /workspace
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:20.19.0-alpine AS build
+FROM node:24.22.1-alpine AS build
 WORKDIR /workspace
 COPY --from=deps /workspace/node_modules ./node_modules
 COPY . .
@@ -17,7 +17,7 @@ COPY . .
 RUN DATABASE_URL="postgresql://build:build@build:5432/build" npx prisma generate
 RUN npx nx run api:build
 
-FROM node:20.19.0-alpine AS runtime
+FROM node:24.22.1-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 # dist/apps/api/package.json ya viene podado por `generatePackageJson: true` del webpack de

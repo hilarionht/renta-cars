@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { readAuditActionsUntil } from '../support/audit-log';
 import { farFutureExpiryDate } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
@@ -162,12 +163,12 @@ describe('Vehicles: registro, documentacion, mantenimiento, y auditoria', () => 
       .set('Authorization', `Bearer ${accessToken}`);
     expect(getFinalResponse.body.data.status).toBe('Available');
 
-    const auditLogResponse = await request(baseUrl)
-      .get('/api/v1/audit-log')
-      .set('Authorization', `Bearer ${accessToken}`);
-    expect(auditLogResponse.status).toBe(200);
-    const eventTypes: string[] = auditLogResponse.body.data.map(
-      (entry: { action: string }) => entry.action,
+    const countStatusChanges = (actions: string[]): number =>
+      actions.filter((action) => action === 'VehicleStatusChanged.v1').length;
+    const eventTypes = await readAuditActionsUntil(
+      baseUrl,
+      accessToken,
+      (actions) => actions.includes('MaintenanceCompleted.v1') && countStatusChanges(actions) >= 2,
     );
     expect(eventTypes).toEqual(
       expect.arrayContaining([
@@ -180,8 +181,6 @@ describe('Vehicles: registro, documentacion, mantenimiento, y auditoria', () => 
         'RateChanged.v1',
       ]),
     );
-    expect(eventTypes.filter((eventType) => eventType === 'VehicleStatusChanged.v1')).toHaveLength(
-      2,
-    );
+    expect(countStatusChanges(eventTypes)).toBe(2);
   });
 });

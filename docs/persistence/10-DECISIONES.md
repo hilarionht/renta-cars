@@ -2108,6 +2108,37 @@ El plan se validó con un agente Plan contra el código.
 - En local, cada corrida suma datos de prueba a la base de desarrollo.
 - No se prueba la vista del archivo subido.
 
+## #149 — Node 24
+
+**Contexto**: pendiente 12 de CLAUDE.md (#138), elegido por el usuario. `@aws-sdk/client-s3` avisa que desde enero de 2027 va a exigir Node 22 o superior, y GitHub Actions ya avisa que Node 20 está deprecado. Al revisar el calendario de Node apareció algo más urgente: **Node 20 llegó a fin de soporte el 2026-04-30**, así que el proyecto corría sobre un runtime sin parches de seguridad.
+
+**Decisión del usuario**: **Node 24** (LTS "Krypton", soporte hasta el 2028-04-30) en lugar de Node 22, que termina el 2027-04-30 y obligaba a migrar de nuevo en meses. Versión **24.22.1**, la última, una release de seguridad del 2026-10-20.
+
+**Cambios**:
+
+- `.nvmrc`: `24.22.1`. Todos los workflows lo leen con `node-version-file`, así que CI pasa a Node 24 sin tocar los YAML.
+- `package.json`: `engines.node` `>=24.22.1 <25.0.0`; `@types/node` 24.
+- `apps/api/Dockerfile`: `node:24.22.1-alpine` en las 3 etapas (antes `20.19.0`, que además no coincidía con `.nvmrc`).
+- **Lockfile regenerado con npm 11**, que viene con Node 24 y ya no instala peers opcionales. Salen 27 entradas, todas `peer` y `optional`, sin uso: `@rspack/*`, `@module-federation/*`, y copias anidadas de `chokidar`, `readdirp`, `http-proxy-middleware` e `is-plain-object` que siguen presentes en otra ruta del árbol.
+- **npm 11 y `allowScripts`**: avisa que 13 paquetes tienen scripts de instalación no cubiertos (`prisma`, `@prisma/engines`, `nx`, `esbuild`, `@swc/core`, …). Es la fase 1 de su política: solo avisa y los scripts corren igual (solo se saltean los denegados explícitamente). No se agrega `allowScripts` todavía. Hacerlo es una decisión de seguridad de la cadena de suministro, para cuando npm pase a bloquear.
+- **`libs/frontend/ui-kit-web/jest.config.ts` pasa a `.cts`** (CommonJS, con `module.exports`), como ya estaban `ui-kit-mobile` y `apps/mobile`. Node 24 entiende TypeScript sin transpilar: un `jest.config.ts` con `import`/`export` se carga como módulo ES, donde `__dirname` no existe, y el test fallaba al leer la configuración. Era la única regresión real de Node 24.
+- **Entorno local**: Node 24.22.1 instalado junto a la 20.19.4 con el método de la guía §2 (zip oficial con SHA-256 verificado). `nvm install` no funciona desde una consola no interactiva.
+
+**Verificación**:
+
+- `npm ci` limpio y `prisma generate` con Node 24.22.1.
+- El enlace `apps/mobile/node_modules` (#133) sigue intacto.
+- `nx affected -t lint,typecheck,test,build --parallel=1` con Node 24: todo en verde salvo lo que no corre en local. Los tests de infraestructura y los e2e solo corren en CI, por testcontainers.
+- Cada fallo se comparó con Node 20. `frontend-ui-kit-web:test` era de Node 24 (corregido arriba: 41/41 con las dos versiones). `mobile:test` falló una vez por los timeouts intermitentes de 5 s ya conocidos (#125) y pasa (49/49). `mobile:build` (`expo export`) falla igual con Node 20 en esta máquina: Metro no calcula el SHA-1 de `node_modules/expo-router/entry.js` a través del enlace de `apps/mobile/node_modules` (#133). No lo causa Node 24 y en CI pasa.
+- CI 6/6 con Node 24, incluido `docker-validate` con la imagen nueva.
+- **Carrera latente en `vehicles-lifecycle.e2e-spec.ts`**, que apareció en la primera corrida de CI con Node 24 (esperaba 2 `VehicleStatusChanged.v1` y vio 1). El `AuditLogEntry` lo escribe un listener fire-and-forget (`05-EVENTING` §5) después de que el API respondió, y el test leía `/audit-log` enseguida. No es un bug del API: la auditoría es eventual por diseño. Se corrige en el test con `readAuditActionsUntil` (`apps/api-e2e/src/support/audit-log.ts`), que relee hasta ver los eventos esperados o vencer 5 s. Los otros specs que leen `/audit-log` tienen el mismo patrón y no fallaron; se pasan al helper si alguno falla.
+
+**Gaps aceptados**:
+
+- Node 24 está en "maintenance LTS" desde el 2026-10-20: el salto a Node 26 hay que planearlo antes de abril de 2028.
+- EAS Build (mobile) usa su propia imagen de Node; no se fija acá.
+- Con Node 24, Nx avisa "Failed to load the ES module" al leer los tres `jest.config.cts`: tienen `import` de ES dentro de un archivo CommonJS, Node no puede cargarlos tal cual y Nx usa su transpilador. Es solo un aviso: los tres proyectos corren sus tests. Pasarlos a `require` cambiaría los tipos y las reglas de lint de los tres archivos, sin beneficio funcional.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
