@@ -12,11 +12,9 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
 
-Estado al 2026-10-21. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145), primer e2e de la web (PR #15, #146) e ids v7 en el borde (PR #16, #147). El detalle de cada uno está en su decisión.
+Estado al 2026-10-23. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145), primer e2e de la web (PR #15, #146) e ids v7 en el borde (PR #16, #147). El detalle de cada uno está en su decisión.
 
-**Pendiente de #147**: el smoke en vivo (id v4 → 400, rol System asignable) no se corrió porque el servicio `postgresql-x64-16` quedó detenido y arrancarlo pide consola elevada (lo tiene que hacer el usuario: `Start-Service postgresql-x64-16`). El CI ya corrió los e2e completos con el cambio.
-
-Mergeado también: más recorridos e2e de la web (PR #17, #148) y Node 24.22.1 (PR #18, #149; en local se usa la instalación de `%APPDATA%\nvm\v24.22.1`). **Pendiente local de #148**: correr los 5 specs en modo local (también espera Postgres).
+Mergeado también: más recorridos e2e de la web (PR #17, #148) y Node 24.22.1 (PR #18, #149; en local se usa la instalación de `%APPDATA%\nvm\v24.22.1`). El smoke en vivo de #147 (10/10) y los 5 recorridos de #148 en local ya se corrieron con Node 24; eso encontró que los diálogos no hacían scroll (#150, PR #20, espera aprobación).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
