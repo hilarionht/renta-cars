@@ -2139,6 +2139,25 @@ El plan se validó con un agente Plan contra el código.
 - EAS Build (mobile) usa su propia imagen de Node; no se fija acá.
 - Con Node 24, Nx avisa "Failed to load the ES module" al leer los tres `jest.config.cts`: tienen `import` de ES dentro de un archivo CommonJS, Node no puede cargarlos tal cual y Nx usa su transpilador. Es solo un aviso: los tres proyectos corren sus tests. Pasarlos a `require` cambiaría los tipos y las reglas de lint de los tres archivos, sin beneficio funcional.
 
+## #150 — Diálogos con scroll
+
+**Contexto**: al cerrar los pendientes locales de #147 y #148 (con Postgres de vuelta), `admin-users.spec.ts` falló en local con "element is outside of the viewport": el checkbox del rol nuevo quedaba debajo del borde de la pantalla y no había forma de llegar. El `Dialog` de `ui-kit-web` no tenía altura máxima ni scroll, así que todo lo que pasara del alto de la ventana era inalcanzable, también para una persona.
+
+Lo hizo visible la base local: tiene 86 roles System globales (`company_id` nulo, #140), uno por cada corrida local de e2e (`seedCompanyWithAdmin` crea el suyo), y el alta de usuario los lista todos. En CI la base es nueva en cada corrida, por eso pasaba.
+
+**Decisión**: `.dialog` lleva `max-height: 100%` (del área del overlay, que ya tiene margen) y `overflow-y: auto`. Arregla todos los diálogos, no solo el alta de usuario.
+
+**Verificación (Node 24.22.1, local con `WEB_E2E_EXTERNAL=1`)**:
+
+- `admin-users.spec.ts`: falla sin el cambio y pasa con él.
+- Los otros 4 recorridos de #148 (`reservations`, `checkout-checkin`, `fleet`, `customers`) pasan, corridos uno por uno.
+- Smoke en vivo de #147 contra el API local, 10/10: un id v4 da 400 (`/vehicles/:id` y `assign-role`), un v7 inexistente da 404 y el rol System (id v4, de un seed anterior) se asigna con 201.
+
+**Gaps aceptados**:
+
+- La base local acumula roles System globales de los e2e. No afecta al CI y es dato de desarrollo; si molesta, se borran a mano (roles `System Role e2e …` sin usuarios).
+- Que los roles System de todas las companies aparezcan en el selector es consecuencia de que son globales (#140). Mostrar solo uno, o separarlos, sería una decisión de producto.
+
 ## #151 — Audit gate: Next 16.4.3, body-parser y override acotado de undici para Nx
 
 **Contexto**: el 2026-10-23 el check `audit` pasó a rojo en todos los PR abiertos (#19 y #20) sin que cambiara el código. Aparecieron advisories nuevos, altos o críticos y con parche:
