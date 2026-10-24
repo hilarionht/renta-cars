@@ -14,11 +14,9 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 Estado al 2026-10-23. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145), primer e2e de la web (PR #15, #146) e ids v7 en el borde (PR #16, #147). El detalle de cada uno está en su decisión.
 
-Mergeado también: más recorridos e2e de la web (PR #17, #148) y Node 24.22.1 (PR #18, #149; en local se usa la instalación de `%APPDATA%\nvm\v24.22.1`). El smoke en vivo de #147 (10/10) y los 5 recorridos de #148 en local ya se corrieron con Node 24; eso encontró que los diálogos no hacían scroll (#150).
+Mergeado también: más recorridos e2e de la web (PR #17, #148) y Node 24.22.1 (PR #18, #149; en local se usa la instalación de `%APPDATA%\nvm\v24.22.1`). El smoke en vivo de #147 (10/10) y los 5 recorridos de #148 en local ya se corrieron con Node 24; eso encontró que los diálogos no hacían scroll (#150, PR #20). Con #150 y #151 en `master`, los 5 recorridos pasan en local (2026-10-23).
 
 Mergeado también: audit gate de octubre (PR #21, #151): Next 16.4.3, body-parser con parche y override acotado `overrides.nx.undici = 7.30.1`, que se quita cuando Nx suba undici.
-
-En espera: PR #20 (#150, diálogos con scroll), actualizado con `master`; lo aprueba y mergea el colaborador.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
