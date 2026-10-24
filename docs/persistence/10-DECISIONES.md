@@ -2139,6 +2139,35 @@ El plan se validó con un agente Plan contra el código.
 - EAS Build (mobile) usa su propia imagen de Node; no se fija acá.
 - Con Node 24, Nx avisa "Failed to load the ES module" al leer los tres `jest.config.cts`: tienen `import` de ES dentro de un archivo CommonJS, Node no puede cargarlos tal cual y Nx usa su transpilador. Es solo un aviso: los tres proyectos corren sus tests. Pasarlos a `require` cambiaría los tipos y las reglas de lint de los tres archivos, sin beneficio funcional.
 
+## #151 — Audit gate: Next 16.4.3, body-parser y override acotado de undici para Nx
+
+**Contexto**: el 2026-10-23 el check `audit` pasó a rojo en todos los PR abiertos (#19 y #20) sin que cambiara el código. Aparecieron advisories nuevos, altos o críticos y con parche:
+
+- **`next` 16.3.8** (crítica): dos ejecuciones remotas de código sin autenticación (Image Optimization con SVG, `use cache` con typed arrays) y un DoS en Server Actions. Afecta a `web-admin`. Se corrige en 16.4.3, dentro del mismo major.
+- **`body-parser`** (alta, DoS con cuerpos comprimidos): copias de Express 4 y 5; patch dentro del rango.
+- **`undici`** (alta, 13 advisories): la copia raíz (7.30.0, de testcontainers y expo-server-sdk) y la que **Nx fija exacta en 7.29.0**. Ni Nx 23.3.1 ni Nx 24.0.1 la suben.
+
+**Decisión del usuario** para undici en Nx: **override acotado** `overrides.nx.undici = 7.30.1` (mismo major). Se descartaron una excepción con vencimiento en el gate y subir a Nx 24, que igual trae 7.29.0. A diferencia de #127/#128, donde se evitó el override, acá no existe una versión de Nx que lo resuelva. **Se quita el override cuando Nx publique una versión con undici 7.30.1 o superior.** Nx es herramienta de desarrollo y no se despliega.
+
+**Cambios**:
+
+- `next` `~16.4.3`, `@next/*` 16.4.3, override de undici y `npm audit fix` (sin `--force`): body-parser 1.20.9 y 2.4.0, undici 7.30.1 en las tres copias.
+- **Entradas huérfanas en el lockfile**: desde #149, npm 11 dejó de instalar `@nx/module-federation` (peer opcional), pero quedaron 18 entradas de sus dependencias anidadas, entre ellas un `body-parser` 1.20.8. `npm audit` las seguía leyendo. Se borraron (ninguna tenía paquete padre) y `npm install --package-lock-only` no las regenera.
+- **`react` vuelve a 19.2.8**: `npm install` la había subido a 19.3.1 (cae en `^19.0.0`) y dejó `react-dom` y `react-test-renderer` en 19.2.8. React exige la misma versión exacta de `react` y del renderer (lo mismo React Native). Ningún paquete pedía 19.3: se restauró la entrada anterior del lockfile.
+- Arrastrados por npm dentro de sus rangos: patches de Expo SDK 57, Radix, Storybook 10.6 y `xcode` 4 (lo pide `@expo/config-plugins` 57.0.11).
+
+**Verificación (Node 24.22.1)**:
+
+- `npm run ci:audit-gate`: sin bloqueantes, solo la excepción de image-size (#127).
+- `npm ci` limpio, `prisma generate` y el enlace de `apps/mobile/node_modules` intacto.
+- `nx affected -t lint,typecheck,test,build --parallel=1`: verde salvo lo que no corre en esta máquina (15 `*-infrastructure:test` por testcontainers y `mobile:build`, #149). Incluye el build de `web-admin` con Next 16.4.3 y `mobile:test`.
+- Recorridos de la web en local con Next 16.4.3: `reservations`, `checkout-checkin`, `fleet` y `customers` pasan. `admin-users` necesita la corrección de #150 (PR #20), que todavía no está en `master`.
+
+**Gaps aceptados**:
+
+- El override de undici queda hasta que Nx lo actualice; revisarlo en cada subida de Nx.
+- `npm audit` sigue listando advisories moderados o sin parche (fuera del criterio del gate).
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
