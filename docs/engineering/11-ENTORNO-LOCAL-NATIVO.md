@@ -47,6 +47,22 @@ export PATH="/c/Users/$USERNAME/AppData/Roaming/nvm/v24.22.1:$PATH"; node -v
 
 Alternativa si querés que sea el Node por defecto de toda la máquina: `nvm use 24.22.1` desde una terminal **como administrador**. Esto afecta a todos tus proyectos.
 
+### Scripts de instalación (#152)
+
+El repo tiene un `.npmrc` con `strict-allow-scripts=true`: un paquete con script de instalación (`preinstall`, `install` o `postinstall`) que no figure en `allowScripts` de `package.json` hace fallar `npm ci`/`npm install` con `ESTRICTALLOWSCRIPTS`. Pasa lo mismo en CI y en el build de Docker. Las aprobaciones están fijadas a la versión revisada (`esbuild@0.28.2`); las denegaciones son por nombre (`"less": false`) y valen para cualquier versión.
+
+Cuando una subida de dependencias lo dispara:
+
+```bash
+npm install-scripts ls                 # que paquetes tienen scripts sin revisar
+# leer el script: node_modules/<pkg>/package.json ("scripts") y el archivo que ejecuta
+npm install-scripts approve <pkg>      # lo necesita (descarga o valida un binario, etc.)
+npm install-scripts deny <pkg>         # no lo necesita o no deberia correr
+npm install-scripts prune              # borra entradas de versiones que ya no estan
+```
+
+`approve` y `deny` solo actúan sobre paquetes **instalados**. Si el que falla es una dependencia opcional que no se instala en esta plataforma (pasó con `cpu-features`, de `ssh2`, en Windows), la entrada se agrega a mano con el mismo formato. Registrar en #152 qué se aprobó o negó y por qué.
+
 ## 3. Redis: Memurai Developer
 
 **Por qué Memurai y no Redis en WSL**: WSL es Redis "real", pero en la primera máquina donde se armó esto la distro de WSL no tenía salida a internet y `apt` fallaba. Memurai es nativo de Windows, corre como servicio y expone la API de Redis **7.2.5**. Si en tu máquina WSL tiene red, Redis 7 en WSL también sirve: lo único que importa es que `REDIS_URL=redis://localhost:6379` responda.
@@ -208,5 +224,7 @@ Cada máquina donde se arme este entorno agrega una entrada: qué se instaló, c
 - `apps/api` arrancado con este entorno: `/health/ready` 200 (postgres up, redis up). BullMQ sobre Memurai verificado (#124).
 - `apps/mobile` tests: los 11 specs fallan localmente por #108 (`node_modules` duplicado).
 - RAM libre típica con VS Code y Chrome abiertos: alrededor de 1,3 GB. Correr `nx` con `--parallel=1`.
+- **2026-10-24 (#152)**: `allowScripts` y `strict-allow-scripts`. `npm ci` limpio (8 min) sin avisos de scripts; el schema engine de Prisma se sigue descargando (`prisma migrate status` OK) y el binding de `ssh2` ya no se compila. **Disco lleno**: el C: llegó a 0 GB libres (un build de la web falló con "Espacio en disco insuficiente"). La caché de npm (`%LOCALAPPDATA%
+pm-cache`) ocupaba 16,9 GB tras varias `npm ci`; `npm cache verify` liberó unos 12 GB sin afectar ningún proyecto. Si un build o una instalación falla sin motivo claro, revisar primero el espacio libre.
 - **2026-10-21 (#149)**: Node 24.22.1 en `%NVM_HOME%\v24.22.1` con el mismo método de §2 (zip oficial, SHA-256 verificado contra el publicado; `nvm install` no funcionó desde una consola no interactiva). La 20.19.4 queda instalada al lado. Con Node 24 viene npm 11: avisa "install scripts not yet covered by allowScripts" (fase 1 de su política de scripts, solo aviso: los scripts corren igual) y ya no instala peers opcionales. `npm ci` limpio, Prisma y el enlace `apps/mobile/node_modules` (#133) verificados.
 - **2026-10-14 (#138)**: RustFS 1.0.1 en `%LOCALAPPDATA%\rustfs` (zip oficial del release de GitHub, SHA-256 verificado contra el publicado), datos en `%LOCALAPPDATA%\rustfs\data`, `127.0.0.1:9002`. Bucket `renta-dev` y CORS creados con `npm run dev:storage-setup`. Verificado: subida real de punta a punta (preflight CORS, `PUT`, confirmación y lectura firmada), integration spec del adaptador S3 4/4 y e2e `vehicles-lifecycle` con subida real. MinIO no se pudo instalar: `dl.min.io` responde `410 Gone` (proyecto archivado).
