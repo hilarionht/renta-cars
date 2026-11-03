@@ -1,27 +1,52 @@
 import request from 'supertest';
 
-// docs/persistence/10-DECISIONES.md #149. El AuditLogEntry lo escribe un listener
+// docs/persistence/10-DECISIONES.md #149 y #153. El AuditLogEntry lo escribe un listener
 // fire-and-forget (DomainEventAuditListener, docs/technical/05-EVENTING.md SS5) despues de
 // que el API ya respondio: un GET /audit-log inmediato puede no ver el ultimo evento. Se
-// reintenta hasta que `isComplete` acepte las acciones o venza el plazo; al vencer devuelve
+// reintenta hasta que `isComplete` acepte las entradas o venza el plazo; al vencer devuelve
 // la ultima lectura, para que la asercion del test muestre que falto.
-export async function readAuditActionsUntil(
+export async function readAuditEntriesUntil<T extends { action: string }>(
   baseUrl: string,
   accessToken: string,
-  isComplete: (actions: string[]) => boolean,
+  isComplete: (entries: T[]) => boolean,
   timeoutMs = 5000,
-): Promise<string[]> {
+): Promise<T[]> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const response = await request(baseUrl)
       .get('/api/v1/audit-log')
       .set('Authorization', `Bearer ${accessToken}`);
     expect(response.status).toBe(200);
-    const body = response.body as { data: { action: string }[] };
-    const actions = body.data.map((entry) => entry.action);
-    if (isComplete(actions) || Date.now() >= deadline) {
-      return actions;
+    const entries = (response.body as { data: T[] }).data;
+    if (isComplete(entries) || Date.now() >= deadline) {
+      return entries;
     }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
+}
+
+export async function readAuditActionsUntil(
+  baseUrl: string,
+  accessToken: string,
+  isComplete: (actions: string[]) => boolean,
+  timeoutMs = 5000,
+): Promise<string[]> {
+  const entries = await readAuditEntriesUntil(
+    baseUrl,
+    accessToken,
+    (all) => isComplete(all.map((entry) => entry.action)),
+    timeoutMs,
+  );
+  return entries.map((entry) => entry.action);
+}
+
+// Lo mas comun en los specs: esperar a que aparezcan todas estas acciones.
+export function readAuditActionsIncluding(
+  baseUrl: string,
+  accessToken: string,
+  expected: string[],
+): Promise<string[]> {
+  return readAuditActionsUntil(baseUrl, accessToken, (actions) =>
+    expected.every((action) => actions.includes(action)),
+  );
 }
