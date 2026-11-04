@@ -6,7 +6,7 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#153` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#154` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
 ## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
 
@@ -18,11 +18,14 @@ Mergeado también: más recorridos e2e de la web (PR #17, #148) y Node 24.22.1 (
 
 Mergeado también: audit gate de octubre (PR #21, #151): Next 16.4.3, body-parser con parche y override acotado `overrides.nx.undici = 7.30.1`, que se quita cuando Nx suba undici.
 
-**En curso (2026-11-03): política `allowScripts` de npm 11 (#152)**, rama `chore/npm-allow-scripts`, PR #23. El PR #24 (#153) ya está mergeado: arregla los dos checks que fallaban en el #23 (`audit` y `e2e`), que no venían de este cambio.
+Mergeado también: CI de noviembre (PR #24, #153) y política estricta de scripts de instalación (PR #23, #152).
 
-- [x] 1. `allowScripts`, `.npmrc` y Dockerfile; verificación local y docs (#152).
-- [x] 2. Actualizar la rama con `master` (conflictos solo en CLAUDE.md y en el log de decisiones: se conservan #152 y #153).
-- [ ] 3. CI 6/6 del PR #23 y aprobación del colaborador.
+**En curso (2026-11-04): más recorridos e2e de la web (#154)**, rama `test/web-e2e-more-flows`, plan aprobado (`~/.claude/plans/drifting-leaping-emerson.md`). Specs nuevas: `reservation-changes` (reprogramar y extensión aprobada), `maintenance` y `company-audit` (solo toca el teléfono de facturación y el recordatorio de retiro: la empresa es compartida). Helper `checkOutReservation` en `tooling/testing/seed/api-seed.ts`.
+
+- [x] 1. Specs y helper; lint y typecheck de `web-admin-e2e`.
+- [x] 2. Local: cada spec nueva por separado, 2 veces, y prueba negativa de Auditoría; los 5 viejos uno por uno (9/9).
+- [x] 3. Decisión #154 y CLAUDE.md (pendiente 13).
+- [ ] 4. PR y CI 6/6.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
@@ -75,7 +78,7 @@ Pendiente del usuario: validación visual de Clientes y de Flota (la web queda e
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
 - **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, PR #8). **Incremento 5 (Administración)** hecho (#140, rama `feat/web-admin-administration`): con eso la hoja de ruta de #134 queda completa. Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas decisiones: `#153` (CI de noviembre: patches de node-forge, systeminformation y follow-redirects, y espera de auditoría en todos los e2e), `#152` (política estricta de scripts de instalación, PR #23), `#151` (audit: Next 16.4.3 y override de undici para Nx), `#150` (diálogos con scroll, PR #20), `#149` (Node 24), `#148` (más recorridos e2e de la web), `#147` (ids que no son v7 dan 400 en el borde), `#146` (primer recorrido e2e de la web), `#145` (recordatorio "al menos una vez"), `#144` (el check `e2e` corre los e2e del API), `#143` (RustFS en el CI y en docker-compose), `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
+- Últimas decisiones: `#154` (más recorridos e2e de la web: reprogramar, extensión, mantenimiento, Empresa y Auditoría), `#153` (CI de noviembre: patches de node-forge, systeminformation y follow-redirects, y espera de auditoría en todos los e2e), `#152` (política estricta de scripts de instalación, PR #23), `#151` (audit: Next 16.4.3 y override de undici para Nx), `#150` (diálogos con scroll, PR #20), `#149` (Node 24), `#148` (más recorridos e2e de la web), `#147` (ids que no son v7 dan 400 en el borde), `#146` (primer recorrido e2e de la web), `#145` (recordatorio "al menos una vez"), `#144` (el check `e2e` corre los e2e del API), `#143` (RustFS en el CI y en docker-compose), `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 
@@ -100,7 +103,7 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 10. **MinIO archivado: RESUELTO** (#143). El CI (testcontainers) y `docker-compose.yml` usan la imagen oficial `rustfs/rustfs` 1.0.1 fijada por digest; `docker-validate` valida el compose.
 11. **500 por ids que no son UUID v7: RESUELTO** (#147). `ParseUuidV7Pipe` y `@IsUUID('7')` en el borde dan 400; excepciones explícitas: ids de roles y `companyId`/`mfaChallengeId` de los endpoints públicos de auth. Los VO de entrada ya lanzan `InvalidValueError` (#139, #140).
 12. **Node 24: RESUELTO** (#149). El proyecto pasó a Node 24.22.1 (Node 20 llegó a fin de soporte el 2026-04-30; `@aws-sdk/client-s3` exige 22+ desde 2027). Los scripts de instalación se rigen por `allowScripts` estricto (#152): ver guía §2 para revisar uno nuevo.
-13. **Recorridos e2e de la web** (#146, #148): login + reserva confirmada, retiro y devolución, alta de vehículo y de cliente (con subida de archivos) y alta de usuario. Autocontenidos en CI (RustFS en el 9300) y con `WEB_E2E_EXTERNAL=1` en local (API, Postgres y RustFS de desarrollo). Otros flujos (reprogramar, extensiones, mantenimiento, Empresa, Auditoría) siguen sin e2e.
+13. **Recorridos e2e de la web** (#146, #148, #154): login + reserva confirmada, retiro y devolución, alta de vehículo y de cliente (con subida de archivos), alta de usuario, reprogramar, extensión aprobada, mantenimiento, y Empresa con su cambio en Auditoría. Autocontenidos en CI (RustFS en el 9300) y con `WEB_E2E_EXTERNAL=1` en local (API, Postgres y RustFS de desarrollo). La empresa del e2e es compartida: ningún recorrido cambia políticas que otro lea (#154). Siguen sin e2e cambiar vehículo, no-show, cancelar, daño, fuera de servicio, Sucursales, Roles y categorías. El pedido de extensión sin aprobar no se ve en la web (decisión de alcance pendiente).
 
 ## Entorno — cómo levantar todo
 
