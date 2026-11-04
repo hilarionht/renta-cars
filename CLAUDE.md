@@ -6,7 +6,7 @@ Este archivo es el punto de entrada para retomar el desarrollo en una sesión nu
 
 Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una plataforma empresarial modular, cuyo primer producto es alquiler de vehículos. La documentación completa de arquitectura vive en `docs/` — empezá por [`docs/00-VISION.md`](docs/00-VISION.md) y [`docs/01-ROADMAP.md`](docs/01-ROADMAP.md) si necesitás contexto de negocio/arquitectura general.
 
-**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#152` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
+**El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#153` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
 ## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
 
@@ -18,11 +18,11 @@ Mergeado también: más recorridos e2e de la web (PR #17, #148) y Node 24.22.1 (
 
 Mergeado también: audit gate de octubre (PR #21, #151): Next 16.4.3, body-parser con parche y override acotado `overrides.nx.undici = 7.30.1`, que se quita cuando Nx suba undici.
 
-**En curso (2026-10-24): política `allowScripts` de npm 11 (#152)**, rama `chore/npm-allow-scripts`, plan aprobado (`~/.claude/plans/drifting-leaping-emerson.md`). Decisiones del usuario: estricta (`strict-allow-scripts=true`), aprobaciones fijadas a la versión, aprobar `@prisma/engines`, `prisma`, `esbuild`, `@swc/core`, `unrs-resolver` y `msgpackr-extract`, negar `nx`, `less`, `ssh2`, `protobufjs` y `@parcel/watcher`.
+**En curso (2026-11-03): política `allowScripts` de npm 11 (#152)**, rama `chore/npm-allow-scripts`, PR #23. El PR #24 (#153) ya está mergeado: arregla los dos checks que fallaban en el #23 (`audit` y `e2e`), que no venían de este cambio.
 
-- [x] 1. `allowScripts` (comandos `npm install-scripts`; `cpu-features` negado a mano), `.npmrc` y Dockerfile (`.npmrc` en `deps`, `--ignore-scripts` en `runtime`).
-- [x] 2. Verificación local (npm ci, prueba negativa, prisma, nx affected, API y e2e de la web 5/5) y docs (#152, guía, CLAUDE.md).
-- [ ] 3. PR y CI 6/6 (en Linux puede aparecer otra dependencia opcional con script; `docker-validate` construye la imagen con `.npmrc` y `--ignore-scripts`).
+- [x] 1. `allowScripts`, `.npmrc` y Dockerfile; verificación local y docs (#152).
+- [x] 2. Actualizar la rama con `master` (conflictos solo en CLAUDE.md y en el log de decisiones: se conservan #152 y #153).
+- [ ] 3. CI 6/6 del PR #23 y aprobación del colaborador.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
@@ -75,7 +75,7 @@ Pendiente del usuario: validación visual de Clientes y de Flota (la web queda e
 - **Fases 0 a 6 del roadmap, formalmente cerradas** (`docs/persistence/10-DECISIONES.md #107` cierra Fase 6/Hardening explícitamente). El roadmap original (`docs/01-ROADMAP.md`) ya no tiene "próxima fase" obvia — desde `#108` en adelante, cada tanda fue backlog elegido a mano, no una fase nueva.
 - **Fase 5 (Mobile)** tiene bastante superficie real: operador de sucursal (login, check-out/check-in), cliente-autogestión (login OTP por WhatsApp, ver/crear/cancelar reservas propias, búsqueda de vehículos disponibles, push notifications de recordatorio via Expo).
 - **`apps/web-admin`**: en construcción por incrementos (#134). **Incremento 1 (fundaciones)** hecho: login con MFA, sesión con refresh seguro, proxy con CSP, menú según permisos, design system `ui-kit-web` e inicio. **Incremento 2 (Reservas)** hecho (#135, PR #6). **Incremento 3 (Flota)** hecho (#137). **Incremento 4 (Clientes)** hecho (#139, PR #8). **Incremento 5 (Administración)** hecho (#140, rama `feat/web-admin-administration`): con eso la hoja de ruta de #134 queda completa. Arquitectura y restricciones en #134 y `docs/06` §3.
-- Últimas decisiones: `#152` (política estricta de scripts de instalación), `#151` (audit: Next 16.4.3 y override de undici para Nx), `#150` (diálogos con scroll, PR #20), `#149` (Node 24), `#148` (más recorridos e2e de la web), `#147` (ids que no son v7 dan 400 en el borde), `#146` (primer recorrido e2e de la web), `#145` (recordatorio "al menos una vez"), `#144` (el check `e2e` corre los e2e del API), `#143` (RustFS en el CI y en docker-compose), `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
+- Últimas decisiones: `#153` (CI de noviembre: patches de node-forge, systeminformation y follow-redirects, y espera de auditoría en todos los e2e), `#152` (política estricta de scripts de instalación, PR #23), `#151` (audit: Next 16.4.3 y override de undici para Nx), `#150` (diálogos con scroll, PR #20), `#149` (Node 24), `#148` (más recorridos e2e de la web), `#147` (ids que no son v7 dan 400 en el borde), `#146` (primer recorrido e2e de la web), `#145` (recordatorio "al menos una vez"), `#144` (el check `e2e` corre los e2e del API), `#143` (RustFS en el CI y en docker-compose), `#142` (actor desde el token, responsable de mantenimiento validado, trigram descartado por RLS), `#141` (reserva y ocupación atómicas, locks de vehículo y sucursal, eventos después del commit), `#138` (MinIO archivado, RustFS en local y URL de subida sin checksum), `#139` (Incremento 4: Clientes, renovación de documentos, teléfono único y check-out que revisa al cliente), `#140` (Incremento 5: Administración, último administrador protegido, refresh de usuario deshabilitado y primer puerto de platform implementado por rental).
 
 ## Pendientes conocidos, explícitamente documentados (no asumir que faltan si no están acá)
 

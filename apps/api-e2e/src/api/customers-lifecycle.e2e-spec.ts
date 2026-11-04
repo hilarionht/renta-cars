@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { readAuditActionsUntil } from '../support/audit-log';
 import { farFutureExpiryDate } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
@@ -179,24 +180,23 @@ describe('Customers: registro, documentacion, conductor adicional, bloqueo, y au
       .set('Authorization', `Bearer ${accessToken}`);
     expect(unblockResponse.status).toBe(201);
 
-    const auditLogResponse = await request(baseUrl)
-      .get('/api/v1/audit-log')
-      .set('Authorization', `Bearer ${accessToken}`);
-    expect(auditLogResponse.status).toBe(200);
-    const eventTypes: string[] = auditLogResponse.body.data.map(
-      (entry: { action: string }) => entry.action,
+    const expectedEvents = [
+      'CustomerRegistered.v1',
+      'AdditionalDriverRegistered.v1',
+      'AdditionalDriverValidated.v1',
+      'CustomerBlocked.v1',
+      'CustomerUnblocked.v1',
+    ];
+    const countDocumentValidations = (actions: string[]): number =>
+      actions.filter((action) => action === 'CustomerDocumentValidated.v1').length;
+    const eventTypes = await readAuditActionsUntil(
+      baseUrl,
+      accessToken,
+      (actions) =>
+        expectedEvents.every((action) => actions.includes(action)) &&
+        countDocumentValidations(actions) >= 2,
     );
-    expect(eventTypes).toEqual(
-      expect.arrayContaining([
-        'CustomerRegistered.v1',
-        'AdditionalDriverRegistered.v1',
-        'AdditionalDriverValidated.v1',
-        'CustomerBlocked.v1',
-        'CustomerUnblocked.v1',
-      ]),
-    );
-    expect(
-      eventTypes.filter((eventType) => eventType === 'CustomerDocumentValidated.v1'),
-    ).toHaveLength(2);
+    expect(eventTypes).toEqual(expect.arrayContaining(expectedEvents));
+    expect(countDocumentValidations(eventTypes)).toBe(2);
   });
 });

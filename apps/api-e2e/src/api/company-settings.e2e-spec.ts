@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { readAuditEntriesUntil } from '../support/audit-log';
 import { seedAdminForCompany } from '../support/seed-identity';
 
 // Verifica de punta a punta el ultimo item pendiente de Fase 0 (Settings/#8, alcance
@@ -64,16 +65,14 @@ describe('Settings: defaults automaticos, PATCH y auditoria', () => {
     expect(emptyPatchResponse.status).toBe(422);
     expect(emptyPatchResponse.body.code).toBe('PAYMENT_METHODS_EMPTY');
 
-    const auditLogResponse = await request(baseUrl)
-      .get('/api/v1/audit-log')
-      .set('Authorization', `Bearer ${accessToken}`);
-    const updatedEntry = (
-      auditLogResponse.body.data as Array<{
-        action: string;
-        subjectType: string;
-        payload: { policyName?: string; newValueSummary?: string };
-      }>
-    ).find((entry) => entry.action === 'CompanySettingsUpdated.v1');
+    const entries = await readAuditEntriesUntil<{
+      action: string;
+      subjectType: string;
+      payload: { policyName?: string; newValueSummary?: string };
+    }>(baseUrl, accessToken, (all) =>
+      all.some((entry) => entry.action === 'CompanySettingsUpdated.v1'),
+    );
+    const updatedEntry = entries.find((entry) => entry.action === 'CompanySettingsUpdated.v1');
     expect(updatedEntry).toMatchObject({
       subjectType: 'CompanySettings',
       payload: {
