@@ -2269,6 +2269,38 @@ Las dependencias opcionales que no aplican a la plataforma no cuentan.
 
 - `npm audit` sigue listando advisories moderados o sin parche, fuera del criterio del gate. Además quedan sin aplicar las subidas de Jest y ESLint que proponía `npm audit fix`.
 
+## #154 — Más recorridos e2e de la web: reprogramar, extensión, mantenimiento, Empresa y Auditoría
+
+**Contexto**: pendiente 13. La web tenía 5 recorridos (#146, #148). Quedaban sin e2e reprogramar, las extensiones, el mantenimiento, Empresa y Auditoría. El usuario eligió este pendiente el 2026-11-04. Son solo tests: no cambian la web ni el API.
+
+**Cambios** (`apps/web-admin-e2e/src`):
+
+- **`reservation-changes.spec.ts`**:
+  - reprogramar una reserva confirmada desde el detalle;
+  - aprobar una extensión de un alquiler en curso: aparece el ajuste "Extensión" y la reserva sigue "En alquiler".
+
+  Las fechas nuevas se confirman por la API, no por el formato de la UI.
+
+- **`maintenance.spec.ts`**: programar, iniciar y completar como apto un mantenimiento preventivo. El vehículo pasa a "En mantenimiento" y vuelve a "Disponible".
+- **`company-audit.spec.ts`**:
+  - editar el teléfono de facturación y el recordatorio de retiro, y comprobar que persisten al recargar;
+  - encontrar el `CompanySettingsUpdated` en Auditoría, filtrando por Configuración y por los minutos de ese intento. La auditoría es fire-and-forget (#153), así que se recarga hasta que aparece.
+- **`tooling/testing/seed/api-seed.ts`**: `checkOutReservation`, un retiro por la API sin fotos, porque las extensiones solo se piden con la reserva "En alquiler".
+
+**La empresa es compartida**: `global-setup` crea una sola empresa para todos los recorridos (2 workers en CI). Por eso `company-audit` solo cambia cosas que ningún otro recorrido lee: el teléfono de facturación y los minutos del recordatorio. La anticipación mínima, el vencimiento de borradores, la cancelación y el depósito **no se tocan en ningún e2e de la web**: si alguna vez hace falta, ese recorrido tiene que crear su propia empresa.
+
+**Verificación** (Node 24.22.1, local con `WEB_E2E_EXTERNAL=1`; el API recompilado desde `master`):
+
+- cada spec nueva, por separado y 2 veces seguidas: todas pasan;
+- prueba negativa de la búsqueda en Auditoría: buscando un valor inexistente, el test falla. El texto del `payload` está dentro de un `<details>` cerrado, y la prueba confirma que igual se compara;
+- los 5 recorridos anteriores, uno por uno: 5/5;
+- lint y typecheck de `web-admin-e2e`.
+
+**Gaps aceptados**:
+
+- **El pedido de extensión sin aprobar no se muestra en la web**: "Solo registrar pedido" lo asienta, pero el detalle de la reserva no tiene dónde verlo ni aprobarlo después. Por eso no tiene e2e. Mostrarlo es una decisión de alcance del usuario.
+- Siguen sin e2e: cambiar vehículo, no-show, cancelar, reportar daño, fuera de servicio, Sucursales, Roles y categorías y tarifas.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

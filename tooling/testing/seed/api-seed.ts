@@ -151,6 +151,15 @@ export async function createConfirmedReservation(
   return reservation.id;
 }
 
+// Retiro sin fotos: deja la reserva "En alquiler" (las extensiones solo se piden ahi).
+export async function checkOutReservation(api: ApiClient, reservationId: string): Promise<void> {
+  await api.call('POST', `/reservations/${reservationId}/check-out`, {
+    odometer: 12000,
+    fuelLevelPercentage: 100,
+    photoFileIds: [],
+  });
+}
+
 export async function createCustomRole(
   api: ApiClient,
   roleName: string,
