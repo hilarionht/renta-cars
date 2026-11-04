@@ -8,9 +8,9 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#153` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
-## Trabajo en curso — RETOMAR ACÁ (si la sesión se cortó)
+## Estado reciente (2026-11-04)
 
-**Regla del usuario**: si la sesión se corta (límite de tokens, cierre, error), la próxima sesión **continúa sola desde este punto** apenas se habilite, sin volver a preguntar lo ya decidido. Al terminar cada paso, actualizar esta lista. Cuando quede vacía, borrar la sección.
+No hay trabajo en curso. Si una sesión se corta en una tanda nueva, se vuelve a crear acá la sección "Trabajo en curso — RETOMAR ACÁ" con sus pasos.
 
 Estado al 2026-10-23. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145), primer e2e de la web (PR #15, #146) e ids v7 en el borde (PR #16, #147). El detalle de cada uno está en su decisión.
 
@@ -18,11 +18,7 @@ Mergeado también: más recorridos e2e de la web (PR #17, #148) y Node 24.22.1 (
 
 Mergeado también: audit gate de octubre (PR #21, #151): Next 16.4.3, body-parser con parche y override acotado `overrides.nx.undici = 7.30.1`, que se quita cuando Nx suba undici.
 
-**En curso (2026-11-03): política `allowScripts` de npm 11 (#152)**, rama `chore/npm-allow-scripts`, PR #23. El PR #24 (#153) ya está mergeado: arregla los dos checks que fallaban en el #23 (`audit` y `e2e`), que no venían de este cambio.
-
-- [x] 1. `allowScripts`, `.npmrc` y Dockerfile; verificación local y docs (#152).
-- [x] 2. Actualizar la rama con `master` (conflictos solo en CLAUDE.md y en el log de decisiones: se conservan #152 y #153).
-- [ ] 3. CI 6/6 del PR #23 y aprobación del colaborador.
+Mergeado también: CI de noviembre (PR #24, #153: patches de node-forge, systeminformation y follow-redirects, y espera de auditoría en los e2e) y política estricta de scripts de instalación (PR #23, #152: `allowScripts` fijado a la versión y `strict-allow-scripts=true`; en una Mac falta revisar `fsevents`).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
