@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { readAuditActionsIncluding } from '../support/audit-log';
 import { farFutureExpiryDate, futureRentalWindow } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
@@ -260,18 +261,13 @@ describe('Reservations: reserva -> confirmacion -> check-out -> check-in', () =>
     );
     expect(availabilityAfterCheckInResponse.body.data.available).toBe(true);
 
-    const auditLogResponse = await auth(request(baseUrl).get('/api/v1/audit-log'));
-    expect(auditLogResponse.status).toBe(200);
-    const eventTypes: string[] = auditLogResponse.body.data.map(
-      (entry: { action: string }) => entry.action,
-    );
-    expect(eventTypes).toEqual(
-      expect.arrayContaining([
-        'ReservationCreated.v1',
-        'ReservationConfirmed.v1',
-        'ReservationCheckedOut.v1',
-        'ReservationCheckedIn.v1',
-      ]),
-    );
+    const expectedEvents = [
+      'ReservationCreated.v1',
+      'ReservationConfirmed.v1',
+      'ReservationCheckedOut.v1',
+      'ReservationCheckedIn.v1',
+    ];
+    const eventTypes = await readAuditActionsIncluding(baseUrl, accessToken, expectedEvents);
+    expect(eventTypes).toEqual(expect.arrayContaining(expectedEvents));
   });
 });

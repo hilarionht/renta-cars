@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { readAuditActionsIncluding } from '../support/audit-log';
 import { farFutureExpiryDate, futureRentalWindow } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
@@ -239,12 +240,8 @@ describe('Invoices: emision event-driven + cierre automatico de Reservation', ()
       voidReason: 'error de tipificacion fiscal',
     });
 
-    const auditLogResponse = await auth(request(baseUrl).get('/api/v1/audit-log'));
-    const eventTypes: string[] = auditLogResponse.body.data.map(
-      (entry: { action: string }) => entry.action,
-    );
-    expect(eventTypes).toEqual(
-      expect.arrayContaining(['InvoiceIssued.v1', 'ReservationClosed.v1', 'InvoiceVoided.v1']),
-    );
+    const expectedEvents = ['InvoiceIssued.v1', 'ReservationClosed.v1', 'InvoiceVoided.v1'];
+    const eventTypes = await readAuditActionsIncluding(baseUrl, accessToken, expectedEvents);
+    expect(eventTypes).toEqual(expect.arrayContaining(expectedEvents));
   });
 });

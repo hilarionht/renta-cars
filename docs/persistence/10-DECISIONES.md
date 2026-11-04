@@ -2187,6 +2187,31 @@ Lo hizo visible la base local: tiene 86 roles System globales (`company_id` nulo
 - El override de undici queda hasta que Nx lo actualice; revisarlo en cada subida de Nx.
 - `npm audit` sigue listando advisories moderados o sin parche (fuera del criterio del gate).
 
+## #153 — CI de noviembre: tres patches de seguridad y la espera de auditoría en todos los e2e
+
+**Contexto**: el PR #23 (#152) quedó con 4 de 6 checks en verde. Los dos fallos no los causaba ese PR:
+
+- **`audit`**: advisories nuevos, altos y con parche:
+  - **`node-forge`** 1.4.0 (vía `@expo/cli`, herramienta): 12 advisories, entre ellos un bypass de autenticación en AES-GCM y otro en la verificación de cadenas X.509;
+  - **`systeminformation`** 5.33.1 (vía `@opentelemetry/instrumentation-host-metrics`, **corre en producción dentro del API**): path traversal en Linux, prototype pollution e inyección de comandos en Windows;
+  - **`follow-redirects`** 1.16.1: credenciales personalizadas que siguen las redirecciones.
+- **`e2e`**: la carrera de auditoría de #149, ahora en `reservations-lifecycle` y `company-settings`. El `AuditLogEntry` lo escribe un listener fire-and-forget después de responder, y esos specs leían `/audit-log` enseguida. En #149 quedó previsto pasarlos al helper si fallaban.
+
+**Cambios**:
+
+- **Solo tres patches en el lockfile**: `npm update node-forge systeminformation follow-redirects --package-lock-only` (1.4.2, 5.33.19 y 1.16.2). `npm audit fix` se descartó: arrastraba Jest 30.5, ESLint 10.14, typescript-eslint 8.72, Storybook y otros, con riesgo de romper lint y tests sin necesidad.
+- **`apps/api-e2e/src/support/audit-log.ts`**: `readAuditEntriesUntil` (devuelve las entradas completas, para comparar el `payload`), `readAuditActionsUntil` montado sobre ella, y `readAuditActionsIncluding` para el caso común ("esperar estas acciones").
+- **Pasan a esperar** los 5 specs que leían `/audit-log` una sola vez: `reservations-lifecycle`, `company-settings`, `customers-lifecycle`, `invoices-lifecycle` y `payments-lifecycle`. `vehicles-lifecycle` ya esperaba (#149); `audit-log`, `notifications-welcome` y `administration-rules` ya tenían su propio sondeo. Las aserciones no cambian.
+
+**Verificación**:
+
+- `npm run ci:audit-gate`: sin bloqueantes, solo la excepción de image-size (#127).
+- `api-e2e`: lint, typecheck y prettier. Los e2e solo corren en CI (testcontainers).
+
+**Gaps aceptados**:
+
+- `npm audit` sigue listando advisories moderados o sin parche, fuera del criterio del gate. Además quedan sin aplicar las subidas de Jest y ESLint que proponía `npm audit fix`.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

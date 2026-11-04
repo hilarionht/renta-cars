@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { readAuditActionsIncluding } from '../support/audit-log';
 import { farFutureExpiryDate, futureRentalWindow } from '../support/dates';
 import { seedAdminForCompany } from '../support/seed-identity';
 
@@ -254,17 +255,13 @@ describe('Payments: SecurityDeposit event-driven + Payment manual', () => {
     expect(duplicateRequestResponse.status).toBe(409);
     expect(duplicateRequestResponse.body.code).toBe('PAYMENT_ALREADY_PROCESSED');
 
-    const auditLogResponse = await auth(request(baseUrl).get('/api/v1/audit-log'));
-    const eventTypes: string[] = auditLogResponse.body.data.map(
-      (entry: { action: string }) => entry.action,
-    );
-    expect(eventTypes).toEqual(
-      expect.arrayContaining([
-        'SecurityDepositHeld.v1',
-        'SecurityDepositPartiallyRetained.v1',
-        'PaymentSucceeded.v1',
-        'PaymentRefunded.v1',
-      ]),
-    );
+    const expectedEvents = [
+      'SecurityDepositHeld.v1',
+      'SecurityDepositPartiallyRetained.v1',
+      'PaymentSucceeded.v1',
+      'PaymentRefunded.v1',
+    ];
+    const eventTypes = await readAuditActionsIncluding(baseUrl, accessToken, expectedEvents);
+    expect(eventTypes).toEqual(expect.arrayContaining(expectedEvents));
   });
 });
