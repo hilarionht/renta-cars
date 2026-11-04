@@ -5,7 +5,8 @@
 
 FROM node:24.22.1-alpine AS deps
 WORKDIR /workspace
-COPY package.json package-lock.json ./
+# .npmrc: strict-allow-scripts (#152), misma politica de scripts de instalacion que local y CI.
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
 FROM node:24.22.1-alpine AS build
@@ -26,8 +27,12 @@ ENV NODE_ENV=production
 # en sync completo con ese package.json (huecos transitivos conocidos de esa opción de
 # webpack) - `npm ci` lo rechaza por diseño, así que se usa `npm install` sobre versiones ya
 # exactas en vez de depender de ese lockfile derivado.
+# --ignore-scripts (#152): ese package.json generado no lleva `allowScripts`. Ninguna dependencia
+# de runtime necesita su script: msgpackr-extract carga el binario precompilado de su paquete
+# opcional por plataforma (y msgpackr cae a JS sin el), y el cliente de Prisma se copia ya
+# generado. La imagen de produccion no ejecuta scripts de instalacion de terceros.
 COPY --from=build /workspace/dist/apps/api/package.json ./
-RUN npm install --omit=dev --no-audit --no-fund && npm cache clean --force
+RUN npm install --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean --force
 # El cliente de Prisma generado (motor + tipos) no se reinstala aquí - `prisma` (CLI) es
 # devDependency y queda fuera de --omit=dev; se copia el ya generado en el stage `build`,
 # construido sobre la misma imagen base (mismo binary target de musl/alpine).

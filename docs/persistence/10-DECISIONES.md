@@ -2187,6 +2187,63 @@ Lo hizo visible la base local: tiene 86 roles System globales (`company_id` nulo
 - El override de undici queda hasta que Nx lo actualice; revisarlo en cada subida de Nx.
 - `npm audit` sigue listando advisories moderados o sin parche (fuera del criterio del gate).
 
+## #152 — Política de scripts de instalación (npm 11 `allowScripts`)
+
+**Contexto**: desde Node 24 (#149), npm 11.19.1 avisa en cada instalación que 12 paquetes tienen scripts de instalación "not yet covered by allowScripts". Por ahora es solo un aviso: los scripts corren todos. Elegido por el usuario como siguiente tanda. Al revisar cada script apareció uno indebido: **`less` 4.5.1** (vía `@nx/webpack` → `less-loader`) publica un `postinstall` de desarrollo del propio proyecto, que fuera de CI ejecuta `pnpm exec playwright install`.
+
+Cómo funciona npm 11.19.1, según su documentación:
+
+- un paquete sin entrada en `allowScripts` corre con un aviso;
+- uno con `false` se saltea siempre;
+- con `strict-allow-scripts=true`, uno sin revisar hace fallar la instalación.
+
+Las dependencias opcionales que no aplican a la plataforma no cuentan.
+
+**Decisiones del usuario**:
+
+- **estricta**: `.npmrc` en la raíz con `strict-allow-scripts=true`;
+- **aprobaciones fijadas a la versión revisada** (default de npm): cada subida de un paquete aprobado obliga a re-aprobarlo, es decir, a revisar el script nuevo;
+- **clasificación**:
+
+| Paquete                                                    | Script                                                                                              | Decisión                           |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `@prisma/engines`                                          | descarga el schema engine (lo usa `prisma migrate`)                                                 | aprobado                           |
+| `prisma`                                                   | solo verifica la versión de Node                                                                    | aprobado                           |
+| `esbuild` (0.25.12 y 0.28.2), `@swc/core`, `unrs-resolver` | validan o completan el binario nativo de la plataforma                                              | aprobados                          |
+| `msgpackr-extract` (bullmq)                                | elige el binario precompilado o lo compila                                                          | aprobado                           |
+| `nx`                                                       | verifica el cliente de Nx Cloud (no se usa)                                                         | negado                             |
+| `less`                                                     | script de desarrollo filtrado (`playwright install`)                                                | negado                             |
+| `ssh2` (testcontainers)                                    | compila con node-gyp un binding opcional (tiene fallback JS)                                        | negado                             |
+| `cpu-features` (opcional de `ssh2`)                        | igual que `ssh2`; apareció recién con el estricto porque en Windows no compila y `ls` no lo listaba | negado, misma categoría que `ssh2` |
+| `protobufjs`                                               | solo avisa por conflictos de versión                                                                | negado                             |
+| `@parcel/watcher`                                          | no hace nada sin `build_from_source`                                                                | negado                             |
+
+**Cambios**:
+
+- `package.json`: `allowScripts` escrito con `npm install-scripts approve` y `deny`. `cpu-features` se agregó a mano, porque esos comandos solo actúan sobre paquetes instalados.
+- `.npmrc`: `strict-allow-scripts=true`. Lo leen el `npm ci` local, el del CI y el de Docker.
+- `apps/api/Dockerfile`:
+  - la etapa `deps` copia el `.npmrc`;
+  - la etapa `runtime` instala con `--ignore-scripts`. El `package.json` que genera Nx no lleva `allowScripts` y ninguna dependencia de runtime necesita su script: `msgpackr-extract` carga el binario de su paquete opcional por plataforma (msgpackr cae a JS sin él) y el cliente de Prisma se copia ya generado. **La imagen de producción no ejecuta scripts de instalación de terceros.**
+- Guía del entorno §2: procedimiento para revisar un script nuevo cuando una subida de dependencias hace fallar la instalación.
+
+**Verificación (Node 24.22.1)**:
+
+- `npm install-scripts ls` sin pendientes y `npm ci` limpio, sin avisos y sin el `playwright install` de `less`.
+- Prueba negativa: el `npm ci` estricto falló con `ESTRICTALLOWSCRIPTS` mientras `cpu-features` no estaba revisado.
+- Prisma: `prisma generate` y `prisma migrate status` funcionan (el schema engine se descargó); el binding de `ssh2` ya no se compila.
+- `nx affected -t lint,typecheck,test,build` (`api` y `web-admin`): verde. `api:test` tuvo un timeout intermitente de 5 s en la primera corrida (suite de arranque lento) y pasa 11/11 al repetirlo.
+- API real con `/health/ready` 200 y los 5 recorridos de la web en local, uno por uno: 5/5.
+- Durante la verificación el disco C: llegó a 0 GB libres y cortó el build de la web. La caché de npm ocupaba 16,9 GB; `npm cache verify` recolectó unos 12 GB sin uso (decisión del usuario). Queda anotado en la bitácora de la guía.
+
+**Gaps aceptados**:
+
+- **EAS Build** instala desde `apps/mobile` con su propio lockfile (#133): esta política no lo cubre.
+- npm 10 o anterior ignora el campo y la opción. El proyecto exige Node 24 (`engines`, #149).
+- Con aprobaciones fijadas, cada subida de esos paquetes pide `approve` de nuevo. Es la fricción aceptada a cambio de revisar cada script nuevo.
+- En CI (Linux) pueden aparecer dependencias opcionales con script que en Windows no se instalan; se revisan igual.
+- `fsevents` (2.3.2 y 2.3.3, opcional, solo macOS) tiene script y no figura en `allowScripts`: en Windows y Linux no se instala, así que no se pudo revisar con `npm install-scripts`. En una Mac, `npm ci` estricto va a fallar ahí: se revisa el script y se aprueba o niega como los demás, en esa máquina.
+
 ## #153 — CI de noviembre: tres patches de seguridad y la espera de auditoría en todos los e2e
 
 **Contexto**: el PR #23 (#152) quedó con 4 de 6 checks en verde. Los dos fallos no los causaba ese PR:

@@ -196,5 +196,20 @@
     "nx": {
       "undici": "7.30.1"
     }
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.1": true,
+    "prisma@7.10.1": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.25.12": true,
+    "@swc/core@1.15.47": true,
+    "unrs-resolver@1.12.2": true,
+    "msgpackr-extract@3.0.4": true,
+    "nx": false,
+    "less": false,
+    "ssh2": false,
+    "protobufjs": false,
+    "@parcel/watcher": false,
+    "cpu-features": false
   }
 }

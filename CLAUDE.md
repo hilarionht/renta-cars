@@ -18,10 +18,11 @@ Mergeado también: más recorridos e2e de la web (PR #17, #148) y Node 24.22.1 (
 
 Mergeado también: audit gate de octubre (PR #21, #151): Next 16.4.3, body-parser con parche y override acotado `overrides.nx.undici = 7.30.1`, que se quita cuando Nx suba undici.
 
-**En curso (2026-11-03)**: el CI se rompió para todos los PR (#153). Rama `fix/ci-2026-11-03`: tres patches de seguridad (`node-forge`, `systeminformation`, `follow-redirects`) y la espera de auditoría en 5 e2e. Pasos:
+**En curso (2026-11-03): política `allowScripts` de npm 11 (#152)**, rama `chore/npm-allow-scripts`, PR #23. El PR #24 (#153) ya está mergeado: arregla los dos checks que fallaban en el #23 (`audit` y `e2e`), que no venían de este cambio.
 
-- [x] 1. Patches mínimos (`npm update … --package-lock-only`), helper y specs, lint/typecheck y decisión #153.
-- [ ] 2. PR y CI 6/6. Después, actualizar el PR #23 (#152, política de scripts de instalación) con `master` y esperar su CI 6/6.
+- [x] 1. `allowScripts`, `.npmrc` y Dockerfile; verificación local y docs (#152).
+- [x] 2. Actualizar la rama con `master` (conflictos solo en CLAUDE.md y en el log de decisiones: se conservan #152 y #153).
+- [ ] 3. CI 6/6 del PR #23 y aprobación del colaborador.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
@@ -98,7 +99,7 @@ Todos estos son gaps **aceptados y documentados**, no bugs silenciosos. Elegir c
 9. **Reserva y ocupación atómicas: RESUELTO** (#141). Las 7 operaciones que tocan el calendario van en una sola transacción; mantenimiento, daño, fuera de servicio y cierre de sucursal toman un lock exclusivo frente a confirmar; confirmar o cambiar de vehículo en una sucursal cerrada da 409 `BRANCH_CLOSED`; los eventos in-process se emiten después del commit.
 10. **MinIO archivado: RESUELTO** (#143). El CI (testcontainers) y `docker-compose.yml` usan la imagen oficial `rustfs/rustfs` 1.0.1 fijada por digest; `docker-validate` valida el compose.
 11. **500 por ids que no son UUID v7: RESUELTO** (#147). `ParseUuidV7Pipe` y `@IsUUID('7')` en el borde dan 400; excepciones explícitas: ids de roles y `companyId`/`mfaChallengeId` de los endpoints públicos de auth. Los VO de entrada ya lanzan `InvalidValueError` (#139, #140).
-12. **Node 24: RESUELTO** (#149). El proyecto pasó a Node 24.22.1 (Node 20 llegó a fin de soporte el 2026-04-30; `@aws-sdk/client-s3` exige 22+ desde 2027). npm 11 avisa por `allowScripts` (fase 1, solo aviso): fijar la política es una decisión de seguridad pendiente.
+12. **Node 24: RESUELTO** (#149). El proyecto pasó a Node 24.22.1 (Node 20 llegó a fin de soporte el 2026-04-30; `@aws-sdk/client-s3` exige 22+ desde 2027). Los scripts de instalación se rigen por `allowScripts` estricto (#152): ver guía §2 para revisar uno nuevo.
 13. **Recorridos e2e de la web** (#146, #148): login + reserva confirmada, retiro y devolución, alta de vehículo y de cliente (con subida de archivos) y alta de usuario. Autocontenidos en CI (RustFS en el 9300) y con `WEB_E2E_EXTERNAL=1` en local (API, Postgres y RustFS de desarrollo). Otros flujos (reprogramar, extensiones, mantenimiento, Empresa, Auditoría) siguen sin e2e.
 
 ## Entorno — cómo levantar todo
