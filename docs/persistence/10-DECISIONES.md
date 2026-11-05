@@ -2337,6 +2337,53 @@ Las dependencias opcionales que no aplican a la plataforma no cuentan.
 - Sin e2e todavía: daño grave, editar una sucursal (horarios y zona horaria), cerrar una sucursal con reservas que la bloquean, desactivar o editar un usuario y asignarle un rol, recuperar la contraseña, y MFA en el login.
 - Sigue el gap de #154: el pedido de extensión sin aprobar no se ve en la web.
 
+## #156 — La imagen del API instala con `npm ci` y un lockfile podado del raíz
+
+**Contexto**: el 2026-11-04 `docker-validate` del PR #27 falló con ETARGET de `@aws-sdk/credential-provider-http@^3.972.83`, una versión publicada 4 s antes del build. El stage `runtime` de `apps/api/Dockerfile` corría `npm install --omit=dev` **sin lockfile**, con solo el `package.json` que genera Nx. Las transitivas se resolvían contra el registro en cada build: la imagen no era reproducible y traía versiones que nunca pasaron por CI ni por el audit gate (por ejemplo `axios` 1.21.0 en vez de la 1.20.0 del lock).
+
+**Por qué no alcanzaba el lockfile que genera Nx**: `npm ci` lo rechaza (`Missing: content-type@1.0.5`). El podador de Nx 23.3.0 sube un nivel entradas que en el lock raíz están más anidadas, y esas entradas tapan la versión que pide otro paquete:
+
+- `content-type@2.1.0` queda en `@nestjs/platform-express/node_modules/` y tapa el `^1.0.5` de `express@5`;
+- `ms@2.0.0` queda en `send/node_modules/` y tapa el `2.1.3` de `send`.
+
+**Cambios**:
+
+- **`tools/scripts/prune-runtime-lockfile.mjs`** (npm script `build:api-runtime-lockfile`). Escribe el lockfile de runtime como un **subconjunto del lock raíz con las mismas rutas**, cerrado por resolución, así que cada paquete resuelve igual que en el monorepo.
+  - Recorre dependencias, opcionales y peers obligatorios con el algoritmo de resolución de Node.
+  - `optional` se recalcula: los binarios de otra plataforma siguen siendo opcionales.
+  - Saca los flags de dev.
+  - **Falla** si:
+    - una dependencia no está en el lock o su versión no coincide;
+    - aparece `link` o un paquete empaquetado;
+    - falta `resolved` o `integrity`;
+    - un `require()` externo de `main.js` no resuelve en el subconjunto.
+- **`apps/api/Dockerfile`**: el stage `build` corre el script y el `runtime` usa `npm ci --omit=dev --ignore-scripts`.
+- **CI** (`_reusable-ci.yml`, job `build`): si `api:build` corrió, hace la misma instalación fuera de Docker con `npm ls`, para que el error sea legible antes de `docker-validate`.
+
+**Dos bugs que tapaba el `npm install` sin lock** (los encontró el smoke con la instalación nueva):
+
+- **`dotenv`** estaba en `devDependencies`, pero `src/instrumentation.ts` lo carga al arrancar. Nx no lo pone en el `package.json` generado y la imagen funcionaba de casualidad, porque se hoisteaba el `dotenv` de `dotenv-expand`. Pasó a `dependencies`.
+- **`pino-opentelemetry-transport`**: pino lo carga por nombre (`app.module.ts`), sin `import`, así que Nx no lo ve. **La imagen publicada no lo tenía y el API no arrancaba** (`unable to determine transport target`): `docker-validate` construye la imagen, pero nunca la arranca. El script lo recibe como paquete "cargado por nombre", toma la versión del lock raíz y exige que sea una dependencia de producción.
+
+**Verificación** (Node 24.22.1):
+
+- `npm ci --omit=dev` con el lock podado: sin errores, y `npm ls --omit=dev --all` limpio.
+- Los 43 `require` externos de `main.js` resuelven.
+- Smoke: `node main.js` con esa instalación contra Postgres y Memurai locales: `/health/ready` da 200 con postgres y redis `up`. Antes de agregar el transport, el mismo smoke se caía con el error de la imagen publicada.
+- Pruebas negativas:
+  - con el lockfile de Nx, `npm ci` da EUSAGE;
+  - sin `dotenv` en el `package.json` generado, el script falla;
+  - con `pino-pretty`, que es dev, como paquete cargado por nombre, el script falla.
+
+**Gaps aceptados**:
+
+- `express@4.22.3` va en la imagen aunque `main.js` no lo usa: Nx lo agrega por un `import type`. El script lo avisa y no cambia lo que se instalaba.
+- `tslib` llega como transitiva hoisteada. Con el lock fijo resuelve siempre igual, y el script falla si deja de resolver.
+- `@node-rs/argon2-*` no declara `libc` en el lock: en alpine se instalan los binarios gnu y musl, y argon2 carga el de musl.
+- Un paquete nuevo que se cargue por nombre hay que agregarlo al npm script. El chequeo de `require` no lo ve.
+- `docker-validate` sigue sin arrancar la imagen. Un arranque real necesita Postgres y Redis en ese job.
+- Si Nx corrige el podador, se puede volver a su lockfile.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.
