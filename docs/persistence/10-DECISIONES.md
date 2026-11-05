@@ -2301,6 +2301,42 @@ Las dependencias opcionales que no aplican a la plataforma no cuentan.
 - **El pedido de extensión sin aprobar no se muestra en la web**: "Solo registrar pedido" lo asienta, pero el detalle de la reserva no tiene dónde verlo ni aprobarlo después. Por eso no tiene e2e. Mostrarlo es una decisión de alcance del usuario.
 - Siguen sin e2e: cambiar vehículo, no-show, cancelar, reportar daño, fuera de servicio, Sucursales, Roles y categorías y tarifas.
 
+## #155 — e2e del resto de la web: cancelar, no presentado, cambiar vehículo, daño, fuera de servicio, Sucursales, Roles y categorías
+
+**Contexto**: después de #154 quedaban sin e2e estos flujos de la web. El usuario eligió cubrirlos el 2026-11-04. Son solo tests: no cambian la web ni el API.
+
+**Cambios** (`apps/web-admin-e2e/src`):
+
+- **`reservation-outcomes.spec.ts`**:
+  - cancelar una reserva confirmada;
+  - marcar como no presentado: la reserva sembrada empezó hace 1 h, porque la web solo ofrece la acción después de la hora de retiro. El API acepta un retiro en el pasado y la anticipación mínima por defecto es 0;
+  - cambiar el vehículo de un alquiler en curso. El nuevo se elige por id (el `value` de la opción), porque la lista trae los disponibles de toda la sucursal, incluidos los de otros recorridos.
+
+  El estado y el vehículo se confirman también por la API.
+
+- **`vehicle-incidents.spec.ts`**:
+  - daño leve: el vehículo queda "En mantenimiento", con un mantenimiento "Correctivo" programado (#137);
+  - fuera de servicio: el botón de esa acción desaparece y queda el estado.
+- **`admin-catalog.spec.ts`**:
+  - una sucursal nueva: alta, cierre y reapertura;
+  - un rol propio: alta con un permiso, un segundo permiso guardado y desactivación;
+  - una categoría nueva con una tarifa semanal.
+- **`support/reservations.ts`**: `seedConfirmed`, `readReservation` y `createBranchVehicle`, extraídos de `reservation-changes.spec.ts` (#154) para que los compartan los dos specs.
+
+**Regla para la empresa compartida** (amplía #154): cada test crea lo suyo con nombre único y **solo cierra o desactiva lo que creó**. Nunca la sucursal ni la categoría del `global-setup`, ni un rol que use otro recorrido.
+
+**Verificación** (Node 24.22.1, local con `WEB_E2E_EXTERNAL=1`):
+
+- cada spec nueva por separado, 2 veces: 8/8 las dos veces;
+- una prueba negativa por spec nueva (estado `Confirmed` en vez de `Cancelled`, `Preventivo` en vez de `Correctivo`, 3 permisos en vez de 2): falla exactamente el test modificado;
+- los 9 recorridos anteriores, uno por uno: todos pasan;
+- lint y typecheck de `web-admin-e2e`.
+
+**Gaps aceptados**:
+
+- Sin e2e todavía: daño grave, editar una sucursal (horarios y zona horaria), cerrar una sucursal con reservas que la bloquean, desactivar o editar un usuario y asignarle un rol, recuperar la contraseña, y MFA en el login.
+- Sigue el gap de #154: el pedido de extensión sin aprobar no se ve en la web.
+
 ## Qué NO se registra en este documento
 
 - Decisiones ya tomadas en `docs/`, `docs/ADR/`, `docs/model/` o `docs/technical/` — se heredan, se citan, nunca se repiten aquí como si fueran nuevas.

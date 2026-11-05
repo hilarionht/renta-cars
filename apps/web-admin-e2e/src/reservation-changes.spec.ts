@@ -1,45 +1,15 @@
-import {
-  checkOutReservation,
-  createConfirmedReservation,
-  createEligibleCustomer,
-  createEnabledVehicle,
-  type ApiClient,
-} from '../../../tooling/testing/seed/api-seed';
-import { expect, open, seeded, test } from './support/fixtures';
+import { checkOutReservation } from '../../../tooling/testing/seed/api-seed';
+import { expect, open, test } from './support/fixtures';
+import { DAY, readReservation, seedConfirmed } from './support/reservations';
 
 // docs/persistence/10-DECISIONES.md #154: reprogramar una reserva confirmada y aprobar una
 // extension de un alquiler en curso, desde el detalle. Las fechas nuevas se confirman por la API
 // (no por el formato de la UI).
 
-const DAY = 86_400_000;
-
 // Fecha de pared (YYYY-MM-DDTHH:mm) para un input datetime-local, en la zona de la sucursal.
 // Las 10:00 nunca caen en un hueco de horario de verano.
 function wallClock(daysFromNow: number, time: string): string {
   return `${new Date(Date.now() + daysFromNow * DAY).toISOString().slice(0, 10)}T${time}`;
-}
-
-interface ReservationDates {
-  startDate: string;
-  endDate: string;
-}
-
-function readReservation(api: ApiClient, id: string): Promise<ReservationDates> {
-  return api.call<ReservationDates>('GET', `/reservations/${id}`);
-}
-
-async function seedConfirmed(api: ApiClient, startDate: Date, days: number): Promise<string> {
-  const vehicle = await createEnabledVehicle(api, {
-    branchId: seeded('WEB_E2E_BRANCH_ID'),
-    categoryId: seeded('WEB_E2E_CATEGORY_ID'),
-  });
-  const customer = await createEligibleCustomer(api);
-  return createConfirmedReservation(api, {
-    customerId: customer.id,
-    vehicleId: vehicle.id,
-    startDate,
-    endDate: new Date(startDate.getTime() + days * DAY),
-  });
 }
 
 test('reprogramar una reserva confirmada', async ({ page, api }) => {
