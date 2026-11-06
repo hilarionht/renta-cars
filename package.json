@@ -28,6 +28,7 @@
     "smoke:reminder": "ts-node tooling/scripts/smoke/reminder.ts",
     "db:studio": "prisma studio",
     "security:generate-jwt-keys": "ts-node tooling/scripts/security/generate-jwt-keys.ts",
+    "build:api-runtime-lockfile": "node tools/scripts/prune-runtime-lockfile.mjs dist/apps/api pino-opentelemetry-transport",
     "ci:audit-gate": "ts-node tooling/scripts/ci/audit-gate.ts",
     "load-test:setup": "ts-node tooling/load-testing/setup.ts",
     "load-test:run": "k6 run tooling/load-testing/scenarios/tenant-isolation.js",
@@ -81,7 +82,6 @@
     "@vitejs/plugin-react": "5.2.0",
     "babel-jest": "~30.3.0",
     "babel-preset-expo": "~56.0.14",
-    "dotenv": "^17.4.2",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
@@ -149,6 +149,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "1.4.7",
+    "dotenv": "^17.4.2",
     "expo": "~57.0.0",
     "expo-constants": "~57.0.9",
     "expo-image-picker": "~57.0.13",
@@ -190,7 +191,7 @@
     "stripe": "22.5.0",
     "twilio": "6.1.0",
     "uuid": "14.0.1",
-    "zod": "4.4.3"
+    "zod": "4.6.7"
   },
   "overrides": {
     "nx": {

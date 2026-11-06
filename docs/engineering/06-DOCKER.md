@@ -12,6 +12,8 @@ Un `Dockerfile` en la raíz de cada app desplegable (`apps/api/Dockerfile`, `app
 2. **`build`**: copia el código fuente completo necesario (Nx permite `nx build <app> --configuration=production` acotado al grafo de dependencias de esa app, no todo el workspace), ejecuta el build aprovechando el cache de Nx (§3 de [01-WORKSPACE.md](01-WORKSPACE.md); en CI, el cache remoto ya resuelto por el job de build previo, §2 de [05-CI-CD.md](05-CI-CD.md), evita recompilar dentro del propio contenedor).
 3. **`runtime`**: `node:<LTS>-alpine` mínimo, copia únicamente `dist/apps/<app>` y `node_modules` de producción (`npm ci --omit=dev` en una sub-etapa, o `npm prune --production` sobre el resultado de `deps`), usuario no-root (`USER node`), sin herramientas de build.
 
+   En `apps/api` (decisión #156 de `docs/persistence/10-DECISIONES.md`) el runtime corre `npm ci --omit=dev` con un lockfile que es un subconjunto del lock raíz con sus mismas rutas (`npm run build:api-runtime-lockfile`). El que genera Nx no sirve: `npm ci` lo rechaza. Un paquete que se carga por nombre, sin `import` (por ejemplo un transport de pino), se agrega a ese npm script.
+
 `apps/mobile` no tiene Dockerfile — se distribuye vía Expo Application Services (EAS) o los stores, fuera del alcance de contenedores (ya fijado en [technical/08-DEVOPS.md §1](../technical/08-DEVOPS.md)).
 
 ## 2. `.dockerignore`

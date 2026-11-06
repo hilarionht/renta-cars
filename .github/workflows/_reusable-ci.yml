@@ -101,3 +101,15 @@ jobs:
         env:
           NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
         run: npx nx affected --target=build --base=${{ inputs.base }} ${{ inputs.head != '' && format('--head={0}', inputs.head) || '' }}
+      # docs/persistence/10-DECISIONES.md #156: mismo lockfile de runtime que apps/api/Dockerfile,
+      # instalado con `npm ci` fuera de Docker para un error legible. Solo si api:build corrio
+      # (si la API no esta afectada, sus dependencias no cambiaron).
+      - name: Instalacion de runtime de la API (npm ci con el lock podado)
+        if: hashFiles('dist/apps/api/package.json') != ''
+        run: |
+          npm run build:api-runtime-lockfile
+          mkdir -p "$RUNNER_TEMP/api-runtime"
+          cp dist/apps/api/package.json dist/apps/api/package-lock.json "$RUNNER_TEMP/api-runtime/"
+          cd "$RUNNER_TEMP/api-runtime"
+          npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+          npm ls --omit=dev --all > /dev/null

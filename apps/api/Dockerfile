@@ -17,22 +17,26 @@ COPY . .
 # `generate` no se conecta a ninguna base, este valor nunca se usa para abrir una conexión real.
 RUN DATABASE_URL="postgresql://build:build@build:5432/build" npx prisma generate
 RUN npx nx run api:build
+# #156: lockfile de runtime = subconjunto del package-lock.json raiz con sus mismas rutas (el que
+# genera Nx re-hoistea y `npm ci` lo rechaza). pino-opentelemetry-transport lo carga pino por
+# nombre (app.module.ts), sin import: Nx no lo ve y sin el la API no arranca.
+RUN npm run build:api-runtime-lockfile
 
 FROM node:24.22.1-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-# dist/apps/api/package.json ya viene podado por `generatePackageJson: true` del webpack de
-# apps/api (solo dependencias de runtime realmente importadas, con versión exacta fijada,
-# nunca las libs de tooling/build del root). Su package-lock.json generado no siempre queda
-# en sync completo con ese package.json (huecos transitivos conocidos de esa opción de
-# webpack) - `npm ci` lo rechaza por diseño, así que se usa `npm install` sobre versiones ya
-# exactas en vez de depender de ese lockfile derivado.
+# dist/apps/api/package.json viene de `generatePackageJson: true` del webpack de apps/api (solo
+# las dependencias de runtime importadas, con versión exacta) y su package-lock.json lo escribe
+# el script de arriba: `npm ci` instala exactamente las versiones del lock raiz, las mismas que
+# probaron CI y local (#156; antes `npm install` sin lock resolvia las transitivas contra el
+# registro en cada build). @node-rs/argon2-* no declara `libc` en el lock: en alpine se instalan
+# los binarios gnu y musl, y argon2 carga el de musl.
 # --ignore-scripts (#152): ese package.json generado no lleva `allowScripts`. Ninguna dependencia
 # de runtime necesita su script: msgpackr-extract carga el binario precompilado de su paquete
 # opcional por plataforma (y msgpackr cae a JS sin el), y el cliente de Prisma se copia ya
 # generado. La imagen de produccion no ejecuta scripts de instalacion de terceros.
-COPY --from=build /workspace/dist/apps/api/package.json ./
-RUN npm install --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean --force
+COPY --from=build /workspace/dist/apps/api/package.json /workspace/dist/apps/api/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean --force
 # El cliente de Prisma generado (motor + tipos) no se reinstala aquí - `prisma` (CLI) es
 # devDependency y queda fuera de --omit=dev; se copia el ya generado en el stage `build`,
 # construido sobre la misma imagen base (mismo binary target de musl/alpine).
