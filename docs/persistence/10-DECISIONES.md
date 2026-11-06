@@ -2375,6 +2375,13 @@ Las dependencias opcionales que no aplican a la plataforma no cuentan.
   - sin `dotenv` en el `package.json` generado, el script falla;
   - con `pino-pretty`, que es dev, como paquete cargado por nombre, el script falla.
 
+**Audit en el mismo PR (2026-11-05)**: el gate empezó a fallar en todos los PR por GHSA-mrhx-c7xc-m3w5 (zod `<4.6.6`, alta: agotamiento de memoria al validar colecciones grandes con límites). Había dos copias afectadas y se resolvieron así:
+
+- `zod` del workspace: de 4.4.3 a 4.6.7, el parche, dentro de la misma major. Lo usan `web-admin` y `mobile`.
+- `zod` 3.25.76 que traía `@expo/cli`: no hay parche en la rama 3, pero `@expo/cli` 57.0.33 ya no depende de zod. `npm update @expo/cli` lo sube dentro del rango `^57.0.32` de `expo`, junto con el grupo de parches de Expo 57 publicado el mismo día (config, metro-config, log-box, prebuild-config y otros). Ninguno trae scripts de instalación nuevos.
+
+Verificado con lint, typecheck y test de `web-admin` y `mobile` (Node 24.22.1) y con `npm run ci:audit-gate`, que queda sin bloqueantes.
+
 **Gaps aceptados**:
 
 - `express@4.22.3` va en la imagen aunque `main.js` no lo usa: Nx lo agrega por un `import type`. El script lo avisa y no cambia lo que se instalaba.

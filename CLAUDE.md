@@ -13,9 +13,10 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 Tanda #156, rama `fix/api-image-lockfile`: la imagen del API instala con `npm ci` y un lockfile podado del raíz. Además se corrigen dos dependencias de runtime faltantes: `dotenv` y `pino-opentelemetry-transport` (sin él, la imagen publicada no arrancaba). Detalle en la decisión #156.
 
 1. ~~Script, Dockerfile, paso de CI, docs y verificación local (smoke 200 en `/health/ready`)~~.
-2. Commits en capas y push de la rama. **← siguiente**
-3. PR con CI 6/6. En el log del job `build`, confirmar que corrió el paso "Instalacion de runtime de la API", y en `docker-validate`, el `npm ci`.
-4. Al mergear, volver esta sección a "No hay trabajo en curso".
+2. ~~Commits en capas y push: PR #28~~. `docker-validate` ya instala con `npm ci` (489 paquetes).
+3. ~~`audit`: aviso nuevo de zod (GHSA-mrhx-c7xc-m3w5), resuelto con zod 4.6.7 y `@expo/cli` 57.0.33 (ver #156)~~.
+4. PR #28 con CI 6/6. **← siguiente** En el log del job `build`, confirmar que corrió el paso "Instalacion de runtime de la API".
+5. Al mergear, volver esta sección a "No hay trabajo en curso".
 
 ## Estado reciente (2026-11-04)
 
