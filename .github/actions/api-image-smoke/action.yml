@@ -34,7 +34,6 @@ runs:
           -e STORAGE_ACCESS_KEY=ci -e STORAGE_SECRET_KEY=ci-secret \
           -e JWT_PRIVATE_KEY="$(one_line "$dir/jwt.pem")" -e JWT_PUBLIC_KEY="$(one_line "$dir/jwt.pub")" \
           -e JWT_ACTIVE_KID=ci-smoke \
-          -e MFA_SECRET_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
           "${{ inputs.image }}" > /dev/null
         rm -rf "$dir"
 
