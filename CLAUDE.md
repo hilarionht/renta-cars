@@ -8,17 +8,9 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#156` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
-## Trabajo en curso — RETOMAR ACÁ (2026-11-05)
+## Estado reciente (2026-11-07)
 
-Tanda #156, rama `fix/api-image-lockfile`: la imagen del API instala con `npm ci` y un lockfile podado del raíz. Además se corrigen dos dependencias de runtime faltantes: `dotenv` y `pino-opentelemetry-transport` (sin él, la imagen publicada no arrancaba). Detalle en la decisión #156.
-
-1. ~~Script, Dockerfile, paso de CI, docs y verificación local (smoke 200 en `/health/ready`)~~.
-2. ~~Commits en capas y push: PR #28~~. `docker-validate` ya instala con `npm ci` (489 paquetes).
-3. ~~`audit`: aviso nuevo de zod (GHSA-mrhx-c7xc-m3w5), resuelto con zod 4.6.7 y `@expo/cli` 57.0.33 (ver #156)~~.
-4. PR #28 con CI 6/6. **← siguiente** En el log del job `build`, confirmar que corrió el paso "Instalacion de runtime de la API".
-5. Al mergear, volver esta sección a "No hay trabajo en curso".
-
-## Estado reciente (2026-11-04)
+No hay trabajo en curso. Si una sesión se corta en una tanda nueva, se vuelve a crear acá la sección "Trabajo en curso — RETOMAR ACÁ" con sus pasos.
 
 Estado al 2026-10-23. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145), primer e2e de la web (PR #15, #146) e ids v7 en el borde (PR #16, #147). El detalle de cada uno está en su decisión.
 
@@ -31,6 +23,8 @@ Mergeado también: CI de noviembre (PR #24, #153: patches de node-forge, systemi
 Mergeado también: más recorridos e2e de la web (PR #26, #154): reprogramar, extensión aprobada, mantenimiento, y Empresa con su cambio en Auditoría.
 
 Mergeado también: e2e del resto de la web (#155): cancelar, no presentado, cambiar vehículo, daño leve, fuera de servicio, sucursal, rol propio y categoría con tarifa.
+
+Mergeado también: imagen del API con `npm ci` (PR #28, #156). Instala exactamente el lock raíz con un lockfile podado (`npm run build:api-runtime-lockfile`) y corrige dos dependencias de runtime que faltaban: `pino-opentelemetry-transport` (sin él, la imagen publicada no arrancaba) y `dotenv`. En el mismo PR: zod 4.6.7 y `@expo/cli` 57.0.33, por GHSA-mrhx-c7xc-m3w5.
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
