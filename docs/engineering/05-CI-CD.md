@@ -22,7 +22,7 @@ graph LR
     LintType --> Build[build]
     UnitApp --> Build
     Integration --> Build
-    Build --> DockerValidate[docker build --no-push]
+    Build --> DockerValidate[docker build --no-push + arranque]
     Build --> E2E[E2E golden paths]
     Build --> Audit[audit de dependencias]
 ```
@@ -31,6 +31,7 @@ graph LR
 - Cache remoto de Nx (Nx Cloud o backend equivalente autoalojado) configurado vía variable de entorno de acceso (secreto de repositorio, §5) — sin él, cada job de `nx affected` recalcularía desde cero.
 - **Qué corre en el check `e2e`** ([persistence/10-DECISIONES.md #144](../persistence/10-DECISIONES.md)): los e2e del API (`api-e2e`, target `test`, solo si está afectado) y los de la web (`web-admin-e2e`, Playwright, todavía sin recorridos). `ci / test` excluye `api-e2e`. Antes el check solo corría Playwright y pasaba sin probar nada.
 - **E2E en cada PR por defecto**: se ejecuta siempre a menos que el tiempo total de pipeline (medido en las primeras semanas de Fase 0 con datos reales) exceda un umbral que el equipo considere disruptivo para el flujo de PR — en ese caso, se mueve a `nightly-e2e.yml` y `pr.yml` solo ejecuta un subconjunto mínimo (login + un flujo de negocio representativo). Esta es la decisión que [10-TESTING.md §8](../10-TESTING.md) y [technical/08-DEVOPS.md §2.1](../technical/08-DEVOPS.md) dejaron explícitamente para "Fase 0 con datos reales" — este documento fija el mecanismo (`nightly-e2e.yml` ya existe, listo para recibir el subconjunto diferido) sin fijar el umbral numérico.
+- **`docker-validate` arranca la imagen del API** ([persistence/10-DECISIONES.md #157](../persistence/10-DECISIONES.md)): después del build, la acción `.github/actions/api-image-smoke` la arranca contra el Postgres y el Redis de los `services` del job y exige que `/health/ready` y `/health/live` den 200.
 - Auditoría de dependencias (`npm audit --audit-level=high` o equivalente) bloqueante solo ante severidad alta/crítica con parche disponible — no bloqueante ante una vulnerabilidad sin fix publicado (bloquear ahí no protege nada, solo detiene el equipo).
 
 ## 3. `main.yml` — jobs adicionales tras `pr.yml`
