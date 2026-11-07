@@ -28,6 +28,20 @@ jobs:
   docker-validate:
     needs: [ci]
     runs-on: ubuntu-latest
+    # #157: Postgres y Redis para el smoke de arranque (mismas imagenes que docker-compose.yml).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: docker/build-push-action@v6
@@ -35,6 +49,13 @@ jobs:
           context: .
           file: apps/api/Dockerfile
           push: false
+          load: true
+          tags: renta-api:ci
+      # #157: construir no alcanza (la imagen publicada no arrancaba, #156): se arranca y se exige
+      # /health/ready y /health/live.
+      - uses: ./.github/actions/api-image-smoke
+        with:
+          image: renta-api:ci
       # #143: valida la sintaxis y la interpolacion de docker-compose (RustFS en lugar de MinIO);
       # --quiet solo informa errores.
       - name: docker compose config

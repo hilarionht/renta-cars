@@ -1,0 +1,75 @@
+name: Smoke de arranque de la imagen del API
+description: >
+  docs/persistence/10-DECISIONES.md #157: arranca la imagen ya construida contra el Postgres y el
+  Redis de los `services` del job y exige /health/ready y /health/live en 200. Construir no alcanza:
+  la imagen publicada no arrancaba por una dependencia faltante (#156).
+
+inputs:
+  image:
+    description: Imagen ya cargada en el daemon de Docker.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Arrancar la imagen y esperar /health/ready
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Claves efimeras: solo para este arranque, nunca se reutilizan. JWT en una linea con "\n"
+        # literal, el formato que des-escapa apps/api/src/config/jwt.config.ts.
+        dir="$(mktemp -d)"
+        openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$dir/jwt.pem" 2>/dev/null
+        openssl pkey -in "$dir/jwt.pem" -pubout -out "$dir/jwt.pub"
+        one_line() { sed -z 's/\n$//; s/\n/\\n/g' "$1"; }
+        # Base vacia sin migraciones, sin storage ni collector de OTel: el arranque y /health/ready
+        # solo necesitan Postgres y Redis. MFA_SECRET_ENCRYPTION_KEY es opcional en
+        # env.validation.ts, pero sin ella el API no arranca (#157).
+        db=postgresql://postgres:postgres@localhost:5432/postgres
+        docker run -d --name api-smoke --network host \
+          -e NODE_ENV=production -e PORT=3000 \
+          -e DATABASE_URL="$db" -e APP_DATABASE_URL="$db" -e PLATFORM_ADMIN_DATABASE_URL="$db" \
+          -e REDIS_URL=redis://localhost:6379 \
+          -e STORAGE_ENDPOINT=http://127.0.0.1:9 -e STORAGE_BUCKET=ci -e STORAGE_REGION=us-east-1 \
+          -e STORAGE_ACCESS_KEY=ci -e STORAGE_SECRET_KEY=ci-secret \
+          -e JWT_PRIVATE_KEY="$(one_line "$dir/jwt.pem")" -e JWT_PUBLIC_KEY="$(one_line "$dir/jwt.pub")" \
+          -e JWT_ACTIVE_KID=ci-smoke \
+          -e MFA_SECRET_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+          "${{ inputs.image }}" > /dev/null
+        rm -rf "$dir"
+
+        for _ in $(seq 1 45); do
+          if [ "$(docker inspect -f '{{.State.Running}}' api-smoke)" != true ]; then
+            echo "::error::el contenedor termino durante el arranque"
+            exit 1
+          fi
+          if curl -fsS http://localhost:3000/health/ready; then
+            echo
+            ready=1
+            break
+          fi
+          sleep 2
+        done
+        if [ -z "${ready:-}" ]; then
+          echo "::error::/health/ready no respondio 200 en 90 s"
+          exit 1
+        fi
+
+        # Un worker que tira el proceso despues del arranque tambien tiene que fallar.
+        sleep 10
+        if [ "$(docker inspect -f '{{.State.Running}}' api-smoke)" != true ]; then
+          echo "::error::el contenedor termino despues del arranque"
+          exit 1
+        fi
+        curl -fsS http://localhost:3000/health/live
+        echo
+
+    - name: Logs del contenedor
+      if: failure()
+      shell: bash
+      run: docker logs api-smoke 2>&1 | tail -n 80
+
+    - name: Quitar el contenedor
+      if: always()
+      shell: bash
+      run: docker rm -f api-smoke > /dev/null 2>&1 || true
