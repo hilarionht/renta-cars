@@ -2430,7 +2430,7 @@ Verificado con lint, typecheck y test de `web-admin` y `mobile` (Node 24.22.1) y
 
 - Local, sin Docker, con Node 24.22.1 sobre la instalación podada de #156 y el mismo entorno mínimo (base vacía, sin storage ni collector): `/health/ready` da 200. Sin `MFA_SECRET_ENCRYPTION_KEY`, el arranque falla.
 - El paso de las claves a una línea se probó desde un archivo: la firma RS256 se verifica después de des-escaparla como lo hace `jwt.config.ts`.
-- CI: ver el PR.
+- CI, prueba negativa (PR #30, commit temporal sin `MFA_SECRET_ENCRYPTION_KEY`, después revertido): `docker-validate` falló con "el contenedor termino durante el arranque" y `docker logs` mostró el error de la clave.
 
 **Gaps aceptados**:
 
