@@ -1,5 +1,14 @@
 import { plainToInstance } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min, validateSync } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+  validateSync,
+} from 'class-validator';
 
 // Esquema de validacion fail-fast - docs/engineering/07-CONFIGURATION.md SS4. Misma
 // libreria que los DTOs de entrada HTTP (docs/08-API-CONTRACTS.md SS2, class-validator),
@@ -94,13 +103,14 @@ class EnvironmentVariables {
   @Min(1)
   JWT_REFRESH_TTL?: number;
 
-  // --- mfa (MfaSecretCipher, docs/persistence/10-DECISIONES.md #111) --- Opcional a nivel
-  // de schema (MFA es opt-in por User, no un feature-wide toggle obligatorio al boot como
-  // JWT) - Aes256GcmMfaSecretCipher valida el formato real (32 bytes hex) en su propio
-  // constructor y falla ahi si falta/es invalida. Generar con: openssl rand -hex 32.
-  @IsOptional()
-  @IsString()
-  MFA_SECRET_ENCRYPTION_KEY?: string;
+  // --- mfa (MfaSecretCipher, docs/persistence/10-DECISIONES.md #111 y #158) --- Obligatoria:
+  // MFA es opt-in por User, pero Aes256GcmMfaSecretCipher se construye siempre (UsersModule se
+  // compone en apps/api), asi que sin clave el API no arranca (#157). Mismo formato que valida
+  // el cipher: hex de 32 bytes. Generar con: openssl rand -hex 32.
+  @Matches(/^[0-9a-f]{64}$/i, {
+    message: 'hex de 32 bytes (64 caracteres); generar con openssl rand -hex 32',
+  })
+  MFA_SECRET_ENCRYPTION_KEY!: string;
 
   // --- payments (PaymentGatewayPort, docs/11-INTEGRACIONES.md SS6) ---
   // Todas opcionales: "fake" (default en payments.config.ts) no requiere credenciales -
@@ -194,7 +204,11 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
 
   const errors = validateSync(validated, { skipMissingProperties: false });
   if (errors.length > 0) {
-    throw new Error(`Configuracion invalida:\n${errors.toString()}`);
+    // Con el mensaje de cada restriccion (p.ej. como generar la clave MFA), no solo su nombre.
+    const lines = errors.map(
+      (error) => ` - ${error.property}: ${Object.values(error.constraints ?? {}).join('; ')}`,
+    );
+    throw new Error(`Configuracion invalida:\n${lines.join('\n')}`);
   }
 
   return validated;
