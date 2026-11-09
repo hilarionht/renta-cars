@@ -2456,6 +2456,8 @@ Verificado con lint, typecheck y test de `web-admin` y `mobile` (Node 24.22.1) y
 
 `platform-users-infrastructure:test` necesita testcontainers y corre solo en CI.
 
+**Audit (GHSA-q7qp-rjg7-q26m)**: el primer CI del PR #31 falló en `audit` por una advisory nueva, alta, de multer 2.4.0 (DoS con un `fileFilter` asíncrono pendiente después de que se cierra el request). Llega por `@nestjs/platform-express` 11.2.8, que fija multer 2.4.0 exacto. `@nestjs/platform-express` 11.2.9 (patch) fija multer 2.5.0, que lo corrige: el lock cambia solo esas dos entradas. `@nestjs/common` y `@nestjs/core` siguen en 11.1.29; platform-express ya iba adelantado y su peer es `^11.0.0`. El API no usa multer directamente (las subidas van por URL prefirmada), así que el riesgo era el adaptador de express. Verificado con `npm run ci:audit-gate` en verde y con el API real: `/health/ready` 200, `POST /api/v1/auth/login` 401 con un body JSON y 400 con un body malformado.
+
 **Hallazgo de entorno**: Memurai Developer se apaga solo a los 10 días de uptime (lo dice su log al arrancar). El servicio terminó el 2026-11-09 y reiniciarlo requiere una consola elevada. Quedó anotado en la guía del entorno local, §3.
 
 ## Qué NO se registra en este documento

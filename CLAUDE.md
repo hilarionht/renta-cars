@@ -12,12 +12,12 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 ## Trabajo en curso — RETOMAR ACÁ (2026-11-09)
 
-Tres PRs encadenados, en este orden de merge: #29 (`docs/close-pr28`, solo docs), #30 (`ci/api-image-smoke`, #157: `docker-validate` arranca la imagen, CI 6/6) y el de #158 (`fix/mfa-key-required`, que sale de `ci/api-image-smoke`: `MFA_SECRET_ENCRYPTION_KEY` obligatoria en `env.validation.ts`).
+Tanda #158, rama `fix/mfa-key-required`, PR #31 (aprobado): `MFA_SECRET_ENCRYPTION_KEY` obligatoria en `env.validation.ts`. Los PR #29 y #30 (#157) ya se mergearon el 2026-11-09.
 
-1. ~~#157: acción, workflows, docs, prueba negativa y CI 6/6 en el PR #30~~.
-2. ~~#158: schema, spec, smoke local con y sin clave, y docs~~.
-3. Push de `fix/mfa-key-required` y PR contra `ci/api-image-smoke`; CI 6/6 **← siguiente**.
-4. Al mergear los tres, volver esta sección a "No hay trabajo en curso".
+1. ~~#158: schema, spec, smoke local con y sin clave, y docs~~.
+2. ~~El `audit` del PR #31 falló por multer (GHSA-q7qp-rjg7-q26m): `@nestjs/platform-express` 11.2.9, audit gate local en verde y smoke del API~~.
+3. Push y CI 6/6 **← siguiente**. El push descarta la aprobación: hay que pedirla de nuevo.
+4. Al mergear, volver esta sección a "No hay trabajo en curso" y registrar los PR #30 y #31 en "Estado reciente".
 
 Estado al 2026-10-23. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145), primer e2e de la web (PR #15, #146) e ids v7 en el borde (PR #16, #147). El detalle de cada uno está en su decisión.
 
