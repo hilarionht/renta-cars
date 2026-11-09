@@ -2434,8 +2434,29 @@ Verificado con lint, typecheck y test de `web-admin` y `mobile` (Node 24.22.1) y
 
 **Gaps aceptados**:
 
-- `env.validation.ts` sigue marcando `MFA_SECRET_ENCRYPTION_KEY` como opcional. Corregirlo cambia el error de arranque, no el comportamiento, y queda para cuando se toque la configuración.
+- ~~`env.validation.ts` sigue marcando `MFA_SECRET_ENCRYPTION_KEY` como opcional~~: resuelto en #158.
 - El smoke no corre las migraciones.
+
+## #158 — `MFA_SECRET_ENCRYPTION_KEY` es obligatoria al arrancar
+
+**Contexto**: #111 la dejó opcional en `env.validation.ts` porque MFA es opt-in por usuario. Pero `Aes256GcmMfaSecretCipher` se construye siempre (`UsersModule` se compone en `apps/api`), así que sin la clave el API no arranca. #157 lo encontró. El usuario eligió cerrarlo el 2026-11-09.
+
+**Cambios**:
+
+- `env.validation.ts` exige la clave con el mismo formato que valida el cipher: hex de 32 bytes (`@Matches(/^[0-9a-f]{64}$/i)`). Si falta o es inválida, el arranque falla en la validación de configuración, con un mensaje que dice cómo generarla.
+- `validate()` ahora lista cada variable con el mensaje de su restricción. Antes solo mostraba el nombre de la restricción (por ejemplo `matches`), sin decir qué se esperaba. Esto cambia el texto del error para todas las variables, no qué se valida.
+- La validación del constructor del cipher se conserva como defensa para cualquier otro host que componga `UsersModule`.
+- Comentarios alineados en `mfa.config.ts`, el cipher, `.env.example` y la acción `api-image-smoke`.
+- `env.validation.spec.ts` (nuevo): la configuración mínima pasa; sin clave, o con una clave vacía, corta o no hex, falla con el mensaje.
+
+**Verificación**: `lint`, `typecheck` y `test` de `api` en verde. Sobre la instalación podada de #156, con el bundle nuevo y el entorno mínimo de #157:
+
+- con clave: `/health/ready` da 200;
+- sin clave: el proceso sale con `Configuracion invalida: - MFA_SECRET_ENCRYPTION_KEY: hex de 32 bytes (64 caracteres); generar con openssl rand -hex 32`.
+
+`platform-users-infrastructure:test` necesita testcontainers y corre solo en CI.
+
+**Hallazgo de entorno**: Memurai Developer se apaga solo a los 10 días de uptime (lo dice su log al arrancar). El servicio terminó el 2026-11-09 y reiniciarlo requiere una consola elevada. Quedó anotado en la guía del entorno local, §3.
 
 ## Qué NO se registra en este documento
 

@@ -86,7 +86,7 @@ Verificación:
 ```
 
 - Servicio de Windows: `Memurai`, con inicio automático. Para frenarlo: `Stop-Service Memurai`, elevado.
-- **Limitación de la edición Developer**: es gratis para desarrollo, pero tiene restricciones de uso prolongado (revisá los términos vigentes en memurai.com). Si el servicio se detiene solo, reinicialo con `Restart-Service Memurai`.
+- **Limitación de la edición Developer**: es gratis para desarrollo, pero **se apaga sola a los 10 días de uptime** (lo avisa su log al arrancar; pasó el 2026-11-09, #158). El síntoma es que el API cae y `/health/ready` deja de responder. Reinicialo elevado con `Restart-Service Memurai`. Sin consola elevada, se puede correr como proceso del usuario: `& "C:\Program Files\Memurai\memurai.exe" --port 6379 --bind 127.0.0.1` (vive mientras dure la sesión).
 
 ## 4. PostgreSQL 16
 
