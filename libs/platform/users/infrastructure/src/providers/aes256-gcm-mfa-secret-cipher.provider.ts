@@ -8,9 +8,9 @@ import type { MfaSecretCipher } from '@platform/users/application';
 // docs/persistence/10-DECISIONES.md #111. A diferencia de un gateway de pagos, una cipher
 // sin clave real no tiene un "modo fake" razonable (texto plano persistido es una
 // vulnerabilidad real, no una comodidad de desarrollo) - por eso este provider valida el
-// formato de la clave en su propio constructor y falla ahi mismo (fail-fast en la practica:
-// UsersModule siempre se compone en apps/api), en vez de depender de que env.validation.ts
-// la exija globalmente (MFA es opt-in por User, no un toggle obligatorio al boot).
+// formato de la clave en su propio constructor y falla ahi mismo. Desde #158 env.validation.ts
+// de apps/api tambien la exige al boot, con un mensaje claro; esta validacion queda como defensa
+// para cualquier otro host que componga UsersModule.
 const IV_LENGTH_BYTES = 12;
 
 @Injectable()

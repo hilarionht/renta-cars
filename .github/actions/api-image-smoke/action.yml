@@ -23,8 +23,7 @@ runs:
         openssl pkey -in "$dir/jwt.pem" -pubout -out "$dir/jwt.pub"
         one_line() { sed -z 's/\n$//; s/\n/\\n/g' "$1"; }
         # Base vacia sin migraciones, sin storage ni collector de OTel: el arranque y /health/ready
-        # solo necesitan Postgres y Redis. MFA_SECRET_ENCRYPTION_KEY es opcional en
-        # env.validation.ts, pero sin ella el API no arranca (#157).
+        # solo necesitan Postgres y Redis. MFA_SECRET_ENCRYPTION_KEY es obligatoria (#158).
         db=postgresql://postgres:postgres@localhost:5432/postgres
         docker run -d --name api-smoke --network host \
           -e NODE_ENV=production -e PORT=3000 \
