@@ -2388,8 +2388,54 @@ Verificado con lint, typecheck y test de `web-admin` y `mobile` (Node 24.22.1) y
 - `tslib` llega como transitiva hoisteada. Con el lock fijo resuelve siempre igual, y el script falla si deja de resolver.
 - `@node-rs/argon2-*` no declara `libc` en el lock: en alpine se instalan los binarios gnu y musl, y argon2 carga el de musl.
 - Un paquete nuevo que se cargue por nombre hay que agregarlo al npm script. El chequeo de `require` no lo ve.
-- `docker-validate` sigue sin arrancar la imagen. Un arranque real necesita Postgres y Redis en ese job.
+- ~~`docker-validate` sigue sin arrancar la imagen~~: resuelto en #157.
 - Si Nx corrige el podador, se puede volver a su lockfile.
+
+## #157 — `docker-validate` arranca la imagen del API
+
+**Contexto**: `docker-validate` solo construía la imagen. La imagen publicada pasó tiempo sin arrancar porque le faltaba `pino-opentelemetry-transport`, y recién lo encontró un smoke manual en #156, donde quedó como gap. El usuario eligió cerrarlo el 2026-11-07.
+
+**Cambios**:
+
+- **`.github/actions/api-image-smoke/action.yml`** (composite action):
+  - arranca la imagen con `--network host` contra el Postgres y el Redis de los `services` del job;
+  - exige que `/health/ready` dé 200 en menos de 90 s;
+  - 10 s después exige que el contenedor siga corriendo y que `/health/live` dé 200, para atrapar un worker que tire el proceso después del arranque;
+  - si falla, muestra `docker logs`.
+
+  Las claves JWT y MFA se generan con `openssl` en cada corrida: no son secretos ni se reutilizan.
+
+- **Job `docker-validate`** en `pr.yml` y `main.yml`:
+  - `services` `postgres:16-alpine` y `redis:7-alpine`, las mismas imágenes que `docker-compose.yml`;
+  - el build agrega `load: true` y el tag `renta-api:ci`, siempre sin push;
+  - después del build corre la acción.
+
+  `publish-image-api` sigue dependiendo de `docker-validate`, así que ya no se publica una imagen que no arranca.
+
+- Se eligió una composite action y no un workflow reutilizable: el job tiene que seguir llamándose `docker-validate`, que es el check obligatorio de `master`. Un workflow reutilizable lo renombraría.
+
+**Qué prueba y qué no**:
+
+- Prueba que la imagen instala lo necesario, que la configuración valida y que el API arranca y se conecta a Postgres y Redis.
+- No prueba:
+  - migraciones (la base está vacía);
+  - storage real: `STORAGE_ENDPOINT` apunta a un puerto muerto y el arranque no lo contacta;
+  - el envío a OTel: no hay collector, y el transport no bloquea el arranque.
+
+  Esos caminos los cubren `api-e2e` y los e2e de la web.
+
+**Hallazgo**: `MFA_SECRET_ENCRYPTION_KEY` es opcional en `env.validation.ts`, pero el API no arranca sin ella: `Aes256GcmMfaSecretCipher` la exige al construirse. Lo encontró el smoke local con el mismo entorno mínimo.
+
+**Verificación**:
+
+- Local, sin Docker, con Node 24.22.1 sobre la instalación podada de #156 y el mismo entorno mínimo (base vacía, sin storage ni collector): `/health/ready` da 200. Sin `MFA_SECRET_ENCRYPTION_KEY`, el arranque falla.
+- El paso de las claves a una línea se probó desde un archivo: la firma RS256 se verifica después de des-escaparla como lo hace `jwt.config.ts`.
+- CI, prueba negativa (PR #30, commit temporal sin `MFA_SECRET_ENCRYPTION_KEY`, después revertido): `docker-validate` falló con "el contenedor termino durante el arranque" y `docker logs` mostró el error de la clave.
+
+**Gaps aceptados**:
+
+- `env.validation.ts` sigue marcando `MFA_SECRET_ENCRYPTION_KEY` como opcional. Corregirlo cambia el error de arranque, no el comportamiento, y queda para cuando se toque la configuración.
+- El smoke no corre las migraciones.
 
 ## Qué NO se registra en este documento
 
