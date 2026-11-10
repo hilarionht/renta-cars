@@ -8,16 +8,11 @@ Monorepo Nx (NestJS + Prisma/Postgres + Next.js + React Native/Expo) para una pl
 
 **El documento más importante para continuar es [`docs/persistence/10-DECISIONES.md`](docs/persistence/10-DECISIONES.md)** — el log cronológico de cada decisión de diseño tomada durante el desarrollo, numerado (`#1` a `#158` al momento de escribir esto), con el razonamiento de cada una y los gaps aceptados explícitamente. Leé al menos las últimas 10-15 entradas antes de proponer cualquier cambio nuevo — evita repetir investigación ya hecha o pisar una decisión ya tomada a propósito.
 
-## Estado reciente (2026-11-07)
+## Estado reciente (2026-11-09)
 
-## Trabajo en curso — RETOMAR ACÁ (2026-11-09)
+## Trabajo en curso
 
-Tanda #158, rama `fix/mfa-key-required`, PR #31 (aprobado): `MFA_SECRET_ENCRYPTION_KEY` obligatoria en `env.validation.ts`. Los PR #29 y #30 (#157) ya se mergearon el 2026-11-09.
-
-1. ~~#158: schema, spec, smoke local con y sin clave, y docs~~.
-2. ~~El `audit` del PR #31 falló por multer (GHSA-q7qp-rjg7-q26m): `@nestjs/platform-express` 11.2.9, audit gate local en verde y smoke del API~~.
-3. Push y CI 6/6 **← siguiente**. El push descarta la aprobación: hay que pedirla de nuevo.
-4. Al mergear, volver esta sección a "No hay trabajo en curso" y registrar los PR #30 y #31 en "Estado reciente".
+No hay trabajo en curso (2026-11-09).
 
 Estado al 2026-10-23. Mergeados: Incrementos 4 y 5 (PR #8 y #9), reserva y ocupación atómicas (PR #10, #141), actor desde el token (PR #11, #142), RustFS en el CI (PR #12, #143), check `e2e` real (PR #13, #144), recordatorio "al menos una vez" (PR #14, #145), primer e2e de la web (PR #15, #146) e ids v7 en el borde (PR #16, #147). El detalle de cada uno está en su decisión.
 
@@ -32,6 +27,8 @@ Mergeado también: más recorridos e2e de la web (PR #26, #154): reprogramar, ex
 Mergeado también: e2e del resto de la web (#155): cancelar, no presentado, cambiar vehículo, daño leve, fuera de servicio, sucursal, rol propio y categoría con tarifa.
 
 Mergeado también: imagen del API con `npm ci` (PR #28, #156). Instala exactamente el lock raíz con un lockfile podado (`npm run build:api-runtime-lockfile`) y corrige dos dependencias de runtime que faltaban: `pino-opentelemetry-transport` (sin él, la imagen publicada no arrancaba) y `dotenv`. En el mismo PR: zod 4.6.7 y `@expo/cli` 57.0.33, por GHSA-mrhx-c7xc-m3w5.
+
+Mergeado también: `docker-validate` arranca la imagen del API y exige `/health/ready` y `/health/live` (PR #30, #157), y `MFA_SECRET_ENCRYPTION_KEY` obligatoria al arrancar, con `@nestjs/platform-express` 11.2.9 por la advisory de multer GHSA-q7qp-rjg7-q26m (PR #31, #158). Memurai Developer se apaga solo a los 10 días de uptime (guía del entorno §3).
 
 Pendiente del usuario: validación visual de Clientes y de Flota (la web queda en el 4200 mientras dure la sesión).
 
